@@ -1,0 +1,682 @@
+// Liste des ouvriers par défaut
+const defaultWorkers = [
+    { id: 1, firstName: "Yann", lastName: "Moinard" },
+    { id: 2, firstName: "Nathan", lastName: "Domain" },
+    { id: 3, firstName: "Pierre", lastName: "Canals" },
+    { id: 4, firstName: "Morgan", lastName: "Robin" },
+    { id: 5, firstName: "Stéphane", lastName: "Bolantin" },
+    { id: 6, firstName: "Alexandre", lastName: "Heugues" },
+    { id: 7, firstName: "Arnaud", lastName: "Fleury" },
+    { id: 8, firstName: "Loïc", lastName: "Hérault" },
+    { id: 9, firstName: "Olivier", lastName: "Simmonet" },
+    { id: 10, firstName: "Romain", lastName: "Pedeneau" },
+    { id: 11, firstName: "Noa", lastName: "Flosseau" },
+    { id: 12, firstName: "Anthony", lastName: "Baudry" },
+];
+
+// État de l'application
+let state = {
+    availableWorkers: [...defaultWorkers].sort((a, b) => a.lastName.localeCompare(b.lastName)), // Liste complète des ouvriers
+    activeWorkers: [], // Ouvriers ajoutés au rapport
+    nextWorkerId: 13,
+    foremanId: null, // Chef de chantier
+    weekNumber: null,
+    weekStart: null,
+    weekEnd: null,
+    data: {}, // { workerId: { sites: [{ siteName, hours: { monday, tuesday, ... } }] } }
+    drivers: { // Qui conduit chaque jour (par défaut le chef de chantier)
+        monday: null,
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null
+    },
+    observations: '', // Commentaires de la semaine
+    isPrevisionnel: false // Mode prévisionnel activé/désactivé
+};
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', function() {
+    initializeWeek();
+    initializeWorkers();
+    setupEventListeners();
+    renderAll();
+});
+
+// Initialiser la semaine courante
+function initializeWeek() {
+    const today = new Date();
+    const weekInput = document.getElementById('weekSelector');
+    
+    // Obtenir la semaine courante au format YYYY-Www
+    const year = today.getFullYear();
+    const weekNumber = getWeekNumber(today);
+    weekInput.value = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+    
+    updateWeekDisplay();
+}
+
+// Obtenir le numéro de semaine ISO
+function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// Mettre à jour l'affichage de la semaine
+function updateWeekDisplay() {
+    const weekInput = document.getElementById('weekSelector');
+    const weekValue = weekInput.value;
+    
+    if (!weekValue) return;
+    
+    const [year, week] = weekValue.split('-W');
+    state.weekNumber = weekValue;
+    
+    // Calculer le lundi et vendredi de la semaine
+    const monday = getDateOfISOWeek(parseInt(week), parseInt(year));
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    
+    state.weekStart = monday;
+    state.weekEnd = friday;
+    
+    const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+    const mondayStr = monday.toLocaleDateString('fr-FR', options);
+    const fridayStr = friday.toLocaleDateString('fr-FR', options);
+    
+    document.getElementById('weekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
+    document.getElementById('printWeekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
+}
+
+// Obtenir la date du lundi d'une semaine ISO
+function getDateOfISOWeek(week, year) {
+    const simple = new Date(year, 0, 1 + (week - 1) * 7);
+    const dow = simple.getDay();
+    const ISOweekStart = simple;
+    if (dow <= 4)
+        ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+    else
+        ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+    return ISOweekStart;
+}
+
+// Initialiser les ouvriers
+function initializeWorkers() {
+    // Ne rien faire par défaut, les ouvriers seront ajoutés manuellement
+    updateForemanSelector();
+}
+
+// Créer un chantier vide avec heures pré-remplies à 7.5
+function createEmptySite() {
+    return {
+        siteName: '',
+        hours: {
+            monday: 7.5,
+            tuesday: 7.5,
+            wednesday: 7.5,
+            thursday: 7.5,
+            friday: 7.5
+        }
+    };
+}
+
+// Configuration des écouteurs d'événements
+function setupEventListeners() {
+    document.getElementById('weekSelector').addEventListener('change', updateWeekDisplay);
+    document.getElementById('foremanSelector').addEventListener('change', function() {
+        state.foremanId = parseInt(this.value) || null;
+        // Ajouter automatiquement le chef de chantier aux ouvriers actifs
+        if (state.foremanId) {
+            addWorkerToActive(state.foremanId);
+        }
+        // Réinitialiser les conducteurs au chef de chantier
+        resetDriversToForeman();
+        updatePrintForeman();
+        renderAll();
+    });
+    
+    document.getElementById('addWorkerForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        addWorker();
+    });
+    
+    // Gestion des observations
+    document.getElementById('observations').addEventListener('input', function() {
+        state.observations = this.value;
+        updateObservationsPrint();
+    });
+    
+    // Mettre à jour les observations pour l'impression avant d'imprimer
+    window.addEventListener('beforeprint', function() {
+        updateObservationsPrint();
+    });
+}
+
+// Mettre à jour le sélecteur de chef de chantier
+function updateForemanSelector() {
+    const select = document.getElementById('foremanSelector');
+    const currentValue = select.value;
+    
+    select.innerHTML = '<option value="">Sélectionner...</option>';
+    
+    state.availableWorkers.forEach(worker => {
+        const option = document.createElement('option');
+        option.value = worker.id;
+        option.textContent = `${worker.lastName} ${worker.firstName}`;
+        select.appendChild(option);
+    });
+    
+    if (currentValue) {
+        select.value = currentValue;
+    }
+}
+
+// Réinitialiser les conducteurs au chef de chantier
+function resetDriversToForeman() {
+    if (state.foremanId) {
+        state.drivers = {
+            monday: state.foremanId,
+            tuesday: state.foremanId,
+            wednesday: state.foremanId,
+            thursday: state.foremanId,
+            friday: state.foremanId
+        };
+    }
+}
+
+// Mettre à jour l'affichage du chef de chantier pour l'impression
+function updatePrintForeman() {
+    const foremanDisplay = document.getElementById('printForemanDisplay');
+    if (state.foremanId) {
+        const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
+        if (foreman) {
+            foremanDisplay.textContent = `${foreman.lastName} ${foreman.firstName}`;
+        }
+    } else {
+        foremanDisplay.textContent = 'Non défini';
+    }
+}
+
+// Mettre à jour le conducteur d'un jour
+function updateDriver(day, workerId) {
+    state.drivers[day] = parseInt(workerId) || state.foremanId;
+    renderAll();
+}
+
+// Mettre à jour les observations pour l'impression
+function updateObservationsPrint() {
+    const observationsText = document.getElementById('observations').value;
+    const observationsPrint = document.getElementById('observationsPrint');
+    const observationsContainer = document.getElementById('observationsContainer');
+    
+    if (observationsText.trim()) {
+        observationsPrint.textContent = observationsText;
+        observationsPrint.classList.remove('hidden');
+        document.getElementById('observations').classList.add('print:hidden');
+        observationsContainer.classList.remove('print:hidden');
+    } else {
+        observationsPrint.classList.add('hidden');
+        document.getElementById('observations').classList.remove('print:hidden');
+        observationsContainer.classList.add('print:hidden');
+    }
+}
+
+// Afficher le modal d'ajout d'ouvrier
+function showAddWorkerModal() {
+    updateWorkerSelectOptions();
+    switchTab('existing'); // Par défaut sur l'onglet sélection
+    document.getElementById('addWorkerModal').classList.remove('hidden');
+    document.getElementById('workerSelect').focus();
+}
+
+// Changer d'onglet dans le modal
+function switchTab(tab) {
+    const tabExisting = document.getElementById('tabExisting');
+    const tabNew = document.getElementById('tabNew');
+    const existingSection = document.getElementById('existingWorkerSection');
+    const newSection = document.getElementById('newWorkerSection');
+    
+    if (tab === 'existing') {
+        // Activer l'onglet sélection
+        tabExisting.classList.add('border-blue-600', 'text-blue-600');
+        tabExisting.classList.remove('border-transparent', 'text-gray-500');
+        tabNew.classList.remove('border-blue-600', 'text-blue-600');
+        tabNew.classList.add('border-transparent', 'text-gray-500');
+        
+        existingSection.classList.remove('hidden');
+        newSection.classList.add('hidden');
+        
+        // Vider les champs de création
+        document.getElementById('newWorkerFirstName').value = '';
+        document.getElementById('newWorkerLastName').value = '';
+    } else {
+        // Activer l'onglet création
+        tabNew.classList.add('border-blue-600', 'text-blue-600');
+        tabNew.classList.remove('border-transparent', 'text-gray-500');
+        tabExisting.classList.remove('border-blue-600', 'text-blue-600');
+        tabExisting.classList.add('border-transparent', 'text-gray-500');
+        
+        newSection.classList.remove('hidden');
+        existingSection.classList.add('hidden');
+        
+        // Réinitialiser la sélection
+        document.getElementById('workerSelect').value = '';
+        
+        // Focus sur le prénom
+        setTimeout(() => document.getElementById('newWorkerFirstName').focus(), 100);
+    }
+}
+
+// Mettre à jour les options du sélecteur d'ouvrier
+function updateWorkerSelectOptions() {
+    const select = document.getElementById('workerSelect');
+    select.innerHTML = '<option value="">Choisir...</option>';
+    
+    // Filtrer les ouvriers qui ne sont pas déjà actifs
+    const availableToAdd = state.availableWorkers.filter(w => 
+        !state.activeWorkers.find(aw => aw.id === w.id)
+    );
+    
+    availableToAdd.forEach(worker => {
+        const option = document.createElement('option');
+        option.value = worker.id;
+        option.textContent = `${worker.lastName} ${worker.firstName}`;
+        select.appendChild(option);
+    });
+}
+
+// Masquer le modal d'ajout d'ouvrier
+function hideAddWorkerModal() {
+    document.getElementById('addWorkerModal').classList.add('hidden');
+    document.getElementById('addWorkerForm').reset();
+}
+
+// Ajouter un ouvrier au rapport
+function addWorker() {
+    const existingSection = document.getElementById('existingWorkerSection');
+    const isExistingTab = !existingSection.classList.contains('hidden');
+    
+    if (isExistingTab) {
+        // Ajouter un ouvrier existant
+        const workerId = parseInt(document.getElementById('workerSelect').value);
+        
+        if (!workerId) {
+            alert('Veuillez sélectionner un ouvrier');
+            return;
+        }
+        
+        addWorkerToActive(workerId);
+    } else {
+        // Créer un nouvel ouvrier
+        const firstName = document.getElementById('newWorkerFirstName').value.trim();
+        const lastName = document.getElementById('newWorkerLastName').value.trim();
+        
+        if (!firstName || !lastName) {
+            alert('Veuillez remplir le prénom et le nom');
+            return;
+        }
+        
+        // Créer le nouvel ouvrier
+        const newWorker = {
+            id: state.nextWorkerId++,
+            firstName: firstName,
+            lastName: lastName
+        };
+        
+        // Ajouter à la liste disponible
+        state.availableWorkers.push(newWorker);
+        state.availableWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
+        
+        // Mettre à jour le sélecteur de chef de chantier
+        updateForemanSelector();
+        
+        // Ajouter directement au rapport
+        addWorkerToActive(newWorker.id);
+    }
+    
+    hideAddWorkerModal();
+}
+
+// Ajouter un ouvrier à la liste active
+function addWorkerToActive(workerId) {
+    const worker = state.availableWorkers.find(w => w.id === workerId);
+    
+    if (!worker) return;
+    
+    // Vérifier si l'ouvrier n'est pas déjà actif
+    if (state.activeWorkers.find(w => w.id === workerId)) return;
+    
+    // Ajouter l'ouvrier aux actifs
+    state.activeWorkers.push(worker);
+    
+    // Initialiser ses données
+    if (!state.data[workerId]) {
+        state.data[workerId] = {
+            sites: [createEmptySite()]
+        };
+    }
+    
+    // Trier les ouvriers actifs par nom de famille
+    state.activeWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
+    
+    renderAll();
+}
+
+// Retirer un ouvrier de la liste active
+function removeWorkerFromActive(workerId) {
+    const worker = state.availableWorkers.find(w => w.id === workerId);
+    
+    if (!worker) return;
+    
+    // Demander confirmation
+    if (!confirm(`Retirer ${worker.lastName} ${worker.firstName} du rapport ?`)) {
+        return;
+    }
+    
+    // Retirer l'ouvrier des actifs
+    state.activeWorkers = state.activeWorkers.filter(w => w.id !== workerId);
+    
+    // Si c'était le chef de chantier, le désélectionner
+    if (state.foremanId === workerId) {
+        state.foremanId = null;
+        document.getElementById('foremanSelector').value = '';
+    }
+    
+    // Retirer des conducteurs
+    Object.keys(state.drivers).forEach(day => {
+        if (state.drivers[day] === workerId) {
+            state.drivers[day] = state.foremanId;
+        }
+    });
+    
+    renderAll();
+}
+
+// Ajouter un chantier à un ouvrier
+function addSiteToWorker(workerId) {
+    if (!state.data[workerId]) {
+        state.data[workerId] = { sites: [] };
+    }
+    state.data[workerId].sites.push(createEmptySite());
+    renderWorkerCards();
+    setTimeout(() => lucide.createIcons(), 0);
+}
+
+// Supprimer un chantier d'un ouvrier
+function removeSiteFromWorker(workerId, siteIndex) {
+    if (state.data[workerId] && state.data[workerId].sites.length > 1) {
+        state.data[workerId].sites.splice(siteIndex, 1);
+        renderAll();
+    }
+}
+
+// Mettre à jour le nom d'un chantier
+function updateSiteName(workerId, siteIndex, siteName) {
+    if (state.data[workerId] && state.data[workerId].sites[siteIndex]) {
+        state.data[workerId].sites[siteIndex].siteName = siteName;
+        calculateAndRenderTotals();
+    }
+}
+
+// Mettre à jour les heures
+function updateHours(workerId, siteIndex, day, hours) {
+    if (state.data[workerId] && state.data[workerId].sites[siteIndex]) {
+        state.data[workerId].sites[siteIndex].hours[day] = parseFloat(hours) || 0;
+        calculateAndRenderTotals();
+    }
+}
+
+// Calculer le total d'un chantier
+function calculateSiteTotal(site) {
+    return Object.values(site.hours).reduce((sum, h) => sum + h, 0);
+}
+
+// Calculer le total d'un ouvrier
+function calculateWorkerTotal(workerId) {
+    if (!state.data[workerId]) return 0;
+    return state.data[workerId].sites.reduce((sum, site) => sum + calculateSiteTotal(site), 0);
+}
+
+// Calculer le total général
+function calculateGrandTotal() {
+    return state.activeWorkers.reduce((sum, worker) => sum + calculateWorkerTotal(worker.id), 0);
+}
+
+// Calculer les totaux par chantier
+function calculateSiteTotals() {
+    const siteTotals = {};
+    
+    state.activeWorkers.forEach(worker => {
+        if (state.data[worker.id]) {
+            state.data[worker.id].sites.forEach(site => {
+                if (site.siteName.trim()) {
+                    if (!siteTotals[site.siteName]) {
+                        siteTotals[site.siteName] = 0;
+                    }
+                    siteTotals[site.siteName] += calculateSiteTotal(site);
+                }
+            });
+        }
+    });
+    
+    return siteTotals;
+}
+
+// Rendre tout
+function renderAll() {
+    renderDriverSelection();
+    renderWorkerCards();
+    calculateAndRenderTotals();
+}
+
+// Rendre la ligne de sélection du conducteur
+function renderDriverSelection() {
+    const container = document.getElementById('driverSelectionRow');
+    container.innerHTML = '';
+    
+    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach((day, index) => {
+        const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+        const currentDriver = state.drivers[day] || state.foremanId;
+        
+        const dayDiv = document.createElement('div');
+        dayDiv.innerHTML = `
+            <label class="block text-sm font-bold text-orange-800 mb-2">${dayNames[index]}</label>
+            <select 
+                onchange="updateDriver('${day}', this.value)"
+                class="w-full px-4 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-medium text-gray-800 shadow-sm"
+            >
+                ${state.activeWorkers.map(w => {
+                    const selected = currentDriver === w.id ? 'selected' : '';
+                    return `<option value="${w.id}" ${selected}>${w.lastName} ${w.firstName}</option>`;
+                }).join('')}
+            </select>
+        `;
+        container.appendChild(dayDiv);
+    });
+}
+
+// Rendre les cartes des ouvriers
+function renderWorkerCards() {
+    const container = document.getElementById('workersContainer');
+    container.innerHTML = '';
+    
+    state.activeWorkers.forEach(worker => {
+        const card = createWorkerCard(worker);
+        container.appendChild(card);
+    });
+    
+    setTimeout(() => lucide.createIcons(), 0);
+}
+
+// Créer une carte d'ouvrier
+function createWorkerCard(worker) {
+    const workerData = state.data[worker.id] || { sites: [createEmptySite()] };
+    const isForeman = state.foremanId === worker.id;
+    
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-lg shadow-md p-6';
+    
+    let html = `
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold text-gray-800 flex items-center space-x-2">
+                <span>${worker.lastName} ${worker.firstName}</span>
+                ${isForeman ? '<span class="ml-2 px-3 py-1 bg-green-600 text-white text-sm rounded-full">Chef de chantier</span>' : ''}
+            </h3>
+            <div class="flex items-center space-x-3">
+                <div class="text-lg font-semibold text-blue-600">
+                    Total: <span id="workerTotal-${worker.id}">${calculateWorkerTotal(worker.id).toFixed(1)}h</span>
+                </div>
+                <button 
+                    onclick="removeWorkerFromActive(${worker.id})"
+                    class="no-print p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                    title="Retirer cet ouvrier du rapport"
+                >
+                    <i data-lucide="trash-2" style="width: 20px; height: 20px;"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Afficher chaque chantier
+    workerData.sites.forEach((site, siteIndex) => {
+        const siteTotal = calculateSiteTotal(site);
+        
+        html += `
+            <div class="mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200 site-card">
+                <div class="flex items-start justify-between site-header-wrapper">
+                    <div class="site-name" style="flex: 0 0 150px; padding-top: 20px;">
+                        <input 
+                            type="text" 
+                            value="${site.siteName}" 
+                            placeholder="Nom du chantier"
+                            onchange="updateSiteName(${worker.id}, ${siteIndex}, this.value)"
+                            class="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
+                        >
+                    </div>
+                    ${workerData.sites.length > 1 ? `
+                        <button 
+                            onclick="removeSiteFromWorker(${worker.id}, ${siteIndex})"
+                            class="ml-2 p-1 text-red-600 hover:bg-red-50 rounded-lg no-print site-delete-btn" style="margin-top: 20px;"
+                            title="Supprimer ce chantier"
+                        >
+                            <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+                        </button>
+                    ` : ''}
+                </div>
+                <div class="flex-1 grid grid-cols-5 gap-1 site-days-grid">
+                    ${['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map((day, index) => {
+                        const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+                        return `
+                            <div class="text-center">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">${dayNames[index]}</label>
+                                <input 
+                                    type="number" 
+                                    value="${site.hours[day]}" 
+                                    min="0" 
+                                    max="24" 
+                                    step="0.5"
+                                    onchange="updateHours(${worker.id}, ${siteIndex}, '${day}', this.value)"
+                                    class="w-full px-1 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                                >
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="no-print text-right text-sm font-semibold text-gray-700 mt-1">
+                    Total chantier: ${siteTotal.toFixed(1)}h
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        <button 
+            onclick="addSiteToWorker(${worker.id})"
+            class="flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-medium no-print"
+        >
+            <i data-lucide="plus-circle" style="width: 20px; height: 20px;"></i>
+            <span>Ajouter un chantier</span>
+        </button>
+    `;
+    
+    card.innerHTML = html;
+    return card;
+}
+
+// Calculer et afficher les totaux
+function calculateAndRenderTotals() {
+    // Mettre à jour les totaux individuels des ouvriers
+    state.activeWorkers.forEach(worker => {
+        const totalElement = document.getElementById(`workerTotal-${worker.id}`);
+        if (totalElement) {
+            totalElement.textContent = `${calculateWorkerTotal(worker.id).toFixed(1)}h`;
+        }
+    });
+    
+    // Tableau des totaux par ouvrier
+    const workerTotalTable = document.getElementById('workerTotalTable');
+    workerTotalTable.innerHTML = '';
+    
+    state.activeWorkers.forEach(worker => {
+        const total = calculateWorkerTotal(worker.id);
+        if (total > 0) {
+            const row = document.createElement('tr');
+            row.className = 'border-b border-gray-200 hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="px-4 py-3 text-left">${worker.lastName} ${worker.firstName}</td>
+                <td class="px-4 py-3 text-right font-semibold">${total.toFixed(1)}h</td>
+            `;
+            workerTotalTable.appendChild(row);
+        }
+    });
+    
+    if (workerTotalTable.children.length === 0) {
+        workerTotalTable.innerHTML = '<tr><td colspan="2" class="px-4 py-4 text-center text-gray-500">Aucune donnée</td></tr>';
+    }
+    
+    // Tableau des totaux par chantier
+    const siteTotalTable = document.getElementById('siteTotalTable');
+    siteTotalTable.innerHTML = '';
+    
+    const siteTotals = calculateSiteTotals();
+    const sortedSites = Object.entries(siteTotals).sort((a, b) => b[1] - a[1]);
+    
+    sortedSites.forEach(([siteName, total]) => {
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-200 hover:bg-gray-50';
+        row.innerHTML = `
+            <td class="px-4 py-3 text-left">${siteName}</td>
+            <td class="px-4 py-3 text-right font-semibold">${total.toFixed(1)}h</td>
+        `;
+        siteTotalTable.appendChild(row);
+    });
+    
+    if (siteTotalTable.children.length === 0) {
+        siteTotalTable.innerHTML = '<tr><td colspan="2" class="px-4 py-4 text-center text-gray-500">Aucune donnée</td></tr>';
+    }
+    
+    // Total général
+    const grandTotal = calculateGrandTotal();
+    document.getElementById('grandTotal').textContent = `${grandTotal.toFixed(1)}h`;
+    document.getElementById('grandTotalSites').textContent = `${grandTotal.toFixed(1)}h`;
+}
+
+// Activer/Désactiver le mode prévisionnel
+function togglePrevisionnel() {
+    state.isPrevisionnel = !state.isPrevisionnel;
+    const watermark = document.getElementById('previsionnelWatermark');
+    const btn = document.getElementById('previsionnelBtn');
+    
+    if (state.isPrevisionnel) {
+        watermark.classList.add('active');
+        btn.classList.remove('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+        btn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600');
+    } else {
+        watermark.classList.remove('active');
+        btn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
+        btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+    }
+}
