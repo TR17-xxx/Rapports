@@ -12,6 +12,7 @@ const defaultWorkers = [
     { id: 10, firstName: "Romain", lastName: "Pedeneau" },
     { id: 11, firstName: "Noa", lastName: "Flosseau" },
     { id: 12, firstName: "Anthony", lastName: "Baudry" },
+    { id: 13, firstName: "Jean-Claude", lastName: "Lamberton" },
 ];
 
 // État de l'application
@@ -109,16 +110,17 @@ function initializeWorkers() {
     updateForemanSelector();
 }
 
-// Créer un chantier vide avec heures pré-remplies à 7.5
-function createEmptySite() {
+// Créer un chantier vide avec heures pré-remplies à 7.5 (premier) ou 0 (suivants)
+function createEmptySite(isFirstSite = true) {
+    const defaultValue = isFirstSite ? 7.5 : 0;
     return {
         siteName: '',
         hours: {
-            monday: 7.5,
-            tuesday: 7.5,
-            wednesday: 7.5,
-            thursday: 7.5,
-            friday: 7.5
+            monday: defaultValue,
+            tuesday: defaultValue,
+            wednesday: defaultValue,
+            thursday: defaultValue,
+            friday: defaultValue
         }
     };
 }
@@ -152,6 +154,7 @@ function setupEventListeners() {
     // Mettre à jour les observations pour l'impression avant d'imprimer
     window.addEventListener('beforeprint', function() {
         updateObservationsPrint();
+        generatePrintSheet();
     });
 }
 
@@ -400,7 +403,9 @@ function addSiteToWorker(workerId) {
     if (!state.data[workerId]) {
         state.data[workerId] = { sites: [] };
     }
-    state.data[workerId].sites.push(createEmptySite());
+    // Le premier chantier a des valeurs à 7.5, les suivants à 0
+    const isFirstSite = state.data[workerId].sites.length === 0;
+    state.data[workerId].sites.push(createEmptySite(isFirstSite));
     renderWorkerCards();
     setTimeout(() => lucide.createIcons(), 0);
 }
@@ -424,7 +429,17 @@ function updateSiteName(workerId, siteIndex, siteName) {
 // Mettre à jour les heures
 function updateHours(workerId, siteIndex, day, hours) {
     if (state.data[workerId] && state.data[workerId].sites[siteIndex]) {
-        state.data[workerId].sites[siteIndex].hours[day] = parseFloat(hours) || 0;
+        const newValue = parseFloat(hours) || 0;
+        state.data[workerId].sites[siteIndex].hours[day] = newValue;
+        
+        // Si la valeur est > 7 sur un chantier autre que le premier, mettre le premier chantier à 0 pour ce jour
+        if (newValue > 7 && siteIndex > 0 && state.data[workerId].sites.length > 1) {
+            state.data[workerId].sites[0].hours[day] = 0;
+            // Re-render pour afficher les changements
+            renderWorkerCards();
+            setTimeout(() => lucide.createIcons(), 0);
+        }
+        
         calculateAndRenderTotals();
     }
 }
@@ -664,6 +679,39 @@ function calculateAndRenderTotals() {
     document.getElementById('grandTotalSites').textContent = `${grandTotal.toFixed(1)}h`;
 }
 
+// Fonction pour lancer l'impression (optimisée pour mobile)
+function printReport() {
+    try {
+        // Vérifier qu'il y a des ouvriers actifs
+        if (state.activeWorkers.length === 0) {
+            alert('Veuillez ajouter au moins un ouvrier avant d\'imprimer.');
+            return;
+        }
+        
+        // Générer la fiche d'impression
+        if (typeof generatePrintSheet === 'function') {
+            generatePrintSheet();
+        }
+        
+        if (typeof updateObservationsPrint === 'function') {
+            updateObservationsPrint();
+        }
+        
+        // Délai plus long pour mobile (300ms) pour s'assurer que le DOM est mis à jour
+        setTimeout(function() {
+            try {
+                window.print();
+            } catch (e) {
+                console.error('Erreur lors de l\'impression:', e);
+                alert('Impossible d\'ouvrir la fenêtre d\'impression. Veuillez réessayer.');
+            }
+        }, 300);
+    } catch (error) {
+        console.error('Erreur dans printReport:', error);
+        alert('Une erreur est survenue. Veuillez recharger la page et réessayer.');
+    }
+}
+
 // Activer/Désactiver le mode prévisionnel
 function togglePrevisionnel() {
     state.isPrevisionnel = !state.isPrevisionnel;
@@ -679,4 +727,206 @@ function togglePrevisionnel() {
         btn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
         btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
     }
+}
+
+// Générer la fiche de pointage pour l'impression
+function generatePrintSheet() {
+    const printSheet = document.getElementById('printSheet');
+    if (!printSheet) return;
+    
+    // Récupérer les informations
+    const weekDisplay = document.getElementById('weekDisplay').textContent;
+    const foremanDisplay = document.getElementById('printForemanDisplay').textContent;
+    const weekNumber = state.weekNumber ? state.weekNumber.split('-W')[1] : '';
+    const observations = document.getElementById('observations').value;
+    
+    // Générer une fiche par ouvrier
+    let html = '';
+    
+    state.activeWorkers.forEach((worker, workerIndex) => {
+        if (workerIndex > 0) {
+            html += '<div class="print-break"></div>';
+        }
+        
+        const workerData = state.data[worker.id] || { sites: [] };
+        const workerTotal = calculateWorkerTotal(worker.id);
+        
+        html += `
+        <div class="print-sheet">
+            <!-- En-tête -->
+            <div class="print-header">
+                <div>
+                    <div class="semaine">Semaine</div>
+                    <div class="semaine">${weekNumber}</div>
+                </div>
+                <div>
+                    <div class="title">FICHE DE POINTAGE HEBDOMADAIRE</div>
+                    <div class="dates">${weekDisplay}</div>
+                </div>
+                <div>
+                    <div class="nom-label">NOM:</div>
+                    <div class="nom-value">${worker.lastName} ${worker.firstName}</div>
+                </div>
+            </div>
+            
+            <!-- Tableau principal -->
+            <table class="print-table">
+                <thead>
+                    <tr>
+                        <th class="chantier-col">CHANTIER</th>
+                        <th class="day-col">LUNDI</th>
+                        <th class="day-col">MARDI</th>
+                        <th class="day-col">MERCREDI</th>
+                        <th class="day-col">JEUDI</th>
+                        <th class="day-col">VENDREDI</th>
+                        <th class="day-col">SAMEDI</th>
+                        <th class="total-col">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        // Ajouter les chantiers de l'ouvrier
+        workerData.sites.forEach(site => {
+            const siteTotal = calculateSiteTotal(site);
+            const siteName = site.siteName || '';
+            
+            html += `
+                    <tr>
+                        <td class="chantier-col">${siteName}</td>
+                        <td>${site.hours.monday || ''}</td>
+                        <td>${site.hours.tuesday || ''}</td>
+                        <td>${site.hours.wednesday || ''}</td>
+                        <td>${site.hours.thursday || ''}</td>
+                        <td>${site.hours.friday || ''}</td>
+                        <td></td>
+                        <td class="total-col">${siteTotal > 0 ? siteTotal.toFixed(1) : ''}</td>
+                    </tr>
+            `;
+        });
+        
+        // Ajouter des lignes vides pour remplir
+        const emptyRows = Math.max(0, 5 - workerData.sites.length);
+        for (let i = 0; i < emptyRows; i++) {
+            html += `
+                    <tr class="empty-row">
+                        <td class="chantier-col"></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td class="total-col"></td>
+                    </tr>
+            `;
+        }
+        
+        // Ligne de total
+        html += `
+                    <tr class="total-row">
+                        <td class="chantier-col"></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td style="text-align: right; padding-right: 8px;">Total</td>
+                        <td class="total-col total-value">${workerTotal > 0 ? workerTotal.toFixed(1) : ''}</td>
+                    </tr>
+        `;
+        
+        // Calculer les valeurs pour PANIER, TRANSPORT, TRAJET
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+        
+        // Pour chaque jour, vérifier si l'ouvrier a travaillé
+        const workedDays = days.map(day => {
+            let totalHours = 0;
+            workerData.sites.forEach(site => {
+                totalHours += site.hours[day] || 0;
+            });
+            return totalHours > 0;
+        });
+        
+        // Pour chaque jour, vérifier si l'ouvrier est conducteur
+        const isDriverDays = days.map(day => state.drivers[day] === worker.id);
+        
+        // PANIER : 1 si l'ouvrier a travaillé ce jour
+        const panierValues = workedDays.map(worked => worked ? '1' : '');
+        const panierTotal = panierValues.filter(v => v === '1').length;
+        
+        // TRANSPORT : 1 si l'ouvrier est conducteur ce jour
+        const transportValues = isDriverDays.map(isDriver => isDriver ? '1' : '');
+        const transportTotal = transportValues.filter(v => v === '1').length;
+        
+        // TRAJET : 1 si l'ouvrier a travaillé ce jour (conducteur ou non)
+        const trajetValues = workedDays.map(worked => worked ? '1' : '');
+        const trajetTotal = trajetValues.filter(v => v === '1').length;
+        
+        // Ligne PANIER
+        html += `
+                    <tr>
+                        <td class="section-header">PANIER</td>
+                        <td>${panierValues[0]}</td>
+                        <td>${panierValues[1]}</td>
+                        <td>${panierValues[2]}</td>
+                        <td>${panierValues[3]}</td>
+                        <td>${panierValues[4]}</td>
+                        <td></td>
+                        <td class="total-col">${panierTotal > 0 ? panierTotal : ''}</td>
+                    </tr>
+        `;
+        
+        // Ligne TRANSPORT
+        html += `
+                    <tr>
+                        <td class="section-header">TRANSPORT</td>
+                        <td>${transportValues[0]}</td>
+                        <td>${transportValues[1]}</td>
+                        <td>${transportValues[2]}</td>
+                        <td>${transportValues[3]}</td>
+                        <td>${transportValues[4]}</td>
+                        <td></td>
+                        <td class="total-col">${transportTotal > 0 ? transportTotal : ''}</td>
+                    </tr>
+        `;
+        
+        // Ligne TRAJET
+        html += `
+                    <tr>
+                        <td class="section-header">TRAJET</td>
+                        <td>${trajetValues[0]}</td>
+                        <td>${trajetValues[1]}</td>
+                        <td>${trajetValues[2]}</td>
+                        <td>${trajetValues[3]}</td>
+                        <td>${trajetValues[4]}</td>
+                        <td></td>
+                        <td class="total-col">${trajetTotal > 0 ? trajetTotal : ''}</td>
+                    </tr>
+        `;
+        
+        html += `
+                </tbody>
+            </table>
+            
+            <!-- Observations -->
+            <div class="print-observations">
+                <div class="print-observations-title">OBSERVATIONS:</div>
+                <div class="print-observations-content">${observations || ''}</div>
+            </div>
+            
+            <!-- Pied de page avec signatures -->
+            <div class="print-footer">
+                <div>
+                    <div class="print-footer-label">Référence: Agenda chef d'équipe</div>
+                </div>
+                <div>
+                    <div class="print-footer-label">Visa conducteur:</div>
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    
+    printSheet.innerHTML = html;
 }

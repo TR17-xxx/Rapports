@@ -8,221 +8,193 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @media print {
-            .no-print {
+            /* Masquer tout le contenu normal */
+            .no-print,
+            #workersContainer,
+            .bg-white.rounded-lg.shadow-md,
+            .grid.grid-cols-1.lg\:grid-cols-2,
+            #observationsContainer,
+            .bg-gradient-to-r.from-orange-50.to-amber-50 {
                 display: none !important;
             }
+            
+            /* Afficher uniquement la fiche de pointage */
+            #printSheet {
+                display: block !important;
+            }
+            
             body {
                 background: white;
-                font-size: 11px;
+                margin: 0;
+                padding: 5mm;
+                font-family: Arial, sans-serif;
+                font-size: 10pt;
             }
-            .print-break {
-                page-break-before: always;
+            
+            @page {
+                size: A4;
+                margin: 5mm;
             }
+            
+            .container {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+            
             #previsionnelWatermark.active {
                 display: block !important;
             }
             
-            /* Optimisation de l'espace pour l'impression */
-            .container {
-                max-width: 100% !important;
-                padding: 10px !important;
+            /* Style de la fiche de pointage */
+            .print-sheet {
+                width: 100%;
+                border: 2px solid black;
             }
             
-            h1 {
-                font-size: 20px !important;
-                margin-bottom: 5px !important;
+            .print-header {
+                display: grid;
+                grid-template-columns: 1fr 2fr 1fr;
+                border-bottom: 2px solid black;
             }
             
-            h2 {
-                font-size: 16px !important;
-                margin-bottom: 8px !important;
+            .print-header > div {
+                padding: 8px;
+                border-right: 2px solid black;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
             }
             
-            h3 {
-                font-size: 14px !important;
+            .print-header > div:last-child {
+                border-right: none;
             }
             
-            .bg-white {
-                box-shadow: none !important;
-                padding: 8px !important;
-                margin-bottom: 8px !important;
+            .print-header .semaine {
+                font-weight: bold;
+                font-size: 10pt;
             }
             
-            .rounded-lg {
-                border-radius: 4px !important;
+            .print-header .title {
+                font-weight: bold;
+                font-size: 12pt;
             }
             
-            /* Réduire les espacements */
-            .mb-6 {
-                margin-bottom: 8px !important;
+            .print-header .dates {
+                font-size: 9pt;
             }
             
-            .mb-4 {
-                margin-bottom: 6px !important;
+            .print-header .nom-label {
+                font-size: 9pt;
             }
             
-            .p-6 {
-                padding: 8px !important;
+            .print-header .nom-value {
+                font-weight: bold;
+                font-size: 11pt;
             }
             
-            .p-4 {
-                padding: 6px !important;
+            /* Tableau principal */
+            .print-table {
+                width: 100%;
+                border-collapse: collapse;
             }
             
-            .space-y-6 > * + * {
-                margin-top: 8px !important;
+            .print-table th,
+            .print-table td {
+                border: 1px solid black;
+                padding: 4px 2px;
+                text-align: center;
+                font-size: 9pt;
             }
             
-            /* Tableaux plus compacts */
-            table {
-                font-size: 10px !important;
+            .print-table th {
+                font-weight: bold;
+                background-color: white;
             }
             
-            th, td {
-                padding: 4px 8px !important;
+            .print-table .chantier-col {
+                text-align: left;
+                width: 100px;
+                font-size: 8pt;
             }
             
-            /* Inputs plus petits et sans bordures */
-            input, select, textarea {
-                font-size: 11px !important;
-                padding: 3px 6px !important;
-                border: none !important;
-                background: transparent !important;
-                box-shadow: none !important;
-                -webkit-appearance: none !important;
-                -moz-appearance: none !important;
-                appearance: none !important;
-                text-align: center !important;
+            .print-table .day-col {
+                width: 50px;
+                font-size: 8pt;
             }
             
-            input[type="text"] {
-                text-align: left !important;
+            .print-table .total-col {
+                width: 50px;
+                font-weight: bold;
+                font-size: 9pt;
             }
             
-            /* Masquer les flèches des selects et inputs number */
-            select {
-                background-image: none !important;
+            .print-table .section-header {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                text-align: left;
+                padding: 4px 8px;
             }
             
-            input[type="number"]::-webkit-inner-spin-button,
-            input[type="number"]::-webkit-outer-spin-button {
-                display: none !important;
+            .print-table .total-row {
+                font-weight: bold;
             }
             
-            /* Supprimer toutes les bordures */
-            .border, .border-2, .border-gray-200, .border-gray-300, .border-orange-300 {
-                border: none !important;
+            .print-table .total-row .total-value {
+                color: red;
             }
             
-            /* Supprimer les fonds colorés sauf pour les en-têtes */
-            .bg-gray-50, .bg-blue-50, .bg-orange-50, .bg-amber-50 {
-                background: transparent !important;
+            .print-table .empty-row {
+                height: 30px;
             }
             
-            .bg-gray-100 {
-                background: #f5f5f5 !important;
+            /* Section observations */
+            .print-observations {
+                border-top: 2px solid black;
+                padding: 8px;
+                min-height: 100px;
             }
             
-            /* Garder uniquement les bordures des tableaux */
-            table {
-                border-collapse: collapse !important;
+            .print-observations-title {
+                font-weight: bold;
+                margin-bottom: 8px;
+                font-size: 10pt;
             }
             
-            table th {
-                border-bottom: 2px solid #333 !important;
-                background: #f5f5f5 !important;
+            .print-observations-content {
+                white-space: pre-wrap;
+                font-size: 10pt;
+                font-style: italic;
+                text-align: center;
             }
             
-            table td {
-                border-bottom: 1px solid #ddd !important;
+            /* Section signatures */
+            .print-footer {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                border-top: 2px solid black;
             }
             
-            table tfoot td {
-                border-top: 2px solid #333 !important;
-                border-bottom: none !important;
+            .print-footer > div {
+                padding: 8px;
+                border-right: 2px solid black;
+                min-height: 60px;
             }
             
-            /* Grilles optimisées */
-            .grid {
-                gap: 6px !important;
+            .print-footer > div:last-child {
+                border-right: none;
             }
             
-            /* Badges plus petits */
-            .rounded-full {
-                font-size: 9px !important;
-                padding: 2px 8px !important;
+            .print-footer-label {
+                font-weight: bold;
+                font-size: 9pt;
+                margin-bottom: 4px;
             }
             
-            /* Supprimer les ombres */
-            .shadow-md, .shadow-lg, .shadow-sm {
-                box-shadow: none !important;
-            }
-            
-            /* Simplifier les cartes d'ouvriers */
-            #workersContainer > div {
-                border: 1px solid #ddd !important;
-                margin-bottom: 12px !important;
-            }
-            
-            /* Ligne de séparation pour les chantiers */
-            #workersContainer .bg-gray-50 {
-                border-top: 1px solid #eee !important;
-                padding-top: 6px !important;
-                margin-top: 6px !important;
-            }
-            
-            /* Section conducteur de la semaine */
-            #driverSelectionRow {
-                text-align: center !important;
-            }
-            
-            #driverSelectionRow label {
-                font-size: 12px !important;
-                font-weight: bold !important;
-                text-align: center !important;
-            }
-            
-            #driverSelectionRow select {
-                font-size: 11px !important;
-                text-align: center !important;
-            }
-            
-            /* Masquer "Total chantier" en impression */
-            .print\:hidden {
-                display: none !important;
-            }
-            
-            /* Améliorer les labels des jours */
-            .grid label {
-                text-align: center !important;
-            }
-            
-            /* Réduire les espaces dans les grilles de jours */
-            .grid-cols-5 {
-                gap: 2px !important;
-            }
-            
-            /* Ajouter des séparateurs verticaux entre les jours */
-            .grid-cols-5 > div:not(:last-child) {
-                border-right: 1px solid #ddd !important;
-                padding-right: 4px !important;
-            }
-            
-            .grid-cols-5 > div {
-                padding-left: 4px !important;
-            }
-            
-            /* Optimiser l'affichage du nom de chantier */
-            .site-header {
-                display: flex !important;
-                align-items: center !important;
-                margin-bottom: 4px !important;
-            }
-            
-            .site-name {
-                font-weight: bold !important;
-                margin-right: 10px !important;
-                min-width: 100px !important;
+            /* Saut de page */
+            .print-break {
+                page-break-before: always;
             }
         }
         
@@ -468,7 +440,7 @@
                         <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
                         <span>Prévisionnel</span>
                     </button>
-                    <button onclick="window.print()" class="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                    <button onclick="printReport()" class="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
                         <i data-lucide="printer" style="width: 20px; height: 20px;"></i>
                         <span>Imprimer / PDF</span>
                     </button>
@@ -606,6 +578,11 @@
             ></textarea>
             <div id="observationsPrint" class="hidden print:block mt-2 text-gray-700 whitespace-pre-wrap"></div>
         </div>
+    </div>
+
+    <!-- Fiche de pointage pour l'impression -->
+    <div id="printSheet" style="display: none;">
+        <!-- Le contenu sera généré dynamiquement par JavaScript -->
     </div>
 
     <!-- Modal Ajouter un ouvrier -->
