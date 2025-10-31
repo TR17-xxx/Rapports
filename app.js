@@ -15,16 +15,29 @@ const defaultWorkers = [
     { id: 13, firstName: "Jean-Claude", lastName: "Lamberton" },
 ];
 
+// Liste des chantiers par défaut (par ordre alphabétique)
+const defaultSites = [
+    "Brouage",
+    "Château d'Oléron",
+    "Consac",
+    "Cram Chaban",
+    "Dépôt",
+    "Forges",
+    "Javrezac",
+    "Puybautier"
+];
+
 // État de l'application
 let state = {
     availableWorkers: [...defaultWorkers].sort((a, b) => a.lastName.localeCompare(b.lastName)), // Liste complète des ouvriers
     activeWorkers: [], // Ouvriers ajoutés au rapport
-    nextWorkerId: 13,
+    nextWorkerId: 14,
+    availableSites: [...defaultSites].sort(), // Liste complète des chantiers
     foremanId: null, // Chef de chantier
     weekNumber: null,
     weekStart: null,
     weekEnd: null,
-    data: {}, // { workerId: { sites: [{ siteName, hours: { monday, tuesday, ... } }] } }
+    data: {}, // { workerId: { sites: [{ siteName, hours: { monday, tuesday, ... } }], observation: '', isInterim: true } }
     drivers: { // Qui conduit chaque jour (par défaut le chef de chantier)
         monday: null,
         tuesday: null,
@@ -32,8 +45,8 @@ let state = {
         thursday: null,
         friday: null
     },
-    observations: '', // Commentaires de la semaine
-    isPrevisionnel: false // Mode prévisionnel activé/désactivé
+    isPrevisionnel: false, // Mode prévisionnel activé/désactivé
+    currentSiteSelection: null // Pour stocker le contexte de sélection de chantier
 };
 
 // Initialisation
@@ -145,15 +158,8 @@ function setupEventListeners() {
         addWorker();
     });
     
-    // Gestion des observations
-    document.getElementById('observations').addEventListener('input', function() {
-        state.observations = this.value;
-        updateObservationsPrint();
-    });
-    
-    // Mettre à jour les observations pour l'impression avant d'imprimer
+    // Mettre à jour la fiche d'impression avant d'imprimer
     window.addEventListener('beforeprint', function() {
-        updateObservationsPrint();
         generatePrintSheet();
     });
 }
@@ -209,21 +215,10 @@ function updateDriver(day, workerId) {
     renderAll();
 }
 
-// Mettre à jour les observations pour l'impression
-function updateObservationsPrint() {
-    const observationsText = document.getElementById('observations').value;
-    const observationsPrint = document.getElementById('observationsPrint');
-    const observationsContainer = document.getElementById('observationsContainer');
-    
-    if (observationsText.trim()) {
-        observationsPrint.textContent = observationsText;
-        observationsPrint.classList.remove('hidden');
-        document.getElementById('observations').classList.add('print:hidden');
-        observationsContainer.classList.remove('print:hidden');
-    } else {
-        observationsPrint.classList.add('hidden');
-        document.getElementById('observations').classList.remove('print:hidden');
-        observationsContainer.classList.add('print:hidden');
+// Mettre à jour l'observation d'un ouvrier
+function updateWorkerObservation(workerId, observation) {
+    if (state.data[workerId]) {
+        state.data[workerId].observation = observation;
     }
 }
 
@@ -233,6 +228,16 @@ function showAddWorkerModal() {
     switchTab('existing'); // Par défaut sur l'onglet sélection
     document.getElementById('addWorkerModal').classList.remove('hidden');
     document.getElementById('workerSelect').focus();
+    
+    // Ajouter un gestionnaire pour la sélection automatique
+    const workerSelect = document.getElementById('workerSelect');
+    workerSelect.onchange = function() {
+        if (this.value) {
+            const workerId = parseInt(this.value);
+            addWorkerToActive(workerId);
+            hideAddWorkerModal();
+        }
+    };
 }
 
 // Changer d'onglet dans le modal
@@ -357,8 +362,13 @@ function addWorkerToActive(workerId) {
     
     // Initialiser ses données
     if (!state.data[workerId]) {
+        // Les ouvriers préenregistrés (id <= 13) ne sont pas intérimaires par défaut
+        // Les nouveaux ouvriers créés (id >= 14) sont intérimaires par défaut
+        const isPreregistered = workerId <= 13;
         state.data[workerId] = {
-            sites: [createEmptySite()]
+            sites: [createEmptySite()],
+            observation: '',
+            isInterim: !isPreregistered // true pour nouveaux, false pour préenregistrés
         };
     }
     
@@ -401,7 +411,7 @@ function removeWorkerFromActive(workerId) {
 // Ajouter un chantier à un ouvrier
 function addSiteToWorker(workerId) {
     if (!state.data[workerId]) {
-        state.data[workerId] = { sites: [] };
+        state.data[workerId] = { sites: [], observation: '', isInterim: true };
     }
     // Le premier chantier a des valeurs à 7.5, les suivants à 0
     const isFirstSite = state.data[workerId].sites.length === 0;
@@ -409,6 +419,145 @@ function addSiteToWorker(workerId) {
     renderWorkerCards();
     setTimeout(() => lucide.createIcons(), 0);
 }
+
+// Basculer l'affichage de l'observation d'un ouvrier
+function toggleWorkerObservation(workerId) {
+    const observationDiv = document.getElementById(`observation-${workerId}`);
+    const button = document.getElementById(`observationBtn-${workerId}`);
+    
+    if (observationDiv.classList.contains('hidden')) {
+        observationDiv.classList.remove('hidden');
+        button.innerHTML = '<i data-lucide="eye-off" style="width: 20px; height: 20px;"></i><span>Masquer observation</span>';
+    } else {
+        observationDiv.classList.add('hidden');
+        button.innerHTML = '<i data-lucide="message-square" style="width: 20px; height: 20px;"></i><span>Ajouter une observation</span>';
+    }
+    setTimeout(() => lucide.createIcons(), 0);
+}
+
+// Basculer le statut d'intérimaire d'un ouvrier
+function toggleInterimStatus(workerId) {
+    if (state.data[workerId]) {
+        state.data[workerId].isInterim = !state.data[workerId].isInterim;
+        renderWorkerCards();
+        setTimeout(() => lucide.createIcons(), 0);
+    }
+}
+
+// Afficher le modal de sélection de chantier
+function showSelectSiteModal(workerId, siteIndex) {
+    state.currentSiteSelection = { workerId, siteIndex };
+    updateSiteSelectOptions();
+    switchSiteTab('existing');
+    document.getElementById('selectSiteModal').classList.remove('hidden');
+    document.getElementById('siteSelect').focus();
+    
+    // Ajouter un gestionnaire pour la sélection automatique
+    const siteSelect = document.getElementById('siteSelect');
+    siteSelect.onchange = function() {
+        if (this.value) {
+            selectSite(this.value);
+        }
+    };
+}
+
+// Masquer le modal de sélection de chantier
+function hideSelectSiteModal() {
+    document.getElementById('selectSiteModal').classList.add('hidden');
+    document.getElementById('selectSiteForm').reset();
+    state.currentSiteSelection = null;
+}
+
+// Changer d'onglet dans le modal de chantier
+function switchSiteTab(tab) {
+    const tabExisting = document.getElementById('tabExistingSite');
+    const tabNew = document.getElementById('tabNewSite');
+    const existingSection = document.getElementById('existingSiteSection');
+    const newSection = document.getElementById('newSiteSection');
+    
+    if (tab === 'existing') {
+        tabExisting.classList.add('border-blue-600', 'text-blue-600');
+        tabExisting.classList.remove('border-transparent', 'text-gray-500');
+        tabNew.classList.remove('border-blue-600', 'text-blue-600');
+        tabNew.classList.add('border-transparent', 'text-gray-500');
+        
+        existingSection.classList.remove('hidden');
+        newSection.classList.add('hidden');
+        
+        document.getElementById('newSiteName').value = '';
+    } else {
+        tabNew.classList.add('border-blue-600', 'text-blue-600');
+        tabNew.classList.remove('border-transparent', 'text-gray-500');
+        tabExisting.classList.remove('border-blue-600', 'text-blue-600');
+        tabExisting.classList.add('border-transparent', 'text-gray-500');
+        
+        newSection.classList.remove('hidden');
+        existingSection.classList.add('hidden');
+        
+        document.getElementById('siteSelect').value = '';
+        setTimeout(() => document.getElementById('newSiteName').focus(), 100);
+    }
+}
+
+// Mettre à jour les options du sélecteur de chantier
+function updateSiteSelectOptions() {
+    const select = document.getElementById('siteSelect');
+    select.innerHTML = '<option value="">Choisir...</option>';
+    
+    state.availableSites.forEach(siteName => {
+        const option = document.createElement('option');
+        option.value = siteName;
+        option.textContent = siteName;
+        select.appendChild(option);
+    });
+}
+
+// Sélectionner un chantier
+function selectSite(siteName) {
+    if (!state.currentSiteSelection) return;
+    
+    const { workerId, siteIndex } = state.currentSiteSelection;
+    updateSiteName(workerId, siteIndex, siteName);
+    hideSelectSiteModal();
+    renderWorkerCards();
+    setTimeout(() => lucide.createIcons(), 0);
+}
+
+// Gérer la soumission du formulaire de chantier
+document.addEventListener('DOMContentLoaded', function() {
+    const selectSiteForm = document.getElementById('selectSiteForm');
+    if (selectSiteForm) {
+        selectSiteForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const existingSection = document.getElementById('existingSiteSection');
+            const isExistingTab = !existingSection.classList.contains('hidden');
+            
+            if (isExistingTab) {
+                const siteName = document.getElementById('siteSelect').value;
+                if (!siteName) {
+                    alert('Veuillez sélectionner un chantier');
+                    return;
+                }
+                selectSite(siteName);
+            } else {
+                const newSiteName = document.getElementById('newSiteName').value.trim();
+                if (!newSiteName) {
+                    alert('Veuillez entrer un nom de chantier');
+                    return;
+                }
+                
+                // Ajouter le nouveau chantier à la liste
+                if (!state.availableSites.includes(newSiteName)) {
+                    state.availableSites.push(newSiteName);
+                    state.availableSites.sort();
+                }
+                
+                selectSite(newSiteName);
+            }
+        });
+    }
+});
 
 // Supprimer un chantier d'un ouvrier
 function removeSiteFromWorker(workerId, siteIndex) {
@@ -528,8 +677,9 @@ function renderWorkerCards() {
 
 // Créer une carte d'ouvrier
 function createWorkerCard(worker) {
-    const workerData = state.data[worker.id] || { sites: [createEmptySite()] };
+    const workerData = state.data[worker.id] || { sites: [createEmptySite()], observation: '', isInterim: true };
     const isForeman = state.foremanId === worker.id;
+    const isInterim = workerData.isInterim !== false; // Par défaut true
     
     const card = document.createElement('div');
     card.className = 'bg-white rounded-lg shadow-md p-6';
@@ -539,6 +689,7 @@ function createWorkerCard(worker) {
             <h3 class="text-xl font-bold text-gray-800 flex items-center space-x-2">
                 <span>${worker.lastName} ${worker.firstName}</span>
                 ${isForeman ? '<span class="ml-2 px-3 py-1 bg-green-600 text-white text-sm rounded-full">Chef de chantier</span>' : ''}
+                ${isInterim ? '<span class="ml-2 px-3 py-1 bg-orange-500 text-white text-sm rounded-full">Intérimaire</span>' : ''}
             </h3>
             <div class="flex items-center space-x-3">
                 <div class="text-lg font-semibold text-blue-600">
@@ -562,14 +713,14 @@ function createWorkerCard(worker) {
         html += `
             <div class="mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200 site-card">
                 <div class="flex items-start justify-between site-header-wrapper">
-                    <div class="site-name" style="flex: 0 0 150px; padding-top: 20px;">
-                        <input 
-                            type="text" 
-                            value="${site.siteName}" 
-                            placeholder="Nom du chantier"
-                            onchange="updateSiteName(${worker.id}, ${siteIndex}, this.value)"
-                            class="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-semibold"
+                    <div class="site-name" style="flex: 1; padding-top: 20px;">
+                        <button 
+                            onclick="showSelectSiteModal(${worker.id}, ${siteIndex})"
+                            class="w-full px-3 py-2 border-2 border-blue-300 bg-blue-50 rounded-lg hover:bg-blue-100 focus:ring-2 focus:ring-blue-500 font-semibold text-left text-blue-800 transition no-print"
                         >
+                            ${site.siteName || '⚠️ Sélectionner un chantier'}
+                        </button>
+                        <div class="print:block hidden font-semibold text-gray-800">${site.siteName}</div>
                     </div>
                     ${workerData.sites.length > 1 ? `
                         <button 
@@ -608,13 +759,42 @@ function createWorkerCard(worker) {
     });
     
     html += `
-        <button 
-            onclick="addSiteToWorker(${worker.id})"
-            class="flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-medium no-print"
-        >
-            <i data-lucide="plus-circle" style="width: 20px; height: 20px;"></i>
-            <span>Ajouter un chantier</span>
-        </button>
+        <div class="flex items-center justify-between mt-3 no-print">
+            <div class="flex items-center space-x-3">
+                <button 
+                    onclick="addSiteToWorker(${worker.id})"
+                    class="flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-medium"
+                >
+                    <i data-lucide="plus-circle" style="width: 20px; height: 20px;"></i>
+                    <span>Ajouter un chantier</span>
+                </button>
+                <button 
+                    id="observationBtn-${worker.id}"
+                    onclick="toggleWorkerObservation(${worker.id})"
+                    class="flex items-center space-x-2 text-orange-600 hover:text-orange-700 font-medium"
+                >
+                    <i data-lucide="message-square" style="width: 20px; height: 20px;"></i>
+                    <span>Ajouter une observation</span>
+                </button>
+            </div>
+            <button 
+                onclick="toggleInterimStatus(${worker.id})"
+                class="flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition ${isInterim ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-gray-300 text-gray-700 hover:bg-gray-400'}"
+                title="${isInterim ? 'Marquer comme permanent' : 'Marquer comme intérimaire'}"
+            >
+                <i data-lucide="user-check" style="width: 20px; height: 20px;"></i>
+                <span>Intérimaire</span>
+            </button>
+        </div>
+        <div id="observation-${worker.id}" class="hidden mt-3">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Observation pour ${worker.firstName} ${worker.lastName}</label>
+            <textarea 
+                onchange="updateWorkerObservation(${worker.id}, this.value)"
+                rows="3" 
+                placeholder="Ajouter une observation pour cet ouvrier..."
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-vertical"
+            >${workerData.observation || ''}</textarea>
+        </div>
     `;
     
     card.innerHTML = html;
@@ -738,7 +918,6 @@ function generatePrintSheet() {
     const weekDisplay = document.getElementById('weekDisplay').textContent;
     const foremanDisplay = document.getElementById('printForemanDisplay').textContent;
     const weekNumber = state.weekNumber ? state.weekNumber.split('-W')[1] : '';
-    const observations = document.getElementById('observations').value;
     
     // Générer une fiche par ouvrier
     let html = '';
@@ -748,8 +927,10 @@ function generatePrintSheet() {
             html += '<div class="print-break"></div>';
         }
         
-        const workerData = state.data[worker.id] || { sites: [] };
+        const workerData = state.data[worker.id] || { sites: [], observation: '', isInterim: true };
         const workerTotal = calculateWorkerTotal(worker.id);
+        const workerObservation = workerData.observation || '';
+        const isInterim = workerData.isInterim !== false;
         
         html += `
         <div class="print-sheet">
@@ -911,8 +1092,11 @@ function generatePrintSheet() {
             
             <!-- Observations -->
             <div class="print-observations">
-                <div class="print-observations-title">OBSERVATIONS:</div>
-                <div class="print-observations-content">${observations || ''}</div>
+                <div class="print-observations-title">
+                    OBSERVATIONS:
+                    ${isInterim ? '<span style="margin-left: 20px; color: #f97316; font-weight: bold;">INTÉRIMAIRE</span>' : ''}
+                </div>
+                <div class="print-observations-content">${workerObservation}</div>
             </div>
             
             <!-- Pied de page avec signatures -->

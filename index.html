@@ -564,20 +564,6 @@
             </div>
         </div>
 
-        <!-- Observations -->
-        <div id="observationsContainer" class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
-                <i data-lucide="message-square" style="width: 24px; height: 24px;"></i>
-                <span>Observations</span>
-            </h2>
-            <textarea 
-                id="observations" 
-                rows="4" 
-                placeholder="Ajouter des commentaires ou observations pour cette semaine..."
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
-            ></textarea>
-            <div id="observationsPrint" class="hidden print:block mt-2 text-gray-700 whitespace-pre-wrap"></div>
-        </div>
     </div>
 
     <!-- Fiche de pointage pour l'impression -->
@@ -628,6 +614,52 @@
                         Ajouter
                     </button>
                     <button type="button" onclick="hideAddWorkerModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Sélectionner un chantier -->
+    <div id="selectSiteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Sélectionner un chantier</h3>
+            
+            <!-- Onglets -->
+            <div class="flex mb-4 border-b border-gray-200">
+                <button type="button" id="tabExistingSite" onclick="switchSiteTab('existing')" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-blue-600 text-blue-600">
+                    Sélectionner
+                </button>
+                <button type="button" id="tabNewSite" onclick="switchSiteTab('new')" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    Créer nouveau
+                </button>
+            </div>
+            
+            <form id="selectSiteForm" class="space-y-4">
+                <!-- Sélection d'un chantier existant -->
+                <div id="existingSiteSection">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Sélectionner un chantier *</label>
+                        <select id="siteSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Choisir...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Création d'un nouveau chantier -->
+                <div id="newSiteSection" class="hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nom du chantier *</label>
+                        <input type="text" id="newSiteName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Nom du nouveau chantier">
+                    </div>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        Sélectionner
+                    </button>
+                    <button type="button" onclick="hideSelectSiteModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
                         Annuler
                     </button>
                 </div>
