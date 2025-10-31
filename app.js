@@ -1592,3 +1592,99 @@ function generatePrintSheet() {
     
     printSheet.innerHTML = html;
 }
+
+// Fonction pour envoyer le rapport par email
+async function sendReportByEmail() {
+    try {
+        // Vérifier qu'un chef de chantier est sélectionné
+        if (!state.foremanId) {
+            alert('⚠️ Veuillez sélectionner un chef de chantier avant d\'envoyer le rapport.');
+            return;
+        }
+
+        // Récupérer les informations du chef de chantier
+        const currentForeman = state.availableWorkers.find(w => w.id === state.foremanId);
+        if (!currentForeman) {
+            alert('⚠️ Chef de chantier introuvable.');
+            return;
+        }
+
+        // Vérifier qu'il y a au moins un ouvrier
+        if (state.activeWorkers.length === 0) {
+            alert('⚠️ Veuillez ajouter au moins un ouvrier avant d\'envoyer le rapport.');
+            return;
+        }
+
+        // Afficher un message de chargement
+        const button = event.target.closest('button');
+        const originalContent = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i data-lucide="loader" class="animate-spin" style="width: 20px; height: 20px;"></i><span>Envoi en cours...</span>';
+        lucide.createIcons();
+
+        // Générer le contenu HTML pour l'impression
+        generatePrintSheet();
+        const printSheet = document.getElementById('printSheet');
+        const htmlContent = printSheet.innerHTML;
+
+        // Préparer les informations de la semaine
+        const weekSelector = document.getElementById('weekSelector');
+        const weekDisplay = document.getElementById('weekDisplay');
+        const weekValue = weekSelector.value;
+        
+        // Extraire le numéro de semaine
+        let weekNumber = '';
+        if (weekValue) {
+            const [year, week] = weekValue.split('-W');
+            weekNumber = `S${week}-${year}`;
+        }
+
+        const weekInfo = {
+            period: weekDisplay.textContent,
+            foreman: currentForeman.firstName + ' ' + currentForeman.lastName,
+            weekNumber: weekNumber || 'Non définie'
+        };
+
+        // Envoyer la requête au serveur
+        const response = await fetch('http://localhost:3000/api/send-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                htmlContent: htmlContent,
+                weekInfo: weekInfo
+            })
+        });
+
+        const result = await response.json();
+
+        // Restaurer le bouton
+        button.disabled = false;
+        button.innerHTML = originalContent;
+        lucide.createIcons();
+
+        if (result.success) {
+            alert(`✅ Rapport envoyé avec succès!\n\nDestinataires: ${result.recipients.join(', ')}`);
+        } else {
+            alert(`❌ Erreur lors de l'envoi: ${result.message}`);
+        }
+
+    } catch (error) {
+        console.error('Erreur:', error);
+        
+        // Restaurer le bouton en cas d'erreur
+        const button = event.target.closest('button');
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i data-lucide="mail" style="width: 20px; height: 20px;"></i><span>Envoyer par Email</span>';
+            lucide.createIcons();
+        }
+        
+        if (error.message.includes('Failed to fetch')) {
+            alert('❌ Impossible de se connecter au serveur.\n\nAssurez-vous que le serveur est démarré avec la commande:\nnpm start');
+        } else {
+            alert(`❌ Erreur lors de l'envoi du rapport: ${error.message}`);
+        }
+    }
+}

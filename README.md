@@ -13,10 +13,55 @@ Application web simple pour gérer les rapports hebdomadaires des ouvriers de ch
 - ✅ Calcul automatique des totaux par chantier
 - ✅ Impression / Export PDF
 - ✅ Ajout dynamique d'ouvriers
+- ✅ **Envoi automatique par email** avec génération PDF
 
 ## Installation
 
+### Mode Simple (sans envoi d'emails)
+
 Aucune installation nécessaire ! Il suffit d'ouvrir le fichier `index.html` dans un navigateur web moderne (Chrome, Firefox, Edge, Safari).
+
+### Mode Complet (avec envoi d'emails)
+
+Pour utiliser la fonctionnalité d'envoi automatique par email :
+
+1. **Installer Node.js** (version 14 ou supérieure)
+   - Télécharger depuis [nodejs.org](https://nodejs.org/)
+
+2. **Installer les dépendances**
+   ```bash
+   npm install
+   ```
+
+3. **Configurer les variables d'environnement**
+   - Copier le fichier `.env.example` vers `.env`
+   - Éditer le fichier `.env` avec vos informations :
+   ```bash
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_PORT=587
+   EMAIL_SECURE=false
+   EMAIL_USER=votre.email@gmail.com
+   EMAIL_PASSWORD=votre_mot_de_passe_application
+   EMAIL_RECIPIENTS=destinataire1@example.com,destinataire2@example.com
+   PORT=3000
+   ```
+
+4. **Configuration Gmail (si vous utilisez Gmail)**
+   - Activer la validation en 2 étapes sur votre compte Google
+   - Générer un "Mot de passe d'application" :
+     1. Aller dans les paramètres de votre compte Google
+     2. Sécurité → Validation en 2 étapes → Mots de passe d'application
+     3. Créer un nouveau mot de passe pour "Autre (nom personnalisé)"
+     4. Utiliser ce mot de passe dans `EMAIL_PASSWORD`
+
+5. **Démarrer le serveur**
+   ```bash
+   npm start
+   ```
+   Le serveur démarre sur `http://localhost:3000`
+
+6. **Ouvrir l'application**
+   - Ouvrir `http://localhost:3000/index.html` dans votre navigateur
 
 ## Utilisation
 
@@ -74,6 +119,7 @@ Pour chaque ouvrier, vous pouvez choisir le mode de gestion du panier via le men
 
 ### 4. Export et impression
 
+#### Impression / PDF Local
 1. **Imprimer** : Cliquez sur le bouton "Imprimer / PDF" en haut à droite
 2. **Enregistrer en PDF** : Dans la fenêtre d'impression, choisissez "Enregistrer au format PDF"
 3. Le rapport inclut :
@@ -83,6 +129,21 @@ Pour chaque ouvrier, vous pouvez choisir le mode de gestion du panier via le men
    - Les lignes PANIER (selon le mode choisi), TRANSPORT et TRAJET
    - Les observations et statut intérimaire
    - Les tableaux récapitulatifs
+
+#### Envoi par Email (nécessite le serveur)
+1. **Configurer les destinataires** : Modifier la variable `EMAIL_RECIPIENTS` dans le fichier `.env`
+2. **Démarrer le serveur** : `npm start`
+3. **Cliquer sur "Envoyer par Email"** : Le rapport sera automatiquement :
+   - Converti en PDF
+   - Envoyé aux adresses configurées
+   - Avec un nom de fichier automatique : `Rapport_S42-2024_01-05_Nov.pdf`
+
+**Avantages de l'envoi par email :**
+- ✅ Envoi simultané à plusieurs destinataires
+- ✅ PDF généré automatiquement
+- ✅ Nom de fichier standardisé
+- ✅ Email professionnel avec informations du rapport
+- ✅ Credentials email protégés par variables d'environnement
 
 ## Personnalisation
 
