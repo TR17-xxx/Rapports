@@ -8,6 +8,7 @@ Application web simple pour gérer les rapports hebdomadaires des ouvriers de ch
 - ✅ Heures pré-remplies à 7.5h par jour
 - ✅ Gestion de plusieurs chantiers par ouvrier
 - ✅ Désignation du conducteur de la semaine
+- ✅ **Gestion flexible du panier** (Panier, Grand déplacement, Personnaliser)
 - ✅ Calcul automatique des totaux par ouvrier
 - ✅ Calcul automatique des totaux par chantier
 - ✅ Impression / Export PDF
@@ -32,7 +33,28 @@ Pour chaque ouvrier :
 1. **Entrer le nom du chantier** dans le champ prévu
 2. **Modifier les heures** si elles diffèrent de 7.5h (pré-remplies par défaut)
 3. **Ajouter un chantier** si l'ouvrier a travaillé sur plusieurs chantiers dans la semaine
-4. Les totaux se calculent automatiquement
+4. **Configurer le panier** : Sélectionnez le mode de panier approprié (voir section ci-dessous)
+5. Les totaux se calculent automatiquement
+
+### 2.1. Gestion du panier
+
+Pour chaque ouvrier, vous pouvez choisir le mode de gestion du panier via le menu déroulant "Panier" :
+
+#### Option 1 : Panier (par défaut)
+- La ligne "PANIER" dans la fiche de pointage sera remplie avec **"1"** pour chaque jour travaillé
+- Utilisez cette option pour les ouvriers bénéficiant du panier standard
+
+#### Option 2 : Grand déplacement
+- La ligne "PANIER" dans la fiche de pointage sera remplie avec **"GD"** pour chaque jour travaillé
+- Utilisez cette option pour les ouvriers en grand déplacement
+
+#### Option 3 : Personnaliser
+- Une nouvelle ligne de sélection apparaît sous le menu déroulant
+- Pour chaque jour (Lun, Mar, Mer, Jeu, Ven), choisissez entre :
+  - **0** : Pas de panier ce jour
+  - **1** : Panier standard
+  - **GD** : Grand déplacement
+- Les valeurs personnalisées ne s'affichent que pour les jours où l'ouvrier a travaillé
 
 ### 3. Cas d'usage courants
 
@@ -58,6 +80,8 @@ Pour chaque ouvrier :
    - La période de la semaine
    - Le conducteur désigné
    - Le détail par ouvrier et chantier
+   - Les lignes PANIER (selon le mode choisi), TRANSPORT et TRAJET
+   - Les observations et statut intérimaire
    - Les tableaux récapitulatifs
 
 ## Personnalisation

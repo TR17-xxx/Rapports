@@ -134,7 +134,7 @@ let state = {
     weekNumber: null,
     weekStart: null,
     weekEnd: null,
-    data: {}, // { workerId: { sites: [{ siteName, hours: { monday, tuesday, ... } }], observation: '', isInterim: true } }
+    data: {}, // { workerId: { sites: [{ siteName, hours: { monday, tuesday, ... } }], observation: '', isInterim: true, panierMode: 'panier', panierCustom: { monday, tuesday, ... } } }
     drivers: { // Qui conduit chaque jour (par défaut le chef de chantier)
         monday: null,
         tuesday: null,
@@ -319,6 +319,17 @@ function createEmptySite(isFirstSite = true) {
             thursday: defaultValue,
             friday: defaultValue
         }
+    };
+}
+
+// Créer les données par défaut pour le panier personnalisé
+function createEmptyPanierCustom() {
+    return {
+        monday: '1',
+        tuesday: '1',
+        wednesday: '1',
+        thursday: '1',
+        friday: '1'
     };
 }
 
@@ -726,7 +737,9 @@ function addWorkerToActive(workerId) {
         state.data[workerId] = {
             sites: [createEmptySite()],
             observation: '',
-            isInterim: !isPreregistered // true pour nouveaux, false pour préenregistrés
+            isInterim: !isPreregistered, // true pour nouveaux, false pour préenregistrés
+            panierMode: 'panier', // 'panier', 'grand_deplacement', 'personnaliser'
+            panierCustom: createEmptyPanierCustom()
         };
     }
     
@@ -769,7 +782,7 @@ function removeWorkerFromActive(workerId) {
 // Ajouter un chantier à un ouvrier
 function addSiteToWorker(workerId) {
     if (!state.data[workerId]) {
-        state.data[workerId] = { sites: [], observation: '', isInterim: true };
+        state.data[workerId] = { sites: [], observation: '', isInterim: true, panierMode: 'panier', panierCustom: createEmptyPanierCustom() };
     }
     // Le premier chantier a des valeurs à 7.5, les suivants à 0
     const isFirstSite = state.data[workerId].sites.length === 0;
@@ -799,6 +812,22 @@ function toggleInterimStatus(workerId) {
         state.data[workerId].isInterim = !state.data[workerId].isInterim;
         renderWorkerCards();
         setTimeout(() => lucide.createIcons(), 0);
+    }
+}
+
+// Mettre à jour le mode panier d'un ouvrier
+function updatePanierMode(workerId, mode) {
+    if (state.data[workerId]) {
+        state.data[workerId].panierMode = mode;
+        renderWorkerCards();
+        setTimeout(() => lucide.createIcons(), 0);
+    }
+}
+
+// Mettre à jour une valeur personnalisée du panier
+function updatePanierCustom(workerId, day, value) {
+    if (state.data[workerId]) {
+        state.data[workerId].panierCustom[day] = value;
     }
 }
 
@@ -1042,9 +1071,11 @@ function renderWorkerCards() {
 
 // Créer une carte d'ouvrier
 function createWorkerCard(worker) {
-    const workerData = state.data[worker.id] || { sites: [createEmptySite()], observation: '', isInterim: true };
+    const workerData = state.data[worker.id] || { sites: [createEmptySite()], observation: '', isInterim: true, panierMode: 'panier', panierCustom: createEmptyPanierCustom() };
     const isForeman = state.foremanId === worker.id;
     const isInterim = workerData.isInterim !== false; // Par défaut true
+    const panierMode = workerData.panierMode || 'panier';
+    const panierCustom = workerData.panierCustom || createEmptyPanierCustom();
     
     const card = document.createElement('div');
     card.className = 'bg-white rounded-lg shadow-md p-6';
@@ -1122,6 +1153,43 @@ function createWorkerCard(worker) {
             </div>
         `;
     });
+    
+    // Section Panier
+    html += `
+        <div class="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+            <div class="flex items-center space-x-4 mb-2">
+                <label class="block text-sm font-bold text-purple-800">Panier:</label>
+                <select 
+                    onchange="updatePanierMode(${worker.id}, this.value)"
+                    class="px-3 py-2 border-2 border-purple-300 bg-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-medium text-gray-800"
+                >
+                    <option value="panier" ${panierMode === 'panier' ? 'selected' : ''}>Panier</option>
+                    <option value="grand_deplacement" ${panierMode === 'grand_deplacement' ? 'selected' : ''}>Grand déplacement</option>
+                    <option value="personnaliser" ${panierMode === 'personnaliser' ? 'selected' : ''}>Personnaliser</option>
+                </select>
+            </div>
+            ${panierMode === 'personnaliser' ? `
+                <div class="grid grid-cols-5 gap-1 mt-2">
+                    ${['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map((day, index) => {
+                        const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+                        return `
+                            <div class="text-center">
+                                <label class="block text-xs font-medium text-gray-600 mb-1">${dayNames[index]}</label>
+                                <select 
+                                    onchange="updatePanierCustom(${worker.id}, '${day}', this.value)"
+                                    class="w-full px-1 py-1 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-sm"
+                                >
+                                    <option value="0" ${panierCustom[day] === '0' ? 'selected' : ''}>0</option>
+                                    <option value="1" ${panierCustom[day] === '1' ? 'selected' : ''}>1</option>
+                                    <option value="GD" ${panierCustom[day] === 'GD' ? 'selected' : ''}>GD</option>
+                                </select>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
     
     html += `
         <div class="flex items-center justify-between mt-3 no-print">
@@ -1424,9 +1492,27 @@ function generatePrintSheet() {
         // Pour chaque jour, vérifier si l'ouvrier est conducteur
         const isDriverDays = days.map(day => state.drivers[day] === worker.id);
         
-        // PANIER : 1 si l'ouvrier a travaillé ce jour
-        const panierValues = workedDays.map(worked => worked ? '1' : '');
-        const panierTotal = panierValues.filter(v => v === '1').length;
+        // PANIER : selon le mode sélectionné
+        const panierMode = workerData.panierMode || 'panier';
+        const panierCustom = workerData.panierCustom || createEmptyPanierCustom();
+        let panierValues = [];
+        
+        if (panierMode === 'panier') {
+            // Mode Panier : 1 pour tous les jours travaillés
+            panierValues = workedDays.map(worked => worked ? '1' : '');
+        } else if (panierMode === 'grand_deplacement') {
+            // Mode Grand déplacement : GD pour tous les jours travaillés
+            panierValues = workedDays.map(worked => worked ? 'GD' : '');
+        } else if (panierMode === 'personnaliser') {
+            // Mode Personnaliser : utiliser les valeurs personnalisées
+            panierValues = days.map((day, index) => {
+                // Afficher la valeur personnalisée uniquement si l'ouvrier a travaillé ce jour
+                return workedDays[index] ? (panierCustom[day] || '') : '';
+            });
+        }
+        
+        // Calculer le total du panier
+        const panierTotal = panierValues.filter(v => v !== '').length;
         
         // TRANSPORT : 1 si l'ouvrier est conducteur ce jour
         const transportValues = isDriverDays.map(isDriver => isDriver ? '1' : '');
