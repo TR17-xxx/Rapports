@@ -97,11 +97,96 @@ function createEmptySite() {
 }
 ```
 
+## Compatibilité Mobile
+
+### Systèmes supportés
+
+#### iOS
+- ✅ **iOS 9.0+** : Support complet
+- ✅ **iOS 10.0+** : Support optimal
+- ✅ **Safari Mobile** : Toutes versions récentes
+- ✅ **Chrome iOS** : Toutes versions récentes
+
+#### Android
+- ✅ **Android 4.4 (KitKat)+** : Support complet avec polyfills
+- ✅ **Android 5.0 (Lollipop)+** : Support optimal
+- ✅ **Chrome Android** : Toutes versions récentes
+- ✅ **Firefox Android** : Toutes versions récentes
+- ✅ **Samsung Internet** : Versions 4.0+
+
+### Fonctionnalités mobiles optimisées
+
+✅ **Interface responsive** adaptée aux petits écrans
+✅ **Prévention du zoom automatique** sur iOS lors de la saisie
+✅ **Zones tactiles optimisées** (minimum 44px selon recommandations Apple/Google)
+✅ **Support des gestes tactiles** (scroll, tap, swipe)
+✅ **Modals adaptés** pour mobile avec fermeture par backdrop
+✅ **Impression mobile** compatible iOS et Android
+✅ **Performance optimisée** pour les anciens appareils
+✅ **Polyfills inclus** pour les anciennes versions de navigateurs
+
+### Utilisation sur smartphone/tablette
+
+1. **Ouvrir l'application** :
+   - iOS : Safari ou Chrome
+   - Android : Chrome, Firefox ou Samsung Internet
+
+2. **Navigation** :
+   - L'interface s'adapte automatiquement à la taille de l'écran
+   - Les boutons sont optimisés pour le tactile
+   - Pas de zoom intempestif lors de la saisie
+
+3. **Impression mobile** :
+   - **iOS** : Bouton "Imprimer / PDF" → "Partager" → "Imprimer" ou "Enregistrer en PDF"
+   - **Android** : Bouton "Imprimer / PDF" → "Enregistrer en PDF" ou sélectionner une imprimante
+
+4. **Conseils** :
+   - Fonctionne en mode portrait et paysage
+   - Cliquer en dehors d'un modal pour le fermer
+   - Le clavier virtuel ne déclenche plus de zoom automatique
+
+### Améliorations techniques mobiles
+
+#### CSS
+- Inputs avec `font-size: 16px` minimum (évite le zoom iOS)
+- Propriétés `-webkit-` pour compatibilité Safari/iOS
+- `touch-action: manipulation` pour réactivité tactile
+- `-webkit-overflow-scrolling: touch` pour scroll fluide
+- Zones tactiles ≥ 44px (standard Apple/Google)
+
+#### JavaScript
+- Polyfills : `Array.find()`, `Object.values()`, `Object.entries()`
+- Détection mobile pour adapter le comportement
+- Gestion spécifique impression iOS
+- Passive event listeners pour performances
+- Prévention dynamique du zoom au focus
+
+#### Meta tags
+- Viewport optimisé avec `maximum-scale=5.0`
+- Support mode web app iOS
+- Désactivation détection auto des numéros de téléphone
+
+### Problèmes connus
+
+**iOS < 9.0**
+- Fonctionnalités JavaScript limitées
+- Recommandation : Mettre à jour iOS
+
+**Android < 4.4**
+- Support CSS moderne limité
+- Performance réduite
+- Recommandation : Utiliser Chrome récent
+
+**Impression mobile**
+- iOS Safari nécessite une étape supplémentaire (Partager > Imprimer)
+- Certains navigateurs Android ont des options différentes
+
 ## Remarques importantes
 
 - ⚠️ **Pas de sauvegarde automatique** : Les données sont perdues si vous fermez la page. Pensez à imprimer ou exporter en PDF avant de fermer.
 - 💡 **Navigateur moderne requis** : Fonctionne avec Chrome, Firefox, Edge, Safari (versions récentes)
-- 📱 **Responsive** : Fonctionne sur ordinateur, tablette et mobile
+- 📱 **Responsive** : Fonctionne sur ordinateur, tablette et mobile (iOS 9+, Android 4.4+)
+- 🚀 **Optimisé mobile** : Zoom automatique désactivé, zones tactiles optimisées, performance améliorée
 
 ## Support
 

@@ -1,3 +1,100 @@
+// Polyfills pour la compatibilité avec les anciens navigateurs
+(function() {
+    // Polyfill pour Array.prototype.find (IE11, Android 4.x)
+    if (!Array.prototype.find) {
+        Array.prototype.find = function(predicate) {
+            if (this == null) {
+                throw new TypeError('Array.prototype.find called on null or undefined');
+            }
+            if (typeof predicate !== 'function') {
+                throw new TypeError('predicate must be a function');
+            }
+            var list = Object(this);
+            var length = list.length >>> 0;
+            var thisArg = arguments[1];
+            var value;
+            
+            for (var i = 0; i < length; i++) {
+                value = list[i];
+                if (predicate.call(thisArg, value, i, list)) {
+                    return value;
+                }
+            }
+            return undefined;
+        };
+    }
+    
+    // Polyfill pour Array.prototype.forEach (IE8)
+    if (!Array.prototype.forEach) {
+        Array.prototype.forEach = function(callback, thisArg) {
+            if (this == null) {
+                throw new TypeError('Array.prototype.forEach called on null or undefined');
+            }
+            var T, k;
+            var O = Object(this);
+            var len = O.length >>> 0;
+            if (typeof callback !== 'function') {
+                throw new TypeError(callback + ' is not a function');
+            }
+            if (arguments.length > 1) {
+                T = thisArg;
+            }
+            k = 0;
+            while (k < len) {
+                var kValue;
+                if (k in O) {
+                    kValue = O[k];
+                    callback.call(T, kValue, k, O);
+                }
+                k++;
+            }
+        };
+    }
+    
+    // Polyfill pour Object.values (IE, Android 4.x)
+    if (!Object.values) {
+        Object.values = function(obj) {
+            var vals = [];
+            for (var key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    vals.push(obj[key]);
+                }
+            }
+            return vals;
+        };
+    }
+    
+    // Polyfill pour Object.entries (IE, Android 4.x)
+    if (!Object.entries) {
+        Object.entries = function(obj) {
+            var ownProps = Object.keys(obj),
+                i = ownProps.length,
+                resArray = new Array(i);
+            while (i--) {
+                resArray[i] = [ownProps[i], obj[ownProps[i]]];
+            }
+            return resArray;
+        };
+    }
+    
+    // Polyfill pour String.prototype.trim (IE8)
+    if (!String.prototype.trim) {
+        String.prototype.trim = function() {
+            return this.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
+        };
+    }
+    
+    // Polyfill pour console (IE9)
+    if (!window.console) {
+        window.console = {
+            log: function() {},
+            error: function() {},
+            warn: function() {},
+            info: function() {}
+        };
+    }
+})();
+
 // Liste des ouvriers par défaut
 const defaultWorkers = [
     { id: 1, firstName: "Yann", lastName: "Moinard" },
@@ -55,7 +152,94 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeWorkers();
     setupEventListeners();
     renderAll();
+    
+    // Prévenir le zoom sur iOS lors du focus sur les inputs
+    preventIOSZoom();
+    
+    // Améliorer les performances sur mobile
+    optimizeMobilePerformance();
 });
+
+// Prévenir le zoom automatique sur iOS
+function preventIOSZoom() {
+    // Désactiver temporairement le zoom lors du focus
+    var inputs = document.querySelectorAll('input, select, textarea');
+    var viewportMeta = document.querySelector('meta[name="viewport"]');
+    var originalContent = viewportMeta ? viewportMeta.getAttribute('content') : '';
+    
+    function disableZoom() {
+        if (viewportMeta) {
+            viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+        }
+    }
+    
+    function enableZoom() {
+        if (viewportMeta && originalContent) {
+            setTimeout(function() {
+                viewportMeta.setAttribute('content', originalContent);
+            }, 500);
+        }
+    }
+    
+    // Appliquer aux inputs existants
+    inputs.forEach(function(input) {
+        input.addEventListener('focus', disableZoom, false);
+        input.addEventListener('blur', enableZoom, false);
+    });
+    
+    // Observer les nouveaux inputs ajoutés dynamiquement
+    if (typeof MutationObserver !== 'undefined') {
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1) {
+                        var newInputs = node.querySelectorAll ? node.querySelectorAll('input, select, textarea') : [];
+                        newInputs.forEach(function(input) {
+                            input.addEventListener('focus', disableZoom, false);
+                            input.addEventListener('blur', enableZoom, false);
+                        });
+                    }
+                });
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+}
+
+// Optimiser les performances sur mobile
+function optimizeMobilePerformance() {
+    // Utiliser passive listeners pour améliorer le scroll
+    if (typeof window !== 'undefined' && 'addEventListener' in window) {
+        var supportsPassive = false;
+        try {
+            var opts = Object.defineProperty({}, 'passive', {
+                get: function() {
+                    supportsPassive = true;
+                }
+            });
+            window.addEventListener('test', null, opts);
+        } catch (e) {}
+        
+        // Appliquer passive aux événements de scroll et touch
+        if (supportsPassive) {
+            document.addEventListener('touchstart', function() {}, { passive: true });
+            document.addEventListener('touchmove', function() {}, { passive: true });
+        }
+    }
+    
+    // Optimiser le rendu sur mobile
+    if (typeof requestAnimationFrame !== 'undefined') {
+        // Utiliser requestAnimationFrame pour les mises à jour visuelles
+        window.requestAnimationFrame = window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            function(callback) { setTimeout(callback, 16); };
+    }
+}
 
 // Initialiser la semaine courante
 function initializeWeek() {
@@ -141,17 +325,6 @@ function createEmptySite(isFirstSite = true) {
 // Configuration des écouteurs d'événements
 function setupEventListeners() {
     document.getElementById('weekSelector').addEventListener('change', updateWeekDisplay);
-    document.getElementById('foremanSelector').addEventListener('change', function() {
-        state.foremanId = parseInt(this.value) || null;
-        // Ajouter automatiquement le chef de chantier aux ouvriers actifs
-        if (state.foremanId) {
-            addWorkerToActive(state.foremanId);
-        }
-        // Réinitialiser les conducteurs au chef de chantier
-        resetDriversToForeman();
-        updatePrintForeman();
-        renderAll();
-    });
     
     document.getElementById('addWorkerForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -162,25 +335,50 @@ function setupEventListeners() {
     window.addEventListener('beforeprint', function() {
         generatePrintSheet();
     });
+    
+    // Fermer les modals en cliquant sur le fond (backdrop)
+    setupModalBackdropClose();
 }
 
-// Mettre à jour le sélecteur de chef de chantier
-function updateForemanSelector() {
-    const select = document.getElementById('foremanSelector');
-    const currentValue = select.value;
+// Configurer la fermeture des modals par clic sur le backdrop
+function setupModalBackdropClose() {
+    var modals = [
+        { id: 'addWorkerModal', closeFunc: hideAddWorkerModal },
+        { id: 'selectForemanModal', closeFunc: hideSelectForemanModal },
+        { id: 'selectSiteModal', closeFunc: hideSelectSiteModal }
+    ];
     
-    select.innerHTML = '<option value="">Sélectionner...</option>';
-    
-    state.availableWorkers.forEach(worker => {
-        const option = document.createElement('option');
-        option.value = worker.id;
-        option.textContent = `${worker.lastName} ${worker.firstName}`;
-        select.appendChild(option);
+    modals.forEach(function(modal) {
+        var modalElement = document.getElementById(modal.id);
+        if (modalElement) {
+            modalElement.addEventListener('click', function(e) {
+                // Fermer uniquement si on clique sur le fond, pas sur le contenu
+                if (e.target === modalElement) {
+                    modal.closeFunc();
+                }
+            });
+        }
     });
     
-    if (currentValue) {
-        select.value = currentValue;
-    }
+    // Support de la touche Escape pour fermer les modals
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.keyCode === 27) {
+            // Fermer le modal visible
+            modals.forEach(function(modal) {
+                var modalElement = document.getElementById(modal.id);
+                if (modalElement && !modalElement.classList.contains('hidden')) {
+                    modal.closeFunc();
+                }
+            });
+        }
+    });
+}
+
+// Mettre à jour le sélecteur de chef de chantier (conservé pour compatibilité)
+function updateForemanSelector() {
+    // Cette fonction est conservée pour compatibilité avec le code existant
+    // L'affichage est maintenant géré par updateForemanDisplay()
+    updateForemanDisplay();
 }
 
 // Réinitialiser les conducteurs au chef de chantier
@@ -227,7 +425,15 @@ function showAddWorkerModal() {
     updateWorkerSelectOptions();
     switchTab('existing'); // Par défaut sur l'onglet sélection
     document.getElementById('addWorkerModal').classList.remove('hidden');
-    document.getElementById('workerSelect').focus();
+    
+    // Détecter si on est sur mobile pour éviter le focus automatique qui ouvre le clavier
+    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) {
+        // Focus uniquement sur desktop
+        setTimeout(function() {
+            document.getElementById('workerSelect').focus();
+        }, 100);
+    }
     
     // Ajouter un gestionnaire pour la sélection automatique
     const workerSelect = document.getElementById('workerSelect');
@@ -348,6 +554,158 @@ function addWorker() {
     hideAddWorkerModal();
 }
 
+// Afficher le modal de sélection du chef de chantier
+function showSelectForemanModal() {
+    updateForemanSelectOptions();
+    switchForemanTab('existing');
+    document.getElementById('selectForemanModal').classList.remove('hidden');
+    
+    // Détecter si on est sur mobile pour éviter le focus automatique
+    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) {
+        setTimeout(function() {
+            document.getElementById('foremanSelect').focus();
+        }, 100);
+    }
+    
+    // Ajouter un gestionnaire pour la sélection automatique
+    const foremanSelect = document.getElementById('foremanSelect');
+    foremanSelect.onchange = function() {
+        if (this.value) {
+            const workerId = parseInt(this.value);
+            selectForeman(workerId);
+        }
+    };
+}
+
+// Masquer le modal de sélection du chef de chantier
+function hideSelectForemanModal() {
+    document.getElementById('selectForemanModal').classList.add('hidden');
+    document.getElementById('selectForemanForm').reset();
+}
+
+// Changer d'onglet dans le modal chef de chantier
+function switchForemanTab(tab) {
+    const tabExisting = document.getElementById('tabExistingForeman');
+    const tabNew = document.getElementById('tabNewForeman');
+    const existingSection = document.getElementById('existingForemanSection');
+    const newSection = document.getElementById('newForemanSection');
+    
+    if (tab === 'existing') {
+        tabExisting.classList.add('border-blue-600', 'text-blue-600');
+        tabExisting.classList.remove('border-transparent', 'text-gray-500');
+        tabNew.classList.remove('border-blue-600', 'text-blue-600');
+        tabNew.classList.add('border-transparent', 'text-gray-500');
+        
+        existingSection.classList.remove('hidden');
+        newSection.classList.add('hidden');
+        
+        document.getElementById('newForemanFirstName').value = '';
+        document.getElementById('newForemanLastName').value = '';
+    } else {
+        tabNew.classList.add('border-blue-600', 'text-blue-600');
+        tabNew.classList.remove('border-transparent', 'text-gray-500');
+        tabExisting.classList.remove('border-blue-600', 'text-blue-600');
+        tabExisting.classList.add('border-transparent', 'text-gray-500');
+        
+        newSection.classList.remove('hidden');
+        existingSection.classList.add('hidden');
+        
+        document.getElementById('foremanSelect').value = '';
+        setTimeout(() => document.getElementById('newForemanFirstName').focus(), 100);
+    }
+}
+
+// Mettre à jour les options du sélecteur de chef de chantier
+function updateForemanSelectOptions() {
+    const select = document.getElementById('foremanSelect');
+    select.innerHTML = '<option value="">Choisir...</option>';
+    
+    state.availableWorkers.forEach(worker => {
+        const option = document.createElement('option');
+        option.value = worker.id;
+        option.textContent = `${worker.lastName} ${worker.firstName}`;
+        if (state.foremanId === worker.id) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+// Sélectionner un chef de chantier
+function selectForeman(workerId) {
+    state.foremanId = workerId;
+    
+    // Ajouter automatiquement le chef de chantier aux ouvriers actifs
+    if (state.foremanId) {
+        addWorkerToActive(state.foremanId);
+    }
+    
+    // Réinitialiser les conducteurs au chef de chantier
+    resetDriversToForeman();
+    updatePrintForeman();
+    updateForemanDisplay();
+    renderAll();
+    hideSelectForemanModal();
+}
+
+// Mettre à jour l'affichage du chef de chantier
+function updateForemanDisplay() {
+    const display = document.getElementById('foremanDisplay');
+    if (state.foremanId) {
+        const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
+        if (foreman) {
+            display.textContent = `${foreman.lastName} ${foreman.firstName}`;
+        }
+    } else {
+        display.textContent = '⚠️ Sélectionner un chef de chantier';
+    }
+}
+
+// Gérer la soumission du formulaire de chef de chantier
+document.addEventListener('DOMContentLoaded', function() {
+    const selectForemanForm = document.getElementById('selectForemanForm');
+    if (selectForemanForm) {
+        selectForemanForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const existingSection = document.getElementById('existingForemanSection');
+            const isExistingTab = !existingSection.classList.contains('hidden');
+            
+            if (isExistingTab) {
+                const workerId = parseInt(document.getElementById('foremanSelect').value);
+                if (!workerId) {
+                    alert('Veuillez sélectionner un ouvrier');
+                    return;
+                }
+                selectForeman(workerId);
+            } else {
+                const firstName = document.getElementById('newForemanFirstName').value.trim();
+                const lastName = document.getElementById('newForemanLastName').value.trim();
+                
+                if (!firstName || !lastName) {
+                    alert('Veuillez remplir le prénom et le nom');
+                    return;
+                }
+                
+                // Créer le nouvel ouvrier
+                const newWorker = {
+                    id: state.nextWorkerId++,
+                    firstName: firstName,
+                    lastName: lastName
+                };
+                
+                // Ajouter à la liste disponible
+                state.availableWorkers.push(newWorker);
+                state.availableWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
+                
+                // Sélectionner comme chef de chantier
+                selectForeman(newWorker.id);
+            }
+        });
+    }
+});
+
 // Ajouter un ouvrier à la liste active
 function addWorkerToActive(workerId) {
     const worker = state.availableWorkers.find(w => w.id === workerId);
@@ -395,7 +753,7 @@ function removeWorkerFromActive(workerId) {
     // Si c'était le chef de chantier, le désélectionner
     if (state.foremanId === workerId) {
         state.foremanId = null;
-        document.getElementById('foremanSelector').value = '';
+        updateForemanDisplay();
     }
     
     // Retirer des conducteurs
@@ -450,7 +808,14 @@ function showSelectSiteModal(workerId, siteIndex) {
     updateSiteSelectOptions();
     switchSiteTab('existing');
     document.getElementById('selectSiteModal').classList.remove('hidden');
-    document.getElementById('siteSelect').focus();
+    
+    // Détecter si on est sur mobile pour éviter le focus automatique
+    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) {
+        setTimeout(function() {
+            document.getElementById('siteSelect').focus();
+        }, 100);
+    }
     
     // Ajouter un gestionnaire pour la sélection automatique
     const siteSelect = document.getElementById('siteSelect');
@@ -859,6 +1224,11 @@ function calculateAndRenderTotals() {
     document.getElementById('grandTotalSites').textContent = `${grandTotal.toFixed(1)}h`;
 }
 
+// Fonction pour ouvrir l'aide
+function openHelp() {
+    window.open('aide.html', '_blank');
+}
+
 // Fonction pour lancer l'impression (optimisée pour mobile)
 function printReport() {
     try {
@@ -877,15 +1247,37 @@ function printReport() {
             updateObservationsPrint();
         }
         
-        // Délai plus long pour mobile (300ms) pour s'assurer que le DOM est mis à jour
+        // Détecter si on est sur mobile
+        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        var delay = isMobile ? 500 : 300; // Délai plus long sur mobile
+        
+        // Délai pour s'assurer que le DOM est mis à jour
         setTimeout(function() {
             try {
-                window.print();
+                // Sur iOS, l'impression peut nécessiter une interaction utilisateur
+                if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                    // Créer un événement utilisateur pour contourner les restrictions iOS
+                    var printEvent = function() {
+                        window.print();
+                    };
+                    printEvent();
+                } else {
+                    window.print();
+                }
             } catch (e) {
                 console.error('Erreur lors de l\'impression:', e);
-                alert('Impossible d\'ouvrir la fenêtre d\'impression. Veuillez réessayer.');
+                // Fallback pour les navigateurs qui ne supportent pas window.print()
+                if (typeof document.execCommand === 'function') {
+                    try {
+                        document.execCommand('print', false, null);
+                    } catch (execError) {
+                        alert('Impossible d\'ouvrir la fenêtre d\'impression. Veuillez utiliser le menu de votre navigateur.');
+                    }
+                } else {
+                    alert('Impossible d\'ouvrir la fenêtre d\'impression. Veuillez réessayer.');
+                }
             }
-        }, 300);
+        }, delay);
     } catch (error) {
         console.error('Erreur dans printReport:', error);
         alert('Une erreur est survenue. Veuillez recharger la page et réessayer.');

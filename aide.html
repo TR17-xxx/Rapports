@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aide - Rapports Hebdomadaires</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .section {
+            scroll-margin-top: 2rem;
+        }
+        code {
+            background-color: #f3f4f6;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background-color: #1f2937;
+            color: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        pre code {
+            background-color: transparent;
+            color: #f9fafb;
+            padding: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- En-tête -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i data-lucide="help-circle" class="text-green-600" style="width: 32px; height: 32px;"></i>
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">Guide d'utilisation</h1>
+                        <p class="text-gray-600">Application de Rapports Hebdomadaires de Chantier</p>
+                    </div>
+                </div>
+                <button onclick="window.close()" class="flex items-center space-x-2 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
+                    <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                    <span>Fermer</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Table des matières -->
+        <div class="bg-blue-50 rounded-lg shadow-md p-6 mb-6 border-2 border-blue-200">
+            <h2 class="text-xl font-bold text-blue-800 mb-4 flex items-center space-x-2">
+                <i data-lucide="list" style="width: 24px; height: 24px;"></i>
+                <span>Table des matières</span>
+            </h2>
+            <ul class="space-y-2">
+                <li><a href="#fonctionnalites" class="text-blue-600 hover:text-blue-800 hover:underline">→ Fonctionnalités</a></li>
+                <li><a href="#installation" class="text-blue-600 hover:text-blue-800 hover:underline">→ Installation</a></li>
+                <li><a href="#utilisation" class="text-blue-600 hover:text-blue-800 hover:underline">→ Utilisation</a></li>
+                <li><a href="#remarques" class="text-blue-600 hover:text-blue-800 hover:underline">→ Remarques importantes</a></li>
+            </ul>
+        </div>
+
+        <!-- Fonctionnalités -->
+        <div id="fonctionnalites" class="bg-white rounded-lg shadow-md p-6 mb-6 section">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                <i data-lucide="check-circle" class="text-green-600" style="width: 28px; height: 28px;"></i>
+                <span>Fonctionnalités</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Saisie des heures du lundi au vendredi</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Heures pré-remplies à 7.5h par jour</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Gestion de plusieurs chantiers par ouvrier</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Désignation d'un chef de chantier</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Sélection du conducteur pour chaque jour</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Calcul automatique des totaux par ouvrier</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Calcul automatique des totaux par chantier</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Ajout d'observations par ouvrier</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Marquage des ouvriers intérimaires</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Sélection/création de chantiers</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Ajout/création d'ouvriers</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Impression / Export PDF</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Interface responsive (mobile/tablette)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Installation -->
+        <div id="installation" class="bg-white rounded-lg shadow-md p-6 mb-6 section">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                <i data-lucide="download" class="text-blue-600" style="width: 28px; height: 28px;"></i>
+                <span>Installation</span>
+            </h2>
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                <p class="text-green-800 font-medium">
+                    <strong>Aucune installation nécessaire !</strong> Il suffit d'ouvrir le fichier <code>index.html</code> dans un navigateur web moderne (Chrome, Firefox, Edge, Safari).
+                </p>
+            </div>
+        </div>
+
+        <!-- Utilisation -->
+        <div id="utilisation" class="bg-white rounded-lg shadow-md p-6 mb-6 section">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                <i data-lucide="book-open" class="text-purple-600" style="width: 28px; height: 28px;"></i>
+                <span>Utilisation</span>
+            </h2>
+
+            <!-- 1. Configuration de la semaine -->
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center space-x-2">
+                    <span class="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">1</span>
+                    <span>Configuration de la semaine</span>
+                </h3>
+                <ol class="list-decimal list-inside space-y-2 ml-4 text-gray-700">
+                    <li><strong>Sélectionner la semaine</strong> : Utilisez le sélecteur de semaine en haut de la page</li>
+                    <li><strong>Désigner le chef de chantier</strong> : Sélectionnez le chef de chantier dans la liste déroulante</li>
+                    <li><strong>Choisir les conducteurs</strong> : Pour chaque jour (lundi à vendredi), sélectionnez qui conduit (par défaut le chef de chantier)</li>
+                    <li><strong>Ajouter des ouvriers</strong> : Cliquez sur "Ajouter un ouvrier" pour :
+                        <ul class="list-disc list-inside ml-6 mt-1">
+                            <li>Sélectionner un ouvrier préenregistré</li>
+                            <li>Ou créer un nouvel ouvrier (prénom et nom)</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+
+            <!-- 2. Saisie des heures -->
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center space-x-2">
+                    <span class="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">2</span>
+                    <span>Saisie des heures</span>
+                </h3>
+                <p class="text-gray-700 mb-2">Pour chaque ouvrier :</p>
+                <ol class="list-decimal list-inside space-y-2 ml-4 text-gray-700">
+                    <li><strong>Sélectionner le chantier</strong> : Cliquez sur le bouton "Sélectionner un chantier" pour :
+                        <ul class="list-disc list-inside ml-6 mt-1">
+                            <li>Choisir un chantier prédéfini (Brouage, Château d'Oléron, Consac, etc.)</li>
+                            <li>Ou créer un nouveau chantier</li>
+                        </ul>
+                    </li>
+                    <li><strong>Modifier les heures</strong> si elles diffèrent de 7.5h (pré-remplies par défaut pour le premier chantier)</li>
+                    <li><strong>Ajouter un chantier</strong> si l'ouvrier a travaillé sur plusieurs chantiers dans la semaine</li>
+                    <li><strong>Ajouter une observation</strong> (optionnel) : Cliquez sur "Ajouter une observation" pour saisir des remarques</li>
+                    <li><strong>Marquer comme intérimaire</strong> (si applicable) : Cliquez sur le bouton "Intérimaire" pour activer/désactiver le statut</li>
+                    <li>Les totaux se calculent automatiquement</li>
+                </ol>
+            </div>
+
+            <!-- 3. Cas d'usage courants -->
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center space-x-2">
+                    <span class="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">3</span>
+                    <span>Cas d'usage courants</span>
+                </h3>
+                
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2">📌 Ouvrier sur un seul chantier toute la semaine</h4>
+                        <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1">
+                            <li>Sélectionnez simplement le nom du chantier</li>
+                            <li>Les heures sont déjà pré-remplies à 7.5h</li>
+                            <li>Modifiez uniquement si nécessaire</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2">📌 Ouvrier sur plusieurs chantiers</h4>
+                        <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1">
+                            <li>Sélectionnez le premier chantier avec ses heures</li>
+                            <li>Cliquez sur "+ Ajouter un chantier"</li>
+                            <li>Sélectionnez le deuxième chantier avec ses heures</li>
+                            <li>Mettez à 0 les jours non travaillés sur chaque chantier</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2">📌 Ouvrier absent un jour</h4>
+                        <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1">
+                            <li>Mettez 0 dans la case du jour d'absence</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Export et impression -->
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center space-x-2">
+                    <span class="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">4</span>
+                    <span>Export et impression</span>
+                </h3>
+                <ol class="list-decimal list-inside space-y-2 ml-4 text-gray-700">
+                    <li><strong>Imprimer</strong> : Cliquez sur le bouton "Imprimer / PDF" en haut à droite</li>
+                    <li><strong>Enregistrer en PDF</strong> : Dans la fenêtre d'impression, choisissez "Enregistrer au format PDF"</li>
+                    <li>Le rapport inclut :
+                        <ul class="list-disc list-inside ml-6 mt-1">
+                            <li>La période de la semaine</li>
+                            <li>Le chef de chantier</li>
+                            <li>Les conducteurs pour chaque jour</li>
+                            <li>Le détail par ouvrier et chantier avec les heures</li>
+                            <li>Les observations de chaque ouvrier</li>
+                            <li>Le statut intérimaire (si applicable)</li>
+                            <li>Les tableaux récapitulatifs (totaux par ouvrier et par chantier)</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Remarques importantes -->
+        <div id="remarques" class="bg-white rounded-lg shadow-md p-6 mb-6 section">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                <i data-lucide="alert-triangle" class="text-red-600" style="width: 28px; height: 28px;"></i>
+                <span>Remarques importantes</span>
+            </h2>
+            <div class="space-y-4">
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                    <p class="text-red-800">
+                        <strong>⚠️ Pas de sauvegarde automatique</strong> : Les données sont perdues si vous fermez la page. Pensez à imprimer ou exporter en PDF avant de fermer.
+                    </p>
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <p class="text-blue-800">
+                        <strong>💡 Navigateur moderne requis</strong> : Fonctionne avec Chrome, Firefox, Edge, Safari (versions récentes)
+                    </p>
+                </div>
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                    <p class="text-green-800">
+                        <strong>📱 Responsive</strong> : Fonctionne sur ordinateur, tablette et mobile
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Support -->
+        <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg shadow-md p-6 mb-6 border-2 border-blue-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                <i data-lucide="life-buoy" class="text-blue-600" style="width: 28px; height: 28px;"></i>
+                <span>Support</span>
+            </h2>
+            <p class="text-gray-700 mb-3">Pour toute question ou problème, vérifiez que :</p>
+            <ul class="list-disc list-inside space-y-2 text-gray-700 ml-4">
+                <li>Vous utilisez un navigateur moderne et à jour</li>
+                <li>JavaScript est activé dans votre navigateur</li>
+                <li>Vous avez une connexion internet (pour charger TailwindCSS et Lucide icons)</li>
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-600 py-6">
+            <p class="flex items-center justify-center space-x-2">
+                <i data-lucide="info" style="width: 16px; height: 16px;"></i>
+                <span>Libre d'utilisation pour un usage personnel ou professionnel</span>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
