@@ -1663,7 +1663,7 @@ async function confirmAndSendReport() {
 }
 
 // Fonction pour envoyer le rapport par email
-async function sendReportByEmail() {
+async function sendReportByEmail(event) {
     try {
         // Vérifier qu'un chef de chantier est sélectionné
         if (!state.foremanId) {
@@ -1685,11 +1685,13 @@ async function sendReportByEmail() {
         }
 
         // Afficher un message de chargement
-        const button = event.target.closest('button');
-        const originalContent = button.innerHTML;
-        button.disabled = true;
-        button.innerHTML = '<i data-lucide="loader" class="animate-spin" style="width: 20px; height: 20px;"></i><span>Envoi en cours...</span>';
-        lucide.createIcons();
+        const button = event?.target?.closest('button');
+        const originalContent = button?.innerHTML;
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i data-lucide="loader" class="animate-spin" style="width: 20px; height: 20px;"></i><span>Envoi en cours...</span>';
+            lucide.createIcons();
+        }
 
         // Générer le contenu HTML pour l'impression
         generatePrintSheet();
@@ -1731,9 +1733,11 @@ async function sendReportByEmail() {
         const result = await response.json();
 
         // Restaurer le bouton
-        button.disabled = false;
-        button.innerHTML = originalContent;
-        lucide.createIcons();
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = originalContent;
+            lucide.createIcons();
+        }
 
         if (result.success) {
             alert(`✅ Rapport envoyé avec succès!\n\nDestinataires: ${result.recipients.join(', ')}`);
