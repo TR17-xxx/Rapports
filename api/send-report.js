@@ -1,6 +1,11 @@
 const puppeteer = require('puppeteer-core');
 const chromium = require('@sparticuz/chromium');
 
+// Configuration pour Vercel - désactiver le mode graphique pour réduire les dépendances
+if (process.env.VERCEL) {
+    chromium.setGraphicsMode = false;
+}
+
 // Configuration Brevo
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
@@ -77,25 +82,37 @@ module.exports = async (req, res) => {
         // Générer le PDF avec Puppeteer (optimisé pour Vercel)
         let browser;
         try {
-            browser = await puppeteer.launch({
-                args: [
-                    ...chromium.args,
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--single-process',
-                    '--no-zygote'
-                ],
+            // Obtenir le chemin d'exécution de Chromium
+            const executablePath = await chromium.executablePath();
+            console.log('📍 Chemin Chromium:', executablePath);
+            
+            // Configuration optimisée pour Vercel
+            const launchOptions = {
+                args: chromium.args,
                 defaultViewport: chromium.defaultViewport,
-                executablePath: await chromium.executablePath(),
-                headless: chromium.headless || 'new',
+                executablePath: executablePath,
+                headless: chromium.headless,
                 ignoreHTTPSErrors: true,
-            });
+            };
+            
+            console.log('🚀 Lancement du navigateur avec les options:', JSON.stringify(launchOptions, null, 2));
+            browser = await puppeteer.launch(launchOptions);
             console.log('✅ Navigateur lancé avec succès');
         } catch (launchError) {
             console.error('❌ Erreur lors du lancement du navigateur:', launchError);
-            throw new Error(`Impossible de lancer le navigateur: ${launchError.message}`);
+            console.error('Stack trace:', launchError.stack);
+            
+            // Message d'erreur plus détaillé
+            let errorMessage = 'Impossible de lancer le navigateur. ';
+            if (launchError.message.includes('libnss3')) {
+                errorMessage += 'Bibliothèques système manquantes (libnss3). Vérifiez la configuration Vercel.';
+            } else if (launchError.message.includes('Failed to launch')) {
+                errorMessage += 'Échec du lancement de Chromium. Vérifiez que @sparticuz/chromium est correctement installé.';
+            } else {
+                errorMessage += launchError.message;
+            }
+            
+            throw new Error(errorMessage);
         }
 
         const page = await browser.newPage();

@@ -286,6 +286,40 @@ C'est normal ! L'API n'accepte que les requêtes POST.
 
 ## ❓ Dépannage
 
+### ⚠️ Erreur : "libnss3.so: cannot open shared object file"
+
+**Erreur complète** : `Error: Failed to launch the browser process: Code 127`
+
+**Cause** : Version incompatible de `@sparticuz/chromium` avec Vercel ou bibliothèques système manquantes.
+
+**Solution** :
+
+1. **Vérifiez les versions dans `package.json`** (déjà corrigé dans ce projet) :
+   ```json
+   "@sparticuz/chromium": "^119.0.2",
+   "puppeteer-core": "^21.6.1"
+   ```
+   ⚠️ Les versions 119-120 sont plus stables sur Vercel que la 131.
+
+2. **Réinstallez les dépendances** :
+   ```bash
+   npm install
+   ```
+
+3. **Commitez et poussez les changements** :
+   ```bash
+   git add .
+   git commit -m "Fix: Update Chromium to v119 for Vercel compatibility"
+   git push
+   ```
+
+4. **Vercel redéploiera automatiquement** avec les bonnes versions.
+
+5. **Vérifiez la configuration `vercel.json`** :
+   - `memory: 3008` (nécessaire pour Chromium)
+   - `maxDuration: 60` (génération PDF peut prendre du temps)
+   - `includeFiles` inclut les binaires Chromium
+
 ### Erreur : "Brevo API error"
 
 **Cause** : Clé API invalide ou email expéditeur non vérifié
@@ -299,7 +333,9 @@ C'est normal ! L'API n'accepte que les requêtes POST.
 
 **Cause** : La génération du PDF prend trop de temps
 
-**Solution** : Normal pour le premier appel. Réessayez.
+**Solution** : 
+1. Normal pour le premier appel (cold start). Réessayez.
+2. Si le problème persiste, réduisez le nombre d'ouvriers par rapport.
 
 ### Les emails n'arrivent pas
 
