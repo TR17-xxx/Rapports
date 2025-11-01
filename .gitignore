@@ -1,6 +1,31 @@
+# Dépendances
 node_modules/
+
+# Variables d'environnement (SENSIBLE - NE JAMAIS COMMITER)
 .env
 .env.local
+.env.*.local
+.env.brevo
+.env.production
+.env.development
+
+# Fichiers générés
 *.pdf
 *.log
+dist/
+build/
+
+# Configuration Vercel
 .vercel
+.vercel.json
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

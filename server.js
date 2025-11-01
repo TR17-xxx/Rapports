@@ -39,6 +39,17 @@ transporter.verify(function(error, success) {
 // Route pour envoyer le rapport par email
 app.post('/api/send-report', async (req, res) => {
     try {
+        // Vérifier le token d'accès
+        const providedToken = req.headers['x-access-token'];
+        const requiredToken = process.env.ACCESS_TOKEN || 'rapport2024secure';
+        
+        if (providedToken !== requiredToken) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Accès non autorisé - Token invalide' 
+            });
+        }
+        
         const { htmlContent, weekInfo } = req.body;
 
         if (!htmlContent || !weekInfo) {

@@ -1,4 +1,18 @@
-# Guide d'Installation - Envoi d'Emails
+# Guide d'Installation - Rapports Hebdomadaires
+
+## 🔒 Accès Sécurisé
+
+⚠️ **IMPORTANT** : Cette application est protégée par un token d'accès.
+
+Vous devez accéder à l'application avec une URL contenant le token :
+
+```
+http://localhost:3000/index.html?token=rapport2024secure
+```
+
+Sans le token, vous verrez une page "Accès Restreint".
+
+---
 
 Ce guide vous explique comment configurer l'envoi automatique de rapports par email.
 

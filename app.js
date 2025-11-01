@@ -356,7 +356,8 @@ function setupModalBackdropClose() {
     var modals = [
         { id: 'addWorkerModal', closeFunc: hideAddWorkerModal },
         { id: 'selectForemanModal', closeFunc: hideSelectForemanModal },
-        { id: 'selectSiteModal', closeFunc: hideSelectSiteModal }
+        { id: 'selectSiteModal', closeFunc: hideSelectSiteModal },
+        { id: 'confirmSendModal', closeFunc: hideConfirmSendModal }
     ];
     
     modals.forEach(function(modal) {
@@ -1593,6 +1594,74 @@ function generatePrintSheet() {
     printSheet.innerHTML = html;
 }
 
+// Afficher la modal de confirmation avant l'envoi
+function showConfirmSendModal() {
+    // Vérifier qu'un chef de chantier est sélectionné
+    if (!state.foremanId) {
+        alert('⚠️ Veuillez sélectionner un chef de chantier avant d\'envoyer le rapport.');
+        return;
+    }
+
+    // Vérifier qu'il y a au moins un ouvrier
+    if (state.activeWorkers.length === 0) {
+        alert('⚠️ Veuillez ajouter au moins un ouvrier avant d\'envoyer le rapport.');
+        return;
+    }
+
+    // Remplir les informations du récapitulatif
+    const weekDisplay = document.getElementById('weekDisplay').textContent;
+    document.getElementById('confirmWeekDisplay').textContent = weekDisplay;
+
+    const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
+    if (foreman) {
+        document.getElementById('confirmForemanDisplay').textContent = `${foreman.lastName} ${foreman.firstName}`;
+    }
+
+    // Liste des ouvriers
+    const workersList = state.activeWorkers
+        .map(w => `${w.lastName} ${w.firstName}`)
+        .join(', ');
+    document.getElementById('confirmWorkersList').textContent = workersList;
+
+    // Nombre d'ouvriers
+    document.getElementById('confirmWorkerCount').textContent = state.activeWorkers.length;
+
+    // Calculer le total des heures
+    let totalHours = 0;
+    state.activeWorkers.forEach(worker => {
+        const workerData = state.data[worker.id];
+        if (workerData && workerData.sites) {
+            workerData.sites.forEach(site => {
+                totalHours += calculateSiteTotal(site);
+            });
+        }
+    });
+    document.getElementById('confirmTotalHours').textContent = totalHours.toFixed(1) + 'h';
+
+    // Générer l'aperçu du rapport
+    generatePrintSheet();
+    const printSheet = document.getElementById('printSheet');
+    const preview = document.getElementById('confirmPreview');
+    preview.innerHTML = printSheet.innerHTML;
+
+    // Afficher la modal
+    document.getElementById('confirmSendModal').classList.remove('hidden');
+    
+    // Recréer les icônes Lucide dans la modal
+    setTimeout(() => lucide.createIcons(), 0);
+}
+
+// Masquer la modal de confirmation
+function hideConfirmSendModal() {
+    document.getElementById('confirmSendModal').classList.add('hidden');
+}
+
+// Confirmer et envoyer le rapport
+async function confirmAndSendReport() {
+    hideConfirmSendModal();
+    await sendReportByEmail();
+}
+
 // Fonction pour envoyer le rapport par email
 async function sendReportByEmail() {
     try {
@@ -1646,10 +1715,12 @@ async function sendReportByEmail() {
         };
 
         // Envoyer la requête au serveur
-        const response = await fetch('http://localhost:3000/api/send-report', {
+        // URL Vercel configurée
+        const response = await fetch('https://rapports-git-main-tonys-projects-3cb67849.vercel.app/api/send-report', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Access-Token': window.ACCESS_TOKEN || ''
             },
             body: JSON.stringify({
                 htmlContent: htmlContent,

@@ -2,6 +2,166 @@
 
 Application web simple pour gérer les rapports hebdomadaires des ouvriers de chantier.
 
+---
+
+## 🚨 Sécurité GitHub - CRITIQUE
+
+### ⚠️ Repository Public = DANGER
+
+Si votre repository GitHub est **public**, **TOUTES** les informations dans votre code sont visibles par n'importe qui, y compris :
+
+- ❌ Adresses email dans `.env`
+- ❌ Mots de passe
+- ❌ Clés API
+- ❌ Tokens d'accès
+
+### ✅ Solution : Fichiers `.env` JAMAIS dans Git
+
+**Vérification immédiate** - Exécutez cette commande :
+
+```bash
+git ls-files | grep .env
+```
+
+- **Aucun résultat** → ✅ Vous êtes en sécurité
+- **Des fichiers apparaissent** → ❌ **ILS SONT PUBLICS !** Suivez les étapes ci-dessous
+
+### 🚨 Si vous avez déjà commité des fichiers `.env`
+
+**ACTION IMMDIATE** :
+
+1. **Rendre le repository privé** (GitHub → Settings → Change visibility → Private)
+
+2. **Changer TOUS les secrets** :
+   - Générer un nouveau mot de passe d'application email
+   - Générer une nouvelle clé API Brevo
+   - Générer un nouveau token d'accès
+
+3. **Supprimer les fichiers de Git** :
+
+   ```bash
+   # Option simple : Nouveau repository
+   rm -rf .git
+   git init
+   git add .
+   git commit -m "Initial commit (sans secrets)"
+   ```
+
+### Protection pour l'avenir
+
+✅ **Vérifiez `.gitignore`** contient :
+```gitignore
+.env
+.env.local
+.env.brevo
+.env.*
+```
+
+✅ **Avant chaque commit** :
+```bash
+git status  # Vérifier qu'aucun .env n'apparaît
+```
+
+✅ **Utilisez `.env.example`** avec des valeurs factices (peut être commité)
+
+### Configuration Vercel (Production)
+
+Sur Vercel, configurez les variables d'environnement :
+
+1. Dashboard → Settings → **Environment Variables**
+2. Ajoutez : `ACCESS_TOKEN`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `EMAIL_RECIPIENTS`
+
+✅ Les secrets ne sont **jamais** dans le code !
+
+---
+
+## 🔒 Sécurité et Accès
+
+### ⚠️ IMPORTANT : Accès Protégé par Token
+
+Cette application est **protégée par un système de token d'accès**. Seules les personnes disposant du lien avec le token valide peuvent accéder à l'application. Cette protection est nécessaire car l'application utilise l'envoi d'emails.
+
+### Comment accéder à l'application ?
+
+Vous devez utiliser une URL avec le paramètre `token` :
+
+**En local :**
+```
+http://localhost:3000/index.html?token=rapport2024secure
+```
+
+**En production :**
+```
+https://votre-domaine.com/index.html?token=rapport2024secure
+```
+
+❌ **Sans le token, vous verrez une page "Accès Restreint"**
+
+### Configuration du token (Administrateurs)
+
+#### 1. Générer un token sécurisé
+
+Pour générer un token aléatoire et sécurisé :
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Exemple de résultat :
+```
+a7f3c8e9d2b1f4a6c8e7d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4
+```
+
+#### 2. Configurer le token dans `.env`
+
+Ajoutez ou modifiez dans votre fichier `.env` :
+
+```bash
+# Token d'accès (doit correspondre au token dans index.html)
+ACCESS_TOKEN=a7f3c8e9d2b1f4a6c8e7d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4
+```
+
+#### 3. Configurer le token dans `index.html`
+
+Ouvrez `index.html` et modifiez la ligne ~488 :
+
+```javascript
+const REQUIRED_TOKEN = 'a7f3c8e9d2b1f4a6c8e7d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4';
+```
+
+⚠️ **Les deux tokens doivent être IDENTIQUES** (dans `.env` et `index.html`)
+
+#### 4. Redémarrer le serveur
+
+```bash
+npm start
+```
+
+### Partager l'accès
+
+Pour donner accès à une personne, partagez-lui l'URL complète avec le token :
+
+```
+https://votre-domaine.com/index.html?token=votre_token_ici
+```
+
+⚠️ **Bonnes pratiques :**
+- Ne partagez le lien qu'avec des personnes de confiance
+- Changez le token régulièrement (tous les 3-6 mois)
+- Utilisez HTTPS en production
+- Ne publiez jamais le token publiquement
+
+### Révoquer l'accès
+
+Pour révoquer tous les accès existants :
+
+1. Générez un nouveau token
+2. Mettez à jour `.env` et `index.html`
+3. Redémarrez le serveur
+4. Partagez le nouveau lien uniquement aux personnes autorisées
+
+---
+
 ## Fonctionnalités
 
 - ✅ Saisie des heures du lundi au vendredi

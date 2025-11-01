@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader(
         'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Access-Token'
     );
 
     // Handle OPTIONS request
@@ -27,6 +27,17 @@ module.exports = async (req, res) => {
     }
 
     try {
+        // Vérifier le token d'accès
+        const providedToken = req.headers['x-access-token'];
+        const requiredToken = process.env.ACCESS_TOKEN || 'rapport2024secure';
+        
+        if (providedToken !== requiredToken) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Accès non autorisé - Token invalide' 
+            });
+        }
+        
         const { htmlContent, weekInfo } = req.body;
 
         if (!htmlContent || !weekInfo) {
