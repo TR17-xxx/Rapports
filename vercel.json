@@ -1,6 +1,12 @@
 {
   "version": 2,
   "cleanUrls": true,
+  "functions": {
+    "api/send-report.js": {
+      "memory": 3008,
+      "maxDuration": 60
+    }
+  },
   "routes": [
     { "src": "^/$", "dest": "/index.html" },
     { "src": "^/index$", "dest": "/index.html" },

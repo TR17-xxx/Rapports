@@ -38,6 +38,31 @@ module.exports = async (req, res) => {
             });
         }
         
+        // Vérifier les variables d'environnement requises
+        if (!BREVO_API_KEY) {
+            console.error('❌ BREVO_API_KEY manquante');
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Configuration serveur incomplète: BREVO_API_KEY manquante. Veuillez configurer les variables d\'environnement dans Vercel.' 
+            });
+        }
+        
+        if (!process.env.BREVO_SENDER_EMAIL) {
+            console.error('❌ BREVO_SENDER_EMAIL manquante');
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Configuration serveur incomplète: BREVO_SENDER_EMAIL manquante. Veuillez configurer les variables d\'environnement dans Vercel.' 
+            });
+        }
+        
+        if (!process.env.EMAIL_RECIPIENTS) {
+            console.error('❌ EMAIL_RECIPIENTS manquante');
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Configuration serveur incomplète: EMAIL_RECIPIENTS manquante. Veuillez configurer les variables d\'environnement dans Vercel.' 
+            });
+        }
+        
         const { htmlContent, weekInfo } = req.body;
 
         if (!htmlContent || !weekInfo) {
@@ -50,12 +75,28 @@ module.exports = async (req, res) => {
         console.log('📧 Génération du PDF...');
 
         // Générer le PDF avec Puppeteer (optimisé pour Vercel)
-        const browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
-        });
+        let browser;
+        try {
+            browser = await puppeteer.launch({
+                args: [
+                    ...chromium.args,
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--single-process',
+                    '--no-zygote'
+                ],
+                defaultViewport: chromium.defaultViewport,
+                executablePath: await chromium.executablePath(),
+                headless: chromium.headless || 'new',
+                ignoreHTTPSErrors: true,
+            });
+            console.log('✅ Navigateur lancé avec succès');
+        } catch (launchError) {
+            console.error('❌ Erreur lors du lancement du navigateur:', launchError);
+            throw new Error(`Impossible de lancer le navigateur: ${launchError.message}`);
+        }
 
         const page = await browser.newPage();
         
@@ -217,7 +258,9 @@ module.exports = async (req, res) => {
             }
         });
 
-        await browser.close();
+        if (browser) {
+            await browser.close();
+        }
 
         console.log('✅ PDF généré avec succès');
 
@@ -270,8 +313,27 @@ module.exports = async (req, res) => {
         });
 
         if (!brevoResponse.ok) {
-            const errorData = await brevoResponse.json();
-            throw new Error(`Brevo API error: ${JSON.stringify(errorData)}`);
+            const errorText = await brevoResponse.text();
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch (e) {
+                errorData = { message: errorText };
+            }
+            
+            console.error('❌ Erreur Brevo API:', errorData);
+            
+            // Messages d'erreur plus explicites
+            let errorMessage = 'Erreur lors de l\'envoi via Brevo';
+            if (brevoResponse.status === 401) {
+                errorMessage = 'Clé API Brevo invalide. Vérifiez BREVO_API_KEY dans les variables d\'environnement.';
+            } else if (brevoResponse.status === 400) {
+                errorMessage = `Configuration email invalide: ${errorData.message || JSON.stringify(errorData)}`;
+            } else if (errorData.message) {
+                errorMessage = errorData.message;
+            }
+            
+            throw new Error(errorMessage);
         }
 
         const brevoResult = await brevoResponse.json();
