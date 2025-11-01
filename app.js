@@ -1715,8 +1715,8 @@ async function sendReportByEmail() {
         };
 
         // Envoyer la requête au serveur
-        // URL Vercel configurée
-        const response = await fetch('https://rapports-git-main-tonys-projects-3cb67849.vercel.app/api/send-report', {
+        // URL relative pour fonctionner sur tous les déploiements Vercel
+        const response = await fetch('/api/send-report', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
