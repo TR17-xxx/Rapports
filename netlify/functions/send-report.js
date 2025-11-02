@@ -1,4 +1,12 @@
-const PDFDocument = require('pdfkit');
+const PdfPrinter = require('pdfmake');
+const fonts = {
+    Roboto: {
+        normal: Buffer.from(require('pdfmake/build/vfs_fonts').pdfMake.vfs['Roboto-Regular.ttf'], 'base64'),
+        bold: Buffer.from(require('pdfmake/build/vfs_fonts').pdfMake.vfs['Roboto-Medium.ttf'], 'base64'),
+        italics: Buffer.from(require('pdfmake/build/vfs_fonts').pdfMake.vfs['Roboto-Italic.ttf'], 'base64'),
+        bolditalics: Buffer.from(require('pdfmake/build/vfs_fonts').pdfMake.vfs['Roboto-MediumItalic.ttf'], 'base64')
+    }
+};
 
 // Configuration Brevo
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
@@ -99,9 +107,9 @@ exports.handler = async (event, context) => {
             };
         }
 
-        console.log('📧 Génération du PDF avec PDFKit...');
+        console.log('📧 Génération du PDF avec pdfmake...');
 
-        // Générer le PDF avec PDFKit
+        // Générer le PDF avec pdfmake
         const pdfBuffer = await generatePDF(reportData, weekInfo);
         
         console.log('✅ PDF généré avec succès, taille:', pdfBuffer.length, 'bytes');
@@ -187,220 +195,147 @@ exports.handler = async (event, context) => {
     }
 };
 
-// Fonction pour générer le PDF avec PDFKit
+// Fonction pour générer le PDF avec pdfmake
 async function generatePDF(reportData, weekInfo) {
     return new Promise((resolve, reject) => {
         try {
-            const doc = new PDFDocument({
-                size: 'A4',
-                margins: { top: 30, bottom: 30, left: 30, right: 30 }
-            });
-
-            const chunks = [];
+            const printer = new PdfPrinter(fonts);
             
-            doc.on('data', chunk => chunks.push(chunk));
-            doc.on('end', () => resolve(Buffer.concat(chunks)));
-            doc.on('error', reject);
-
-            // Parcourir chaque ouvrier
+            // Créer le contenu du document pour tous les ouvriers
+            const content = [];
+            
             reportData.workers.forEach((worker, index) => {
                 if (index > 0) {
-                    doc.addPage();
+                    content.push({ text: '', pageBreak: 'before' });
                 }
-
-                // En-tête du rapport
-                drawHeader(doc, weekInfo, worker);
-
+                
+                // En-tête
+                content.push({
+                    table: {
+                        widths: ['25%', '50%', '25%'],
+                        body: [
+                            [
+                                { text: 'Semaine\n' + (weekInfo.weekNumber || ''), alignment: 'center', fontSize: 10, margin: [0, 10, 0, 10] },
+                                { text: 'RAPPORT HEBDOMADAIRE\n' + (weekInfo.period || ''), alignment: 'center', fontSize: 12, bold: true, margin: [0, 10, 0, 10] },
+                                { text: 'Nom\n' + (worker.name || ''), alignment: 'center', fontSize: 10, margin: [0, 10, 0, 10] }
+                            ]
+                        ]
+                    },
+                    layout: 'lightHorizontalLines',
+                    margin: [0, 0, 0, 20]
+                });
+                
                 // Tableau des heures
-                drawHoursTable(doc, worker);
-
+                const tableBody = [
+                    [
+                        { text: 'Chantier', bold: true, fontSize: 9 },
+                        { text: 'Lundi', bold: true, fontSize: 9, alignment: 'center' },
+                        { text: 'Mardi', bold: true, fontSize: 9, alignment: 'center' },
+                        { text: 'Mercredi', bold: true, fontSize: 9, alignment: 'center' },
+                        { text: 'Jeudi', bold: true, fontSize: 9, alignment: 'center' },
+                        { text: 'Vendredi', bold: true, fontSize: 9, alignment: 'center' },
+                        { text: 'Total', bold: true, fontSize: 9, alignment: 'center' }
+                    ]
+                ];
+                
+                // Ajouter les chantiers
+                worker.sites.forEach(site => {
+                    const total = (site.hours.monday || 0) + (site.hours.tuesday || 0) + 
+                                  (site.hours.wednesday || 0) + (site.hours.thursday || 0) + 
+                                  (site.hours.friday || 0);
+                    
+                    tableBody.push([
+                        { text: site.name || '', fontSize: 8 },
+                        { text: site.hours.monday || '0', fontSize: 8, alignment: 'center' },
+                        { text: site.hours.tuesday || '0', fontSize: 8, alignment: 'center' },
+                        { text: site.hours.wednesday || '0', fontSize: 8, alignment: 'center' },
+                        { text: site.hours.thursday || '0', fontSize: 8, alignment: 'center' },
+                        { text: site.hours.friday || '0', fontSize: 8, alignment: 'center' },
+                        { text: total.toString(), fontSize: 8, alignment: 'center' }
+                    ]);
+                });
+                
+                // Calculer les totaux par jour
+                let mondayTotal = 0, tuesdayTotal = 0, wednesdayTotal = 0, thursdayTotal = 0, fridayTotal = 0;
+                worker.sites.forEach(site => {
+                    mondayTotal += site.hours.monday || 0;
+                    tuesdayTotal += site.hours.tuesday || 0;
+                    wednesdayTotal += site.hours.wednesday || 0;
+                    thursdayTotal += site.hours.thursday || 0;
+                    fridayTotal += site.hours.friday || 0;
+                });
+                const grandTotal = mondayTotal + tuesdayTotal + wednesdayTotal + thursdayTotal + fridayTotal;
+                
+                // Ligne de total
+                tableBody.push([
+                    { text: 'TOTAL', bold: true, fontSize: 9 },
+                    { text: mondayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
+                    { text: tuesdayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
+                    { text: wednesdayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
+                    { text: thursdayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
+                    { text: fridayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
+                    { text: grandTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' }
+                ]);
+                
+                // Lignes vides
+                for (let i = 0; i < 3; i++) {
+                    tableBody.push(['', '', '', '', '', '', '']);
+                }
+                
+                content.push({
+                    table: {
+                        widths: [100, 50, 50, 50, 50, 50, 50],
+                        body: tableBody
+                    },
+                    layout: 'lightHorizontalLines',
+                    margin: [0, 0, 0, 20]
+                });
+                
                 // Observations
-                drawObservations(doc, worker);
-
+                content.push({
+                    table: {
+                        widths: ['*'],
+                        body: [
+                            [{ text: 'Observations :', bold: true, fontSize: 10 }],
+                            [{ text: worker.observation || '', fontSize: 10, alignment: 'center', margin: [0, 10, 0, 10] }]
+                        ]
+                    },
+                    layout: 'lightHorizontalLines',
+                    margin: [0, 0, 0, 20]
+                });
+                
                 // Pied de page
-                drawFooter(doc, weekInfo);
+                content.push({
+                    table: {
+                        widths: ['50%', '50%'],
+                        body: [
+                            [
+                                { text: 'Signature de l\'ouvrier :', fontSize: 9, margin: [0, 5, 0, 30] },
+                                { text: 'Signature du chef de chantier :', fontSize: 9, margin: [0, 5, 0, 30] }
+                            ]
+                        ]
+                    },
+                    layout: 'lightHorizontalLines'
+                });
             });
-
-            doc.end();
-
+            
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [30, 30, 30, 30],
+                content: content
+            };
+            
+            const pdfDoc = printer.createPdfKitDocument(docDefinition);
+            const chunks = [];
+            
+            pdfDoc.on('data', chunk => chunks.push(chunk));
+            pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+            pdfDoc.on('error', reject);
+            
+            pdfDoc.end();
+            
         } catch (error) {
             reject(error);
         }
     });
-}
-
-// Dessiner l'en-tête
-function drawHeader(doc, weekInfo, worker) {
-    const pageWidth = doc.page.width - 60;
-    const headerHeight = 60;
-    let y = 30;
-
-    // Bordure principale
-    doc.rect(30, y, pageWidth, headerHeight).stroke();
-
-    // Diviser en 3 colonnes
-    const col1Width = pageWidth * 0.25;
-    const col2Width = pageWidth * 0.5;
-    const col3Width = pageWidth * 0.25;
-
-    // Colonne 1 : Semaine
-    doc.fontSize(10).text('Semaine', 35, y + 20, { width: col1Width - 10, align: 'center' });
-    doc.fontSize(12).text(weekInfo.weekNumber || '', 35, y + 35, { width: col1Width - 10, align: 'center' });
-
-    // Ligne verticale
-    doc.moveTo(30 + col1Width, y).lineTo(30 + col1Width, y + headerHeight).stroke();
-
-    // Colonne 2 : Titre et dates
-    doc.fontSize(14).text('RAPPORT HEBDOMADAIRE', 30 + col1Width + 5, y + 15, { width: col2Width - 10, align: 'center' });
-    doc.fontSize(10).text(weekInfo.period || '', 30 + col1Width + 5, y + 35, { width: col2Width - 10, align: 'center' });
-
-    // Ligne verticale
-    doc.moveTo(30 + col1Width + col2Width, y).lineTo(30 + col1Width + col2Width, y + headerHeight).stroke();
-
-    // Colonne 3 : Nom de l'ouvrier
-    doc.fontSize(9).text('Nom', 30 + col1Width + col2Width + 5, y + 20, { width: col3Width - 10, align: 'center' });
-    doc.fontSize(11).text(worker.name || '', 30 + col1Width + col2Width + 5, y + 35, { width: col3Width - 10, align: 'center' });
-}
-
-// Dessiner le tableau des heures
-function drawHoursTable(doc, worker) {
-    const pageWidth = doc.page.width - 60;
-    let y = 110;
-
-    // En-têtes du tableau
-    const colWidths = {
-        chantier: 100,
-        day: 50,
-        total: 50
-    };
-
-    const headers = ['Chantier', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Total'];
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-
-    // Dessiner les en-têtes
-    doc.fontSize(9);
-    let x = 30;
-    
-    doc.rect(x, y, colWidths.chantier, 20).stroke();
-    doc.text(headers[0], x + 2, y + 6, { width: colWidths.chantier - 4, align: 'left' });
-    x += colWidths.chantier;
-
-    for (let i = 1; i < headers.length; i++) {
-        const width = i === headers.length - 1 ? colWidths.total : colWidths.day;
-        doc.rect(x, y, width, 20).stroke();
-        doc.text(headers[i], x + 2, y + 6, { width: width - 4, align: 'center' });
-        x += width;
-    }
-
-    y += 20;
-
-    // Dessiner les lignes de chantiers
-    worker.sites.forEach(site => {
-        x = 30;
-        const rowHeight = 20;
-
-        // Nom du chantier
-        doc.fontSize(8);
-        doc.rect(x, y, colWidths.chantier, rowHeight).stroke();
-        doc.text(site.name || '', x + 2, y + 6, { width: colWidths.chantier - 4, align: 'left' });
-        x += colWidths.chantier;
-
-        // Heures par jour
-        let total = 0;
-        days.forEach(day => {
-            const hours = site.hours[day] || 0;
-            total += hours;
-            doc.rect(x, y, colWidths.day, rowHeight).stroke();
-            doc.text(hours.toString(), x + 2, y + 6, { width: colWidths.day - 4, align: 'center' });
-            x += colWidths.day;
-        });
-
-        // Total
-        doc.rect(x, y, colWidths.total, rowHeight).stroke();
-        doc.text(total.toString(), x + 2, y + 6, { width: colWidths.total - 4, align: 'center' });
-
-        y += rowHeight;
-    });
-
-    // Ligne de total
-    x = 30;
-    const rowHeight = 25;
-    doc.fontSize(9);
-    
-    doc.rect(x, y, colWidths.chantier, rowHeight).stroke();
-    doc.text('TOTAL', x + 2, y + 8, { width: colWidths.chantier - 4, align: 'left' });
-    x += colWidths.chantier;
-
-    // Totaux par jour
-    days.forEach(day => {
-        let dayTotal = 0;
-        worker.sites.forEach(site => {
-            dayTotal += site.hours[day] || 0;
-        });
-        doc.rect(x, y, colWidths.day, rowHeight).stroke();
-        doc.fillColor('red').text(dayTotal.toString(), x + 2, y + 8, { width: colWidths.day - 4, align: 'center' });
-        doc.fillColor('black');
-        x += colWidths.day;
-    });
-
-    // Total général
-    let grandTotal = 0;
-    worker.sites.forEach(site => {
-        days.forEach(day => {
-            grandTotal += site.hours[day] || 0;
-        });
-    });
-    doc.rect(x, y, colWidths.total, rowHeight).stroke();
-    doc.fillColor('red').text(grandTotal.toString(), x + 2, y + 8, { width: colWidths.total - 4, align: 'center' });
-    doc.fillColor('black');
-
-    // Lignes vides pour ajouts manuels
-    y += rowHeight;
-    for (let i = 0; i < 3; i++) {
-        x = 30;
-        doc.rect(x, y, colWidths.chantier, 20).stroke();
-        x += colWidths.chantier;
-        for (let j = 0; j < 6; j++) {
-            const width = j === 5 ? colWidths.total : colWidths.day;
-            doc.rect(x, y, width, 20).stroke();
-            x += width;
-        }
-        y += 20;
-    }
-}
-
-// Dessiner les observations
-function drawObservations(doc, worker) {
-    const pageWidth = doc.page.width - 60;
-    const y = doc.page.height - 200;
-
-    doc.rect(30, y, pageWidth, 80).stroke();
-    doc.fontSize(10).text('Observations :', 35, y + 5);
-    
-    if (worker.observation) {
-        doc.fontSize(10).text(worker.observation, 35, y + 25, { 
-            width: pageWidth - 10, 
-            align: 'center' 
-        });
-    }
-}
-
-// Dessiner le pied de page
-function drawFooter(doc, weekInfo) {
-    const pageWidth = doc.page.width - 60;
-    const y = doc.page.height - 110;
-
-    // Diviser en 2 colonnes
-    const colWidth = pageWidth / 2;
-
-    // Colonne 1 : Signature ouvrier
-    doc.rect(30, y, colWidth, 60).stroke();
-    doc.fontSize(9).text('Signature de l\'ouvrier :', 35, y + 5);
-
-    // Ligne verticale
-    doc.moveTo(30 + colWidth, y).lineTo(30 + colWidth, y + 60).stroke();
-
-    // Colonne 2 : Signature chef de chantier
-    doc.rect(30 + colWidth, y, colWidth, 60).stroke();
-    doc.fontSize(9).text('Signature du chef de chantier :', 35 + colWidth, y + 5);
 }
