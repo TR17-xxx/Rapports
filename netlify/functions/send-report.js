@@ -221,23 +221,6 @@ async function generatePDF(reportData, weekInfo) {
             doc.text(worker.name || '', 170, 20, { maxWidth: 35 });
             doc.setFont(undefined, 'normal');
             
-            // Filigrane PRÉVISIONNEL si mode prévisionnel activé
-            if (weekInfo.isPrevisionnel) {
-                doc.setTextColor(255, 0, 0); // Rouge
-                doc.setFontSize(60);
-                doc.setFont(undefined, 'bold');
-                doc.saveGraphicsState();
-                doc.setGState(new doc.GState({ opacity: 0.2 }));
-                // Rotation de 45 degrés et positionnement au centre
-                doc.text('PRÉVISIONNEL', 105, 150, {
-                    align: 'center',
-                    angle: 45
-                });
-                doc.restoreGraphicsState();
-                doc.setTextColor(0, 0, 0); // Remettre en noir
-                doc.setFont(undefined, 'normal');
-            }
-            
             // Tableau des heures avec SAMEDI
             const tableData = [];
             
