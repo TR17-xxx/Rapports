@@ -89,6 +89,8 @@ exports.handler = async (event, context) => {
         const body = JSON.parse(event.body);
         const { reportData, weekInfo } = body;
 
+        console.log('[DEBUG] Données reçues - reportData:', JSON.stringify(reportData, null, 2));
+
         if (!reportData || !weekInfo) {
             return {
                 statusCode: 400,
