@@ -21,33 +21,79 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        /* Styles de base pour l'impression - toujours actifs pour compatibilité */
+        #printSheet {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 100%;
+            background: white;
+        }
+        
         @media print {
+            /* Réinitialisation complète pour l'impression */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            
             /* Masquer tout le contenu normal */
+            body > *:not(#printSheet),
             .no-print,
             #workersContainer,
             .bg-white.rounded-lg.shadow-md,
             .grid.grid-cols-1.lg\:grid-cols-2,
             #observationsContainer,
-            .bg-gradient-to-r.from-orange-50.to-amber-50 {
+            .bg-gradient-to-r.from-orange-50.to-amber-50,
+            header,
+            nav,
+            footer,
+            .container > *:not(#printSheet) {
                 display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                height: 0 !important;
+                overflow: hidden !important;
             }
             
             /* Afficher uniquement la fiche de pointage */
             #printSheet {
                 display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                position: static !important;
+                left: auto !important;
+                top: auto !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            
+            html, body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
             }
             
             body {
-                background: white;
-                margin: 0;
-                padding: 5mm;
-                font-family: Arial, sans-serif;
-                font-size: 10pt;
+                font-family: Arial, Helvetica, sans-serif !important;
+                font-size: 10pt !important;
+                line-height: 1.2 !important;
+                color: black !important;
             }
             
             @page {
-                size: A4;
+                size: A4 portrait;
                 margin: 5mm;
+            }
+            
+            /* Support pour les anciens navigateurs mobiles */
+            @page :first {
+                margin-top: 5mm;
             }
             
             .container {
@@ -252,8 +298,22 @@
         
         /* Optimisation pour smartphone */
         @media (max-width: 768px) {
+            /* Forcer le rendu matériel pour de meilleures performances */
+            * {
+                -webkit-transform: translateZ(0);
+                -moz-transform: translateZ(0);
+                -ms-transform: translateZ(0);
+                -o-transform: translateZ(0);
+                transform: translateZ(0);
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
+            }
+            
             body {
                 font-size: 14px;
+                -webkit-text-size-adjust: 100%;
+                -ms-text-size-adjust: 100%;
+                text-size-adjust: 100%;
             }
             
             .container {
@@ -373,15 +433,31 @@
             /* Améliorer le support tactile */
             input, select, textarea, button {
                 -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+                tap-highlight-color: rgba(0, 0, 0, 0.1);
+                touch-action: manipulation;
+                -ms-touch-action: manipulation;
+                cursor: pointer;
+            }
+            
+            /* Éviter le délai de 300ms sur les clics (anciens navigateurs) */
+            a, button, input[type="button"], input[type="submit"] {
+                -ms-touch-action: manipulation;
                 touch-action: manipulation;
             }
             
             /* Boutons plus grands et tactiles */
             button {
                 min-height: 44px; /* Taille minimale recommandée pour le tactile */
+                min-width: 44px; /* Largeur minimale pour zone tactile */
                 padding: 0.625rem 1rem !important;
                 -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+                tap-highlight-color: rgba(0, 0, 0, 0.1);
                 cursor: pointer;
+                /* Améliorer la réactivité sur anciens appareils */
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
             }
             
             /* Optimiser les zones tactiles */
@@ -793,7 +869,7 @@
     </div>
 
     <!-- Fiche de pointage pour l'impression -->
-    <div id="printSheet" style="display: none;">
+    <div id="printSheet">
         <!-- Le contenu sera généré dynamiquement par JavaScript -->
     </div>
 

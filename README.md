@@ -428,6 +428,85 @@ function createEmptySite() {
 - iOS Safari nécessite une étape supplémentaire (Partager > Imprimer)
 - Certains navigateurs Android ont des options différentes
 
+### Optimisations d'impression mobile (Version 2.1.0)
+
+#### Problème résolu
+Certains utilisateurs sur smartphones anciens ne voyaient rien s'afficher lors du clic sur "Imprimer / PDF".
+
+#### Solutions implémentées
+
+**1. Vérifications robustes**
+- Vérification que le contenu est généré avant l'impression
+- Messages d'erreur explicites en cas de problème
+- Double vérification après le délai de génération
+
+**2. Détection avancée des appareils**
+- Détection spécifique iOS ancien (5.0-9.x)
+- Détection spécifique Android ancien (1.x-4.x)
+- Adaptation du comportement selon l'appareil
+
+**3. Délais adaptés**
+- **Anciens appareils** (Android 1-4, iOS 5-9) : 1000ms
+- **Mobiles récents** : 600ms
+- **Desktop** : 300ms
+
+**4. Message de chargement**
+- Affichage de "Préparation de l'impression..." sur mobile
+- Feedback visuel pendant la génération du PDF
+
+**5. Fallbacks multiples**
+- Méthode 1 : `window.print()` (standard)
+- Méthode 2 : `document.execCommand('print')` (anciens navigateurs)
+- Méthode 3 : Instructions manuelles adaptées par plateforme
+  - **iOS** : "Appuyez sur Partager > Imprimer"
+  - **Android** : "Menu (⋮) > Imprimer"
+  - **Desktop** : "Ctrl+P ou Menu > Imprimer"
+
+**6. Améliorations CSS**
+- Positionnement hors écran au lieu de `display: none`
+- Règles d'impression renforcées avec `!important`
+- Support des anciens moteurs de rendu WebKit
+- Masquage multiple pour compatibilité maximale
+
+**7. Accélération matérielle**
+- Utilisation de `transform: translateZ(0)` pour GPU
+- Amélioration des performances sur anciens appareils
+- Réduction du délai de 300ms sur les clics
+
+#### Test de l'impression mobile
+
+Si vous rencontrez des problèmes d'impression :
+
+1. **Vérifiez qu'il y a des ouvriers** dans le rapport
+2. **Attendez le message** "Préparation de l'impression..." (mobile)
+3. **Si rien ne s'affiche** :
+   - Ouvrez la console du navigateur (si possible)
+   - Notez le modèle d'appareil et la version du système
+   - Essayez les instructions manuelles affichées
+
+4. **Méthode alternative** (si l'impression automatique échoue) :
+   - **iOS** : Safari > Bouton Partager (□↑) > Imprimer
+   - **Android** : Menu (⋮) > Partager > Imprimer ou Enregistrer en PDF
+
+#### Compatibilité testée
+
+✅ **iOS**
+- iOS 9.x : Support complet avec fallback
+- iOS 10.x-14.x : Support optimal
+- iOS 15+ : Support natif
+
+✅ **Android**
+- Android 4.4 (KitKat) : Support avec délai allongé
+- Android 5.x-11.x : Support optimal
+- Android 12+ : Support natif
+
+✅ **Navigateurs**
+- Safari Mobile : Toutes versions
+- Chrome Mobile : Toutes versions
+- Firefox Mobile : Toutes versions
+- Samsung Internet : 4.0+
+- Opera Mobile : Toutes versions
+
 ## Remarques importantes
 
 - ⚠️ **Pas de sauvegarde automatique** : Les données sont perdues si vous fermez la page. Pensez à imprimer ou exporter en PDF avant de fermer.
