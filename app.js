@@ -1708,7 +1708,8 @@ async function sendReportByEmail(event) {
         const weekInfo = {
             period: weekDisplay.textContent,
             foreman: currentForeman.firstName + ' ' + currentForeman.lastName,
-            weekNumber: weekNumber || 'Non définie'
+            weekNumber: weekNumber || 'Non définie',
+            isPrevisionnel: state.isPrevisionnel
         };
 
         // Préparer les données des ouvriers pour PDFKit
