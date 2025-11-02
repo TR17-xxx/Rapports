@@ -245,23 +245,21 @@ function drawHeader(doc, weekInfo, worker) {
 
     // Colonne 1 : Semaine
     doc.fontSize(10).text('Semaine', 35, y + 20, { width: col1Width - 10, align: 'center' });
-    doc.fontSize(12).font('Helvetica-Bold').text(weekInfo.weekNumber || '', 35, y + 35, { width: col1Width - 10, align: 'center' });
+    doc.fontSize(12).text(weekInfo.weekNumber || '', 35, y + 35, { width: col1Width - 10, align: 'center' });
 
     // Ligne verticale
     doc.moveTo(30 + col1Width, y).lineTo(30 + col1Width, y + headerHeight).stroke();
 
     // Colonne 2 : Titre et dates
-    doc.fontSize(14).font('Helvetica-Bold').text('RAPPORT HEBDOMADAIRE', 30 + col1Width + 5, y + 15, { width: col2Width - 10, align: 'center' });
-    doc.fontSize(10).font('Helvetica').text(weekInfo.period || '', 30 + col1Width + 5, y + 35, { width: col2Width - 10, align: 'center' });
+    doc.fontSize(14).text('RAPPORT HEBDOMADAIRE', 30 + col1Width + 5, y + 15, { width: col2Width - 10, align: 'center' });
+    doc.fontSize(10).text(weekInfo.period || '', 30 + col1Width + 5, y + 35, { width: col2Width - 10, align: 'center' });
 
     // Ligne verticale
     doc.moveTo(30 + col1Width + col2Width, y).lineTo(30 + col1Width + col2Width, y + headerHeight).stroke();
 
     // Colonne 3 : Nom de l'ouvrier
     doc.fontSize(9).text('Nom', 30 + col1Width + col2Width + 5, y + 20, { width: col3Width - 10, align: 'center' });
-    doc.fontSize(11).font('Helvetica-Bold').text(worker.name || '', 30 + col1Width + col2Width + 5, y + 35, { width: col3Width - 10, align: 'center' });
-
-    doc.font('Helvetica');
+    doc.fontSize(11).text(worker.name || '', 30 + col1Width + col2Width + 5, y + 35, { width: col3Width - 10, align: 'center' });
 }
 
 // Dessiner le tableau des heures
@@ -280,7 +278,7 @@ function drawHoursTable(doc, worker) {
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
 
     // Dessiner les en-têtes
-    doc.fontSize(9).font('Helvetica-Bold');
+    doc.fontSize(9);
     let x = 30;
     
     doc.rect(x, y, colWidths.chantier, 20).stroke();
@@ -295,7 +293,6 @@ function drawHoursTable(doc, worker) {
     }
 
     y += 20;
-    doc.font('Helvetica');
 
     // Dessiner les lignes de chantiers
     worker.sites.forEach(site => {
@@ -320,8 +317,7 @@ function drawHoursTable(doc, worker) {
 
         // Total
         doc.rect(x, y, colWidths.total, rowHeight).stroke();
-        doc.font('Helvetica-Bold').text(total.toString(), x + 2, y + 6, { width: colWidths.total - 4, align: 'center' });
-        doc.font('Helvetica');
+        doc.text(total.toString(), x + 2, y + 6, { width: colWidths.total - 4, align: 'center' });
 
         y += rowHeight;
     });
@@ -329,7 +325,7 @@ function drawHoursTable(doc, worker) {
     // Ligne de total
     x = 30;
     const rowHeight = 25;
-    doc.fontSize(9).font('Helvetica-Bold');
+    doc.fontSize(9);
     
     doc.rect(x, y, colWidths.chantier, rowHeight).stroke();
     doc.text('TOTAL', x + 2, y + 8, { width: colWidths.chantier - 4, align: 'left' });
@@ -356,7 +352,7 @@ function drawHoursTable(doc, worker) {
     });
     doc.rect(x, y, colWidths.total, rowHeight).stroke();
     doc.fillColor('red').text(grandTotal.toString(), x + 2, y + 8, { width: colWidths.total - 4, align: 'center' });
-    doc.fillColor('black').font('Helvetica');
+    doc.fillColor('black');
 
     // Lignes vides pour ajouts manuels
     y += rowHeight;
@@ -379,15 +375,14 @@ function drawObservations(doc, worker) {
     const y = doc.page.height - 200;
 
     doc.rect(30, y, pageWidth, 80).stroke();
-    doc.fontSize(10).font('Helvetica-Bold').text('Observations :', 35, y + 5);
+    doc.fontSize(10).text('Observations :', 35, y + 5);
     
     if (worker.observation) {
-        doc.fontSize(10).font('Helvetica-Oblique').text(worker.observation, 35, y + 25, { 
+        doc.fontSize(10).text(worker.observation, 35, y + 25, { 
             width: pageWidth - 10, 
             align: 'center' 
         });
     }
-    doc.font('Helvetica');
 }
 
 // Dessiner le pied de page
@@ -400,7 +395,7 @@ function drawFooter(doc, weekInfo) {
 
     // Colonne 1 : Signature ouvrier
     doc.rect(30, y, colWidth, 60).stroke();
-    doc.fontSize(9).font('Helvetica-Bold').text('Signature de l\'ouvrier :', 35, y + 5);
+    doc.fontSize(9).text('Signature de l\'ouvrier :', 35, y + 5);
 
     // Ligne verticale
     doc.moveTo(30 + colWidth, y).lineTo(30 + colWidth, y + 60).stroke();
@@ -408,5 +403,4 @@ function drawFooter(doc, weekInfo) {
     // Colonne 2 : Signature chef de chantier
     doc.rect(30 + colWidth, y, colWidth, 60).stroke();
     doc.fontSize(9).text('Signature du chef de chantier :', 35 + colWidth, y + 5);
-    doc.font('Helvetica');
 }
