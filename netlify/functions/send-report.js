@@ -215,7 +215,8 @@ async function generatePDF(reportData, weekInfo) {
             doc.text('NOM:', 170, 15);
             doc.setFontSize(11);
             doc.setFont(undefined, 'bold');
-            doc.text(worker.name || '', 170, 20);
+            // Limiter la largeur du nom pour éviter le débordement
+            doc.text(worker.name || '', 170, 20, { maxWidth: 35 });
             doc.setFont(undefined, 'normal');
             
             // Tableau des heures avec SAMEDI
@@ -348,11 +349,11 @@ async function generatePDF(reportData, weekInfo) {
                 head: [['CHANTIER', 'LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI', 'TOTAL']],
                 body: tableData,
                 theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 2 },
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
                 headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.5, lineColor: [0, 0, 0] },
                 bodyStyles: { lineWidth: 0.5, lineColor: [0, 0, 0] },
                 columnStyles: {
-                    0: { cellWidth: 44, halign: 'left', fontSize: 8 },
+                    0: { cellWidth: 44, halign: 'left', fontSize: 8, overflow: 'linebreak' },
                     1: { cellWidth: 19, halign: 'center', fontSize: 8 },
                     2: { cellWidth: 19, halign: 'center', fontSize: 8 },
                     3: { cellWidth: 19, halign: 'center', fontSize: 8 },
@@ -380,19 +381,38 @@ async function generatePDF(reportData, weekInfo) {
             
             // Observations
             const finalY = doc.lastAutoTable.finalY + 10;
+            
+            // Dessiner le cadre des observations
+            const boxX = 15;
+            const boxY = finalY - 3;
+            const boxWidth = 180;
+            const boxHeight = 25;
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.5);
+            doc.rect(boxX, boxY, boxWidth, boxHeight);
+            
+            // Titre OBSERVATIONS
             doc.setFontSize(10);
             doc.setFont(undefined, 'bold');
-            let observationText = 'OBSERVATIONS:';
-            if (worker.isInterim !== false) {
-                observationText += '                    INTÉRIMAIRE';
+            doc.setTextColor(0, 0, 0);
+            doc.text('OBSERVATIONS:', boxX + 2, finalY);
+            
+            // Afficher INTÉRIMAIRE en orange si applicable
+            if (worker.isInterim === true) {
+                doc.setTextColor(255, 140, 0); // Orange
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.text('INTÉRIMAIRE', boxX + 50, finalY);
             }
-            doc.text(observationText, 15, finalY);
+            
+            // Contenu des observations
+            doc.setTextColor(0, 0, 0);
             doc.setFont(undefined, 'normal');
             if (worker.observation) {
-                doc.setFontSize(10);
+                doc.setFontSize(9);
                 doc.setFont(undefined, 'italic');
-                const lines = doc.splitTextToSize(worker.observation, 180);
-                doc.text(lines, 105, finalY + 7, { align: 'center' });
+                const lines = doc.splitTextToSize(worker.observation, boxWidth - 8);
+                doc.text(lines, boxX + 4, finalY + 7);
             }
             
             // Pied de page
