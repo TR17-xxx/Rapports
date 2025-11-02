@@ -1,9 +1,0 @@
-# Empêche Vercel d'uploader/considérer le serveur Express local
-server.js
-server.local.js
-local-server/
-
-# Fichiers de développement local
-node_modules/
-.env
-.env.local

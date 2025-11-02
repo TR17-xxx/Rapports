@@ -1693,11 +1693,6 @@ async function sendReportByEmail(event) {
             lucide.createIcons();
         }
 
-        // Générer le contenu HTML pour l'impression
-        generatePrintSheet();
-        const printSheet = document.getElementById('printSheet');
-        const htmlContent = printSheet.innerHTML;
-
         // Préparer les informations de la semaine
         const weekSelector = document.getElementById('weekSelector');
         const weekDisplay = document.getElementById('weekDisplay');
@@ -1716,16 +1711,37 @@ async function sendReportByEmail(event) {
             weekNumber: weekNumber || 'Non définie'
         };
 
-        // Envoyer la requête au serveur
-        // URL relative pour fonctionner sur tous les déploiements Vercel
-        const response = await fetch('/api/send-report', {
+        // Préparer les données des ouvriers pour PDFKit
+        const reportData = {
+            workers: state.activeWorkers.map(worker => {
+                const workerData = state.data[worker.id];
+                return {
+                    name: `${worker.lastName} ${worker.firstName}`,
+                    sites: workerData.sites.map(site => ({
+                        name: site.siteName || '',
+                        hours: {
+                            monday: site.hours.monday || 0,
+                            tuesday: site.hours.tuesday || 0,
+                            wednesday: site.hours.wednesday || 0,
+                            thursday: site.hours.thursday || 0,
+                            friday: site.hours.friday || 0
+                        }
+                    })),
+                    observation: workerData.observation || ''
+                };
+            })
+        };
+
+        // Envoyer la requête au serveur Netlify
+        // URL relative pour fonctionner sur tous les déploiements
+        const response = await fetch('/.netlify/functions/send-report', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Access-Token': window.ACCESS_TOKEN || ''
             },
             body: JSON.stringify({
-                htmlContent: htmlContent,
+                reportData: reportData,
                 weekInfo: weekInfo
             })
         });
@@ -1740,7 +1756,7 @@ async function sendReportByEmail(event) {
         }
 
         if (result.success) {
-            alert(`✅ Rapport envoyé avec succès!\n\nDestinataires: ${result.recipients.join(', ')}`);
+            alert(`✅ Rapport envoyé avec succès!\n\nLe rapport a été envoyé aux destinataires configurés.`);
         } else {
             alert(`❌ Erreur lors de l'envoi: ${result.message}`);
         }
@@ -1757,7 +1773,7 @@ async function sendReportByEmail(event) {
         }
         
         if (error.message.includes('Failed to fetch')) {
-            alert('❌ Impossible de se connecter au serveur.\n\nAssurez-vous que le serveur est démarré avec la commande:\nnpm start');
+            alert('❌ Impossible de se connecter au serveur.\n\nVérifiez votre connexion internet ou que l\'application est correctement déployée sur Netlify.');
         } else {
             alert(`❌ Erreur lors de l'envoi du rapport: ${error.message}`);
         }

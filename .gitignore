@@ -15,9 +15,8 @@ node_modules/
 dist/
 build/
 
-# Configuration Vercel
-.vercel
-.vercel.json
+# Configuration Netlify
+.netlify
 
 # Fichiers système
 .DS_Store

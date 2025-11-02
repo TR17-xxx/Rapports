@@ -64,14 +64,16 @@ git status  # Vérifier qu'aucun .env n'apparaît
 
 ✅ **Utilisez `.env.example`** avec des valeurs factices (peut être commité)
 
-### Configuration Vercel (Production)
+### Configuration Netlify (Production)
 
-Sur Vercel, configurez les variables d'environnement :
+Sur Netlify, configurez les variables d'environnement :
 
-1. Dashboard → Settings → **Environment Variables**
+1. Dashboard → Site configuration → **Environment Variables**
 2. Ajoutez : `ACCESS_TOKEN`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `EMAIL_RECIPIENTS`
 
 ✅ Les secrets ne sont **jamais** dans le code !
+
+📖 **Guide complet** : Consultez [NETLIFY_DEPLOYMENT.md](NETLIFY_DEPLOYMENT.md)
 
 ---
 

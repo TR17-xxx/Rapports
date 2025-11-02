@@ -1,0 +1,62 @@
+[build]
+  # Pas de build nécessaire pour ce projet statique
+  publish = "."
+  
+  # Commande de build (vide car pas de build process)
+  command = ""
+
+[functions]
+  # Dossier contenant les fonctions serverless
+  directory = "netlify/functions"
+  
+  # Timeout pour les fonctions (en secondes)
+  # Gratuit: 10s, Pro: 26s
+  # PDFKit est rapide, 10s devrait suffire
+  node_bundler = "esbuild"
+
+[[redirects]]
+  # Redirection pour l'API
+  from = "/api/send-report"
+  to = "/.netlify/functions/send-report"
+  status = 200
+
+[[redirects]]
+  # Redirection pour la page d'accueil
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  # Redirection pour /index
+  from = "/index"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  # Headers de sécurité et cache pour tous les fichiers
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+
+[[headers]]
+  # Headers spécifiques pour les fichiers statiques
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  # Headers spécifiques pour les fichiers CSS
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  # Headers CORS pour l'API
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, X-Access-Token"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
