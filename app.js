@@ -1725,6 +1725,11 @@ async function sendReportByEmail(event) {
                     friday: state.drivers.friday === worker.id
                 };
                 
+                console.log(`[CLIENT DEBUG] Worker: ${worker.lastName} ${worker.firstName}`);
+                console.log(`[CLIENT DEBUG] state.drivers:`, state.drivers);
+                console.log(`[CLIENT DEBUG] worker.id:`, worker.id);
+                console.log(`[CLIENT DEBUG] drivers:`, drivers);
+                
                 return {
                     name: `${worker.lastName} ${worker.firstName}`,
                     sites: workerData.sites.map(site => ({

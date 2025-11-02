@@ -282,7 +282,13 @@ async function generatePDF(reportData, weekInfo) {
             });
             
             // Jours où l'ouvrier est conducteur
-            const isDriverDays = days.map(day => worker.drivers && worker.drivers[day]);
+            console.log(`[DEBUG] Worker: ${worker.name}`);
+            console.log(`[DEBUG] worker.drivers:`, worker.drivers);
+            const isDriverDays = days.map(day => {
+                const isDriver = worker.drivers && worker.drivers[day];
+                console.log(`[DEBUG] Day ${day}: isDriver = ${isDriver}`);
+                return isDriver;
+            });
             
             // PANIER
             const panierMode = worker.panierMode || 'panier';
@@ -398,7 +404,7 @@ async function generatePDF(reportData, weekInfo) {
             doc.text('OBSERVATIONS:', boxX + 2, finalY);
             
             // Afficher INTÉRIMAIRE en orange si applicable
-            if (worker.isInterim === true) {
+            if (worker.isInterim) {
                 doc.setTextColor(255, 140, 0); // Orange
                 doc.setFontSize(10);
                 doc.setFont(undefined, 'bold');
