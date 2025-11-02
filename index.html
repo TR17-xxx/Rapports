@@ -21,7 +21,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* Styles de base pour l'impression - toujours actifs pour compatibilité */
+        /* Styles de base pour l'impression */
         #printSheet {
             position: absolute;
             left: -9999px;
@@ -31,69 +31,32 @@
         }
         
         @media print {
-            /* Réinitialisation complète pour l'impression */
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-                color-adjust: exact !important;
-            }
-            
             /* Masquer tout le contenu normal */
-            body > *:not(#printSheet),
             .no-print,
             #workersContainer,
             .bg-white.rounded-lg.shadow-md,
             .grid.grid-cols-1.lg\:grid-cols-2,
             #observationsContainer,
-            .bg-gradient-to-r.from-orange-50.to-amber-50,
-            header,
-            nav,
-            footer,
-            .container > *:not(#printSheet) {
+            .bg-gradient-to-r.from-orange-50.to-amber-50 {
                 display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-                height: 0 !important;
-                overflow: hidden !important;
             }
             
             /* Afficher uniquement la fiche de pointage */
             #printSheet {
                 display: block !important;
-                visibility: visible !important;
-                opacity: 1 !important;
                 position: static !important;
                 left: auto !important;
-                top: auto !important;
-                width: 100% !important;
-                height: auto !important;
-                overflow: visible !important;
-            }
-            
-            html, body {
-                background: white !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 100% !important;
-                height: auto !important;
-                overflow: visible !important;
             }
             
             body {
-                font-family: Arial, Helvetica, sans-serif !important;
-                font-size: 10pt !important;
-                line-height: 1.2 !important;
-                color: black !important;
+                background: white;
+                margin: 0;
+                padding: 0;
             }
             
             @page {
                 size: A4 portrait;
                 margin: 5mm;
-            }
-            
-            /* Support pour les anciens navigateurs mobiles */
-            @page :first {
-                margin-top: 5mm;
             }
             
             .container {

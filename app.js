@@ -1298,7 +1298,7 @@ function openHelp() {
     window.open('aide.html', '_blank');
 }
 
-// Fonction pour lancer l'impression (optimisée pour mobile et anciennes versions)
+// Fonction pour lancer l'impression (optimisée pour toutes versions)
 function printReport() {
     try {
         // Vérifier qu'il y a des ouvriers actifs
@@ -1328,119 +1328,37 @@ function printReport() {
             return;
         }
         
-        // Détecter le type d'appareil et de navigateur
-        var userAgent = navigator.userAgent || '';
-        var isIOS = /iPad|iPhone|iPod/.test(userAgent);
-        var isAndroid = /Android/.test(userAgent);
-        var isMobile = isIOS || isAndroid || /webOS|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-        var isOldAndroid = isAndroid && /Android [1-4]/.test(userAgent);
-        var isOldIOS = isIOS && /OS [5-9]_/.test(userAgent);
+        // Détecter si mobile (pour délai minimal)
+        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
-        // Délai adapté selon l'appareil (plus long pour les anciens appareils)
-        var delay = 300;
-        if (isOldAndroid || isOldIOS) {
-            delay = 1000; // 1 seconde pour les très anciens appareils
-        } else if (isMobile) {
-            delay = 600; // 600ms pour les mobiles récents
-        }
+        // Délai minimal : 100ms pour desktop, 250ms pour mobile
+        var delay = isMobile ? 250 : 100;
         
-        // Forcer l'affichage du contenu d'impression avant le délai
+        // Temporairement rendre visible pour la génération
         printSheet.style.display = 'block';
         printSheet.style.visibility = 'visible';
         
-        // Message de chargement pour les utilisateurs
-        var loadingMsg = null;
-        if (isMobile) {
-            loadingMsg = document.createElement('div');
-            loadingMsg.id = 'printLoadingMsg';
-            loadingMsg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 40px; border-radius: 10px; z-index: 10000; font-size: 16px; text-align: center;';
-            loadingMsg.textContent = 'Préparation de l\'impression...';
-            document.body.appendChild(loadingMsg);
-        }
-        
-        // Délai pour s'assurer que le DOM est mis à jour
+        // Attendre que le DOM soit prêt puis lancer l'impression
         setTimeout(function() {
-            // Retirer le message de chargement
-            if (loadingMsg && loadingMsg.parentNode) {
-                loadingMsg.parentNode.removeChild(loadingMsg);
-            }
-            
             try {
-                // Vérifier une dernière fois que le contenu est présent
-                if (!printSheet.innerHTML || printSheet.innerHTML.trim() === '') {
-                    throw new Error('Contenu d\'impression vide après génération');
-                }
-                
-                // Méthode d'impression selon le navigateur
-                if (isIOS) {
-                    // iOS : utiliser une approche compatible avec les anciennes versions
-                    // Créer un événement tactile pour garantir l'interaction utilisateur
-                    var printFunction = function() {
-                        if (typeof window.print === 'function') {
-                            window.print();
-                        } else {
-                            // Fallback pour iOS très ancien
-                            alert('Veuillez utiliser le bouton "Partager" de Safari puis sélectionner "Imprimer"');
-                        }
-                    };
-                    
-                    // Exécuter immédiatement (déjà dans un contexte d'interaction utilisateur)
-                    printFunction();
-                } else if (isOldAndroid) {
-                    // Android ancien : approche alternative
-                    if (typeof window.print === 'function') {
-                        window.print();
-                    } else {
-                        // Fallback pour Android très ancien
-                        alert('Veuillez utiliser le menu de votre navigateur pour imprimer cette page.');
-                    }
-                } else {
-                    // Navigateurs modernes et desktop
-                    if (typeof window.print === 'function') {
-                        window.print();
-                    } else {
-                        throw new Error('window.print non supporté');
-                    }
-                }
+                // Lancer l'impression
+                window.print();
             } catch (e) {
                 console.error('Erreur lors de l\'impression:', e);
-                
-                // Fallback ultime : essayer document.execCommand
-                var fallbackSuccess = false;
-                if (typeof document.execCommand === 'function') {
-                    try {
-                        fallbackSuccess = document.execCommand('print', false, null);
-                    } catch (execError) {
-                        console.error('execCommand a échoué:', execError);
-                    }
-                }
-                
-                if (!fallbackSuccess) {
-                    // Dernier recours : instructions manuelles
-                    var instructions = 'Impossible d\'ouvrir automatiquement la fenêtre d\'impression.\n\n';
-                    if (isIOS) {
-                        instructions += 'Sur iOS :\n1. Appuyez sur le bouton "Partager" (icône carré avec flèche)\n2. Sélectionnez "Imprimer"';
-                    } else if (isAndroid) {
-                        instructions += 'Sur Android :\n1. Appuyez sur le menu (⋮)\n2. Sélectionnez "Imprimer" ou "Partager" puis "Imprimer"';
-                    } else {
-                        instructions += 'Veuillez utiliser le menu de votre navigateur :\n- Chrome/Edge : Ctrl+P ou Cmd+P\n- Menu > Imprimer';
-                    }
-                    alert(instructions);
-                }
+                alert('Impossible d\'ouvrir la fenêtre d\'impression.\n\nVeuillez utiliser Ctrl+P (ou Cmd+P sur Mac) pour imprimer.');
             } finally {
-                // Remettre le printSheet en display:none après un délai
-                // (pour éviter qu'il reste visible si l'impression est annulée)
+                // Remettre le printSheet hors écran après l'impression
                 setTimeout(function() {
                     if (printSheet) {
                         printSheet.style.display = '';
                         printSheet.style.visibility = '';
                     }
-                }, 1000);
+                }, 500);
             }
         }, delay);
     } catch (error) {
         console.error('Erreur dans printReport:', error);
-        alert('Une erreur est survenue lors de la préparation de l\'impression.\n\nDétails: ' + error.message + '\n\nVeuillez recharger la page et réessayer.');
+        alert('Une erreur est survenue. Veuillez réessayer.');
     }
 }
 

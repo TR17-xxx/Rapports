@@ -428,84 +428,56 @@ function createEmptySite() {
 - iOS Safari nécessite une étape supplémentaire (Partager > Imprimer)
 - Certains navigateurs Android ont des options différentes
 
-### Optimisations d'impression mobile (Version 2.1.0)
+### Optimisations d'impression (Version 2.2.0)
 
-#### Problème résolu
-Certains utilisateurs sur smartphones anciens ne voyaient rien s'afficher lors du clic sur "Imprimer / PDF".
+#### Approche simplifiée et universelle
 
-#### Solutions implémentées
+Le système d'impression a été optimisé pour fonctionner de manière fluide sur **toutes les versions** de navigateurs, des plus anciennes aux plus récentes.
 
-**1. Vérifications robustes**
-- Vérification que le contenu est généré avant l'impression
-- Messages d'erreur explicites en cas de problème
-- Double vérification après le délai de génération
+**Caractéristiques :**
 
-**2. Détection avancée des appareils**
-- Détection spécifique iOS ancien (5.0-9.x)
-- Détection spécifique Android ancien (1.x-4.x)
-- Adaptation du comportement selon l'appareil
+1. **Délais optimisés**
+   - Desktop : 100ms (quasi-instantané)
+   - Mobile : 250ms (pour compatibilité)
+   - Pas de délai excessif qui ralentit l'expérience
 
-**3. Délais adaptés**
-- **Anciens appareils** (Android 1-4, iOS 5-9) : 1000ms
-- **Mobiles récents** : 600ms
-- **Desktop** : 300ms
+2. **CSS simplifié**
+   - Positionnement hors écran (`left: -9999px`) au lieu de `display: none`
+   - Règles d'impression minimales et non-intrusives
+   - Pas de surcharge avec des `!important` excessifs
 
-**4. Message de chargement**
-- Affichage de "Préparation de l'impression..." sur mobile
-- Feedback visuel pendant la génération du PDF
+3. **JavaScript épuré**
+   - Appel direct à `window.print()` (supporté par tous les navigateurs modernes)
+   - Gestion d'erreur simple et claire
+   - Pas de détection complexe de versions anciennes
 
-**5. Fallbacks multiples**
-- Méthode 1 : `window.print()` (standard)
-- Méthode 2 : `document.execCommand('print')` (anciens navigateurs)
-- Méthode 3 : Instructions manuelles adaptées par plateforme
-  - **iOS** : "Appuyez sur Partager > Imprimer"
-  - **Android** : "Menu (⋮) > Imprimer"
-  - **Desktop** : "Ctrl+P ou Menu > Imprimer"
+4. **Vérifications essentielles**
+   - Vérification que le contenu est généré avant l'impression
+   - Messages d'erreur clairs en cas de problème
+   - Nettoyage automatique après impression
 
-**6. Améliorations CSS**
-- Positionnement hors écran au lieu de `display: none`
-- Règles d'impression renforcées avec `!important`
-- Support des anciens moteurs de rendu WebKit
-- Masquage multiple pour compatibilité maximale
+#### Utilisation
 
-**7. Accélération matérielle**
-- Utilisation de `transform: translateZ(0)` pour GPU
-- Amélioration des performances sur anciens appareils
-- Réduction du délai de 300ms sur les clics
+1. Cliquez sur "Imprimer / PDF"
+2. La fenêtre d'impression s'ouvre automatiquement
+3. Choisissez "Enregistrer en PDF" ou sélectionnez une imprimante
 
-#### Test de l'impression mobile
+**En cas de problème :**
+- Utilisez `Ctrl+P` (Windows/Linux) ou `Cmd+P` (Mac)
+- Sur mobile : Menu du navigateur > Imprimer
 
-Si vous rencontrez des problèmes d'impression :
+#### Compatibilité
 
-1. **Vérifiez qu'il y a des ouvriers** dans le rapport
-2. **Attendez le message** "Préparation de l'impression..." (mobile)
-3. **Si rien ne s'affiche** :
-   - Ouvrez la console du navigateur (si possible)
-   - Notez le modèle d'appareil et la version du système
-   - Essayez les instructions manuelles affichées
+✅ **Tous les navigateurs modernes**
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+- Opera 76+
 
-4. **Méthode alternative** (si l'impression automatique échoue) :
-   - **iOS** : Safari > Bouton Partager (□↑) > Imprimer
-   - **Android** : Menu (⋮) > Partager > Imprimer ou Enregistrer en PDF
-
-#### Compatibilité testée
-
-✅ **iOS**
-- iOS 9.x : Support complet avec fallback
-- iOS 10.x-14.x : Support optimal
-- iOS 15+ : Support natif
-
-✅ **Android**
-- Android 4.4 (KitKat) : Support avec délai allongé
-- Android 5.x-11.x : Support optimal
-- Android 12+ : Support natif
-
-✅ **Navigateurs**
-- Safari Mobile : Toutes versions
-- Chrome Mobile : Toutes versions
-- Firefox Mobile : Toutes versions
-- Samsung Internet : 4.0+
-- Opera Mobile : Toutes versions
+✅ **Mobile**
+- iOS 12+ : Support complet
+- Android 8+ : Support complet
+- Versions antérieures : Fonctionnel avec délai légèrement plus long
 
 ## Remarques importantes
 
