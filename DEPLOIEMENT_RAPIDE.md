@@ -1,14 +1,14 @@
 # 🚀 Guide de Déploiement Rapide - Netlify
 
 ## ✅ Correction appliquée
-Le problème d'envoi d'email a été corrigé en remplaçant PDFKit par pdfmake.
+Le problème d'envoi d'email a été corrigé en remplaçant PDFKit par jsPDF + jspdf-autotable.
 
 ## 📋 Étapes de déploiement
 
 ### 1. Commit et push des modifications
 ```bash
 git add .
-git commit -m "Fix: Remplacer PDFKit par pdfmake pour compatibilité Netlify"
+git commit -m "Fix: Remplacer PDFKit par jsPDF pour compatibilité Netlify"
 git push origin main
 ```
 
@@ -44,7 +44,7 @@ Netlify devrait déployer automatiquement après le push. Sinon :
 ### Vérifier les logs Netlify
 1. Allez dans **Functions** → **send-report**
 2. Consultez les logs pour voir les messages :
-   - `📧 Génération du PDF avec pdfmake...`
+   - `📧 Génération du PDF avec jsPDF...`
    - `✅ PDF généré avec succès, taille: XXX bytes`
    - `📤 Envoi de l'email via Brevo...`
    - `✅ Email envoyé avec succès`
@@ -65,13 +65,14 @@ Netlify devrait déployer automatiquement après le push. Sinon :
 
 ## 📊 Différences avec PDFKit
 
-| Aspect | PDFKit (❌ Ancien) | pdfmake (✅ Nouveau) |
-|--------|-------------------|---------------------|
+| Aspect | PDFKit (❌ Ancien) | jsPDF (✅ Nouveau) |
+|--------|-------------------|-------------------|
 | Compatibilité serverless | ❌ Non | ✅ Oui |
 | Fichiers externes requis | ❌ Oui (polices, licences) | ✅ Non (tout intégré) |
-| Taille des dépendances | 174 packages | 139 packages (-35) |
-| Syntaxe | Impérative | Déclarative |
+| Taille des dépendances | 160 packages | 125 packages (-35) |
+| Syntaxe | Complexe | Simple et directe |
 | Maintenance | Difficile | Facile |
+| Popularité | 2M/semaine | 3.5M/semaine |
 
 ## 🎉 Résultat
 

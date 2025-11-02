@@ -1,12 +1,5 @@
-const PdfPrinter = require('pdfmake');
-const fonts = {
-    Roboto: {
-        normal: Buffer.from(require('pdfmake/build/vfs_fonts').pdfMake.vfs['Roboto-Regular.ttf'], 'base64'),
-        bold: Buffer.from(require('pdfmake/build/vfs_fonts').pdfMake.vfs['Roboto-Medium.ttf'], 'base64'),
-        italics: Buffer.from(require('pdfmake/build/vfs_fonts').pdfMake.vfs['Roboto-Italic.ttf'], 'base64'),
-        bolditalics: Buffer.from(require('pdfmake/build/vfs_fonts').pdfMake.vfs['Roboto-MediumItalic.ttf'], 'base64')
-    }
-};
+const { jsPDF } = require('jspdf');
+require('jspdf-autotable');
 
 // Configuration Brevo
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
@@ -107,9 +100,9 @@ exports.handler = async (event, context) => {
             };
         }
 
-        console.log('📧 Génération du PDF avec pdfmake...');
+        console.log('📧 Génération du PDF avec jsPDF...');
 
-        // Générer le PDF avec pdfmake
+        // Générer le PDF avec jsPDF
         const pdfBuffer = await generatePDF(reportData, weekInfo);
         
         console.log('✅ PDF généré avec succès, taille:', pdfBuffer.length, 'bytes');
@@ -195,147 +188,117 @@ exports.handler = async (event, context) => {
     }
 };
 
-// Fonction pour générer le PDF avec pdfmake
+// Fonction pour générer le PDF avec jsPDF
 async function generatePDF(reportData, weekInfo) {
-    return new Promise((resolve, reject) => {
-        try {
-            const printer = new PdfPrinter(fonts);
+    try {
+        const doc = new jsPDF();
+        
+        reportData.workers.forEach((worker, index) => {
+            if (index > 0) {
+                doc.addPage();
+            }
             
-            // Créer le contenu du document pour tous les ouvriers
-            const content = [];
+            // En-tête
+            doc.setFontSize(10);
+            doc.text('Semaine', 15, 15);
+            doc.text(weekInfo.weekNumber || '', 15, 20);
             
-            reportData.workers.forEach((worker, index) => {
-                if (index > 0) {
-                    content.push({ text: '', pageBreak: 'before' });
-                }
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('RAPPORT HEBDOMADAIRE', 105, 15, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(weekInfo.period || '', 105, 20, { align: 'center' });
+            
+            doc.text('Nom', 170, 15);
+            doc.text(worker.name || '', 170, 20);
+            
+            // Tableau des heures
+            const tableData = [];
+            
+            // Ajouter les chantiers
+            worker.sites.forEach(site => {
+                const total = (site.hours.monday || 0) + (site.hours.tuesday || 0) + 
+                              (site.hours.wednesday || 0) + (site.hours.thursday || 0) + 
+                              (site.hours.friday || 0);
                 
-                // En-tête
-                content.push({
-                    table: {
-                        widths: ['25%', '50%', '25%'],
-                        body: [
-                            [
-                                { text: 'Semaine\n' + (weekInfo.weekNumber || ''), alignment: 'center', fontSize: 10, margin: [0, 10, 0, 10] },
-                                { text: 'RAPPORT HEBDOMADAIRE\n' + (weekInfo.period || ''), alignment: 'center', fontSize: 12, bold: true, margin: [0, 10, 0, 10] },
-                                { text: 'Nom\n' + (worker.name || ''), alignment: 'center', fontSize: 10, margin: [0, 10, 0, 10] }
-                            ]
-                        ]
-                    },
-                    layout: 'lightHorizontalLines',
-                    margin: [0, 0, 0, 20]
-                });
-                
-                // Tableau des heures
-                const tableBody = [
-                    [
-                        { text: 'Chantier', bold: true, fontSize: 9 },
-                        { text: 'Lundi', bold: true, fontSize: 9, alignment: 'center' },
-                        { text: 'Mardi', bold: true, fontSize: 9, alignment: 'center' },
-                        { text: 'Mercredi', bold: true, fontSize: 9, alignment: 'center' },
-                        { text: 'Jeudi', bold: true, fontSize: 9, alignment: 'center' },
-                        { text: 'Vendredi', bold: true, fontSize: 9, alignment: 'center' },
-                        { text: 'Total', bold: true, fontSize: 9, alignment: 'center' }
-                    ]
-                ];
-                
-                // Ajouter les chantiers
-                worker.sites.forEach(site => {
-                    const total = (site.hours.monday || 0) + (site.hours.tuesday || 0) + 
-                                  (site.hours.wednesday || 0) + (site.hours.thursday || 0) + 
-                                  (site.hours.friday || 0);
-                    
-                    tableBody.push([
-                        { text: site.name || '', fontSize: 8 },
-                        { text: site.hours.monday || '0', fontSize: 8, alignment: 'center' },
-                        { text: site.hours.tuesday || '0', fontSize: 8, alignment: 'center' },
-                        { text: site.hours.wednesday || '0', fontSize: 8, alignment: 'center' },
-                        { text: site.hours.thursday || '0', fontSize: 8, alignment: 'center' },
-                        { text: site.hours.friday || '0', fontSize: 8, alignment: 'center' },
-                        { text: total.toString(), fontSize: 8, alignment: 'center' }
-                    ]);
-                });
-                
-                // Calculer les totaux par jour
-                let mondayTotal = 0, tuesdayTotal = 0, wednesdayTotal = 0, thursdayTotal = 0, fridayTotal = 0;
-                worker.sites.forEach(site => {
-                    mondayTotal += site.hours.monday || 0;
-                    tuesdayTotal += site.hours.tuesday || 0;
-                    wednesdayTotal += site.hours.wednesday || 0;
-                    thursdayTotal += site.hours.thursday || 0;
-                    fridayTotal += site.hours.friday || 0;
-                });
-                const grandTotal = mondayTotal + tuesdayTotal + wednesdayTotal + thursdayTotal + fridayTotal;
-                
-                // Ligne de total
-                tableBody.push([
-                    { text: 'TOTAL', bold: true, fontSize: 9 },
-                    { text: mondayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
-                    { text: tuesdayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
-                    { text: wednesdayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
-                    { text: thursdayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
-                    { text: fridayTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' },
-                    { text: grandTotal.toString(), fontSize: 9, alignment: 'center', color: 'red' }
+                tableData.push([
+                    site.name || '',
+                    site.hours.monday || '0',
+                    site.hours.tuesday || '0',
+                    site.hours.wednesday || '0',
+                    site.hours.thursday || '0',
+                    site.hours.friday || '0',
+                    total.toString()
                 ]);
-                
-                // Lignes vides
-                for (let i = 0; i < 3; i++) {
-                    tableBody.push(['', '', '', '', '', '', '']);
-                }
-                
-                content.push({
-                    table: {
-                        widths: [100, 50, 50, 50, 50, 50, 50],
-                        body: tableBody
-                    },
-                    layout: 'lightHorizontalLines',
-                    margin: [0, 0, 0, 20]
-                });
-                
-                // Observations
-                content.push({
-                    table: {
-                        widths: ['*'],
-                        body: [
-                            [{ text: 'Observations :', bold: true, fontSize: 10 }],
-                            [{ text: worker.observation || '', fontSize: 10, alignment: 'center', margin: [0, 10, 0, 10] }]
-                        ]
-                    },
-                    layout: 'lightHorizontalLines',
-                    margin: [0, 0, 0, 20]
-                });
-                
-                // Pied de page
-                content.push({
-                    table: {
-                        widths: ['50%', '50%'],
-                        body: [
-                            [
-                                { text: 'Signature de l\'ouvrier :', fontSize: 9, margin: [0, 5, 0, 30] },
-                                { text: 'Signature du chef de chantier :', fontSize: 9, margin: [0, 5, 0, 30] }
-                            ]
-                        ]
-                    },
-                    layout: 'lightHorizontalLines'
-                });
             });
             
-            const docDefinition = {
-                pageSize: 'A4',
-                pageMargins: [30, 30, 30, 30],
-                content: content
-            };
+            // Calculer les totaux
+            let mondayTotal = 0, tuesdayTotal = 0, wednesdayTotal = 0, thursdayTotal = 0, fridayTotal = 0;
+            worker.sites.forEach(site => {
+                mondayTotal += site.hours.monday || 0;
+                tuesdayTotal += site.hours.tuesday || 0;
+                wednesdayTotal += site.hours.wednesday || 0;
+                thursdayTotal += site.hours.thursday || 0;
+                fridayTotal += site.hours.friday || 0;
+            });
+            const grandTotal = mondayTotal + tuesdayTotal + wednesdayTotal + thursdayTotal + fridayTotal;
             
-            const pdfDoc = printer.createPdfKitDocument(docDefinition);
-            const chunks = [];
+            // Ligne de total
+            tableData.push([
+                'TOTAL',
+                mondayTotal.toString(),
+                tuesdayTotal.toString(),
+                wednesdayTotal.toString(),
+                thursdayTotal.toString(),
+                fridayTotal.toString(),
+                grandTotal.toString()
+            ]);
             
-            pdfDoc.on('data', chunk => chunks.push(chunk));
-            pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
-            pdfDoc.on('error', reject);
+            // Lignes vides
+            for (let i = 0; i < 3; i++) {
+                tableData.push(['', '', '', '', '', '', '']);
+            }
             
-            pdfDoc.end();
+            doc.autoTable({
+                startY: 30,
+                head: [['Chantier', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Total']],
+                body: tableData,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: 'bold' },
+                columnStyles: {
+                    0: { cellWidth: 60 },
+                    1: { cellWidth: 20, halign: 'center' },
+                    2: { cellWidth: 20, halign: 'center' },
+                    3: { cellWidth: 20, halign: 'center' },
+                    4: { cellWidth: 20, halign: 'center' },
+                    5: { cellWidth: 20, halign: 'center' },
+                    6: { cellWidth: 20, halign: 'center' }
+                }
+            });
             
-        } catch (error) {
-            reject(error);
-        }
-    });
+            // Observations
+            const finalY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('Observations :', 15, finalY);
+            doc.setFont(undefined, 'normal');
+            if (worker.observation) {
+                doc.text(worker.observation, 15, finalY + 7, { maxWidth: 180 });
+            }
+            
+            // Pied de page
+            doc.setFontSize(9);
+            doc.text('Signature de l\'ouvrier :', 15, 270);
+            doc.text('Signature du chef de chantier :', 110, 270);
+        });
+        
+        // Convertir en buffer
+        const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+        return pdfBuffer;
+        
+    } catch (error) {
+        throw error;
+    }
 }
