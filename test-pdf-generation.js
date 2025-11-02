@@ -1,194 +1,87 @@
+/**
+ * Script de test pour vérifier la génération du PDF
+ * Ce script simule la génération d'un PDF avec les nouvelles modifications
+ */
+
 const { jsPDF } = require('jspdf');
 require('jspdf-autotable');
+const fs = require('fs');
 
-// Configuration Brevo
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
-
-// Fonction principale Netlify
-exports.handler = async (event, context) => {
-    // CORS headers
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Access-Token',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Content-Type': 'application/json'
-    };
-
-    // Handle OPTIONS request (preflight)
-    if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers,
-            body: ''
-        };
-    }
-
-    // Only accept POST
-    if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            headers,
-            body: JSON.stringify({ success: false, message: 'Method not allowed' })
-        };
-    }
-
-    try {
-        // Vérifier le token d'accès
-        const providedToken = event.headers['x-access-token'];
-        const requiredToken = process.env.ACCESS_TOKEN || 'rapport2024secure';
-        
-        if (providedToken !== requiredToken) {
-            return {
-                statusCode: 403,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Accès non autorisé - Token invalide' 
-                })
-            };
-        }
-        
-        // Vérifier les variables d'environnement requises
-        if (!BREVO_API_KEY) {
-            console.error('❌ BREVO_API_KEY manquante');
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Configuration serveur incomplète: BREVO_API_KEY manquante. Veuillez configurer les variables d\'environnement dans Netlify.' 
-                })
-            };
-        }
-        
-        if (!process.env.BREVO_SENDER_EMAIL) {
-            console.error('❌ BREVO_SENDER_EMAIL manquante');
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Configuration serveur incomplète: BREVO_SENDER_EMAIL manquante. Veuillez configurer les variables d\'environnement dans Netlify.' 
-                })
-            };
-        }
-        
-        if (!process.env.EMAIL_RECIPIENTS) {
-            console.error('❌ EMAIL_RECIPIENTS manquante');
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Configuration serveur incomplète: EMAIL_RECIPIENTS manquante. Veuillez configurer les variables d\'environnement dans Netlify.' 
-                })
-            };
-        }
-        
-        const body = JSON.parse(event.body);
-        const { reportData, weekInfo } = body;
-
-        if (!reportData || !weekInfo) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Données manquantes' 
-                })
-            };
-        }
-
-        console.log('📧 Génération du PDF avec jsPDF...');
-
-        // Générer le PDF avec jsPDF
-        const pdfBuffer = await generatePDF(reportData, weekInfo);
-        
-        console.log('✅ PDF généré avec succès, taille:', pdfBuffer.length, 'bytes');
-
-        // Convertir le PDF en base64 pour l'envoi par email
-        const pdfBase64 = pdfBuffer.toString('base64');
-
-        // Préparer les destinataires
-        const recipients = process.env.EMAIL_RECIPIENTS.split(',').map(email => ({
-            email: email.trim()
-        }));
-
-        // Préparer l'email avec Brevo
-        const emailData = {
-            sender: {
-                email: process.env.BREVO_SENDER_EMAIL,
-                name: 'Rapports Hebdomadaires'
-            },
-            to: recipients,
-            subject: `Rapport Hebdomadaire - ${weekInfo.period}`,
-            htmlContent: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #2563eb;">📊 Rapport Hebdomadaire</h2>
-                    <p><strong>Période :</strong> ${weekInfo.period}</p>
-                    <p><strong>Chef de chantier :</strong> ${weekInfo.foreman || 'Non défini'}</p>
-                    <p>Veuillez trouver ci-joint le rapport hebdomadaire détaillé au format PDF.</p>
-                    <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
-                    <p style="color: #6b7280; font-size: 12px;">
-                        Ce rapport a été généré automatiquement par le système de gestion des rapports hebdomadaires.
-                    </p>
-                </div>
-            `,
-            attachment: [
+// Données de test
+const testReportData = {
+    workers: [
+        {
+            name: 'DUPONT Jean',
+            sites: [
                 {
-                    content: pdfBase64,
-                    name: `Rapport_${weekInfo.period.replace(/\s+/g, '_')}.pdf`
+                    name: 'Chantier A',
+                    hours: {
+                        monday: 8,
+                        tuesday: 7.5,
+                        wednesday: 8,
+                        thursday: 8,
+                        friday: 7
+                    }
+                },
+                {
+                    name: 'Chantier B',
+                    hours: {
+                        monday: 0,
+                        tuesday: 0.5,
+                        wednesday: 0,
+                        thursday: 0,
+                        friday: 1
+                    }
                 }
-            ]
-        };
-
-        console.log('📤 Envoi de l\'email via Brevo...');
-
-        // Envoyer l'email via Brevo
-        const brevoResponse = await fetch(BREVO_API_URL, {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'api-key': BREVO_API_KEY,
-                'content-type': 'application/json'
+            ],
+            observation: 'Travail de qualité, bon respect des consignes de sécurité.',
+            drivers: {
+                monday: true,
+                tuesday: false,
+                wednesday: true,
+                thursday: false,
+                friday: false
             },
-            body: JSON.stringify(emailData)
-        });
-
-        if (!brevoResponse.ok) {
-            const errorData = await brevoResponse.text();
-            console.error('❌ Erreur Brevo:', errorData);
-            throw new Error(`Erreur Brevo API: ${brevoResponse.status} - ${errorData}`);
+            panierMode: 'panier',
+            panierCustom: {},
+            isInterim: true
+        },
+        {
+            name: 'MARTIN Sophie',
+            sites: [
+                {
+                    name: 'Chantier C',
+                    hours: {
+                        monday: 8,
+                        tuesday: 8,
+                        wednesday: 8,
+                        thursday: 8,
+                        friday: 8
+                    }
+                }
+            ],
+            observation: '',
+            drivers: {
+                monday: false,
+                tuesday: true,
+                wednesday: false,
+                thursday: true,
+                friday: true
+            },
+            panierMode: 'grand_deplacement',
+            panierCustom: {},
+            isInterim: false
         }
-
-        const brevoResult = await brevoResponse.json();
-        console.log('✅ Email envoyé avec succès:', brevoResult);
-
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ 
-                success: true, 
-                message: 'Rapport envoyé avec succès',
-                messageId: brevoResult.messageId
-            })
-        };
-
-    } catch (error) {
-        console.error('❌ Erreur lors de l\'envoi du rapport:', error);
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ 
-                success: false, 
-                message: `Erreur serveur: ${error.message}` 
-            })
-        };
-    }
+    ]
 };
 
-// Fonction pour générer le PDF avec jsPDF
+const testWeekInfo = {
+    period: 'Du 28 octobre au 1er novembre 2024',
+    foreman: 'DURAND Michel',
+    weekNumber: 'S44-2024'
+};
+
+// Fonction de génération (copie de send-report.js)
 async function generatePDF(reportData, weekInfo) {
     try {
         const doc = new jsPDF();
@@ -352,14 +245,14 @@ async function generatePDF(reportData, weekInfo) {
                 headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.5, lineColor: [0, 0, 0] },
                 bodyStyles: { lineWidth: 0.5, lineColor: [0, 0, 0] },
                 columnStyles: {
-                    0: { cellWidth: 44, halign: 'left', fontSize: 8 },
+                    0: { cellWidth: 45, halign: 'left', fontSize: 8 },
                     1: { cellWidth: 19, halign: 'center', fontSize: 8 },
                     2: { cellWidth: 19, halign: 'center', fontSize: 8 },
                     3: { cellWidth: 19, halign: 'center', fontSize: 8 },
                     4: { cellWidth: 19, halign: 'center', fontSize: 8 },
                     5: { cellWidth: 19, halign: 'center', fontSize: 8 },
                     6: { cellWidth: 19, halign: 'center', fontSize: 8 },
-                    7: { cellWidth: 20, halign: 'center', fontSize: 9, fontStyle: 'bold' }
+                    7: { cellWidth: 21, halign: 'center', fontSize: 9, fontStyle: 'bold' }
                 },
                 didParseCell: function(data) {
                     // Mettre en gras les lignes PANIER, TRANSPORT, TRAJET, et la ligne de total
@@ -402,11 +295,34 @@ async function generatePDF(reportData, weekInfo) {
             doc.text('Visa conducteur:', 110, 270);
         });
         
-        // Convertir en buffer
-        const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-        return pdfBuffer;
+        return doc;
         
     } catch (error) {
         throw error;
     }
 }
+
+// Exécuter le test
+console.log('🧪 Test de génération du PDF...\n');
+
+generatePDF(testReportData, testWeekInfo)
+    .then(doc => {
+        // Sauvegarder le PDF
+        const pdfOutput = doc.output('arraybuffer');
+        const buffer = Buffer.from(pdfOutput);
+        fs.writeFileSync('test-rapport.pdf', buffer);
+        
+        console.log('✅ PDF généré avec succès !');
+        console.log('📄 Fichier créé : test-rapport.pdf');
+        console.log('\n📊 Contenu du PDF :');
+        console.log('   - 2 ouvriers (DUPONT Jean - Intérimaire, MARTIN Sophie)');
+        console.log('   - Colonnes : CHANTIER, LUNDI, MARDI, MERCREDI, JEUDI, VENDREDI, SAMEDI, TOTAL');
+        console.log('   - Lignes : Chantiers + Total + PANIER + TRANSPORT + TRAJET');
+        console.log('   - DUPONT : Mode panier standard, conducteur lundi et mercredi');
+        console.log('   - MARTIN : Mode grand déplacement, conductrice mardi, jeudi et vendredi');
+        console.log('\n✨ Vérifiez le fichier test-rapport.pdf pour voir le résultat !');
+    })
+    .catch(error => {
+        console.error('❌ Erreur lors de la génération du PDF :', error);
+        process.exit(1);
+    });

@@ -1715,6 +1715,16 @@ async function sendReportByEmail(event) {
         const reportData = {
             workers: state.activeWorkers.map(worker => {
                 const workerData = state.data[worker.id];
+                
+                // Préparer les informations de conducteur pour chaque jour
+                const drivers = {
+                    monday: state.drivers.monday === worker.id,
+                    tuesday: state.drivers.tuesday === worker.id,
+                    wednesday: state.drivers.wednesday === worker.id,
+                    thursday: state.drivers.thursday === worker.id,
+                    friday: state.drivers.friday === worker.id
+                };
+                
                 return {
                     name: `${worker.lastName} ${worker.firstName}`,
                     sites: workerData.sites.map(site => ({
@@ -1727,7 +1737,11 @@ async function sendReportByEmail(event) {
                             friday: site.hours.friday || 0
                         }
                     })),
-                    observation: workerData.observation || ''
+                    observation: workerData.observation || '',
+                    drivers: drivers,
+                    panierMode: workerData.panierMode || 'panier',
+                    panierCustom: workerData.panierCustom || {},
+                    isInterim: workerData.isInterim !== false
                 };
             })
         };
