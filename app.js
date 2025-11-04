@@ -95,41 +95,16 @@
     }
 })();
 
-// Liste des ouvriers par défaut
-const defaultWorkers = [
-    { id: 1, firstName: "Yann", lastName: "Moinard" },
-    { id: 2, firstName: "Nathan", lastName: "Domain" },
-    { id: 3, firstName: "Pierre", lastName: "Canals" },
-    { id: 4, firstName: "Morgan", lastName: "Robin" },
-    { id: 5, firstName: "Stéphane", lastName: "Bolantin" },
-    { id: 6, firstName: "Alexandre", lastName: "Heugues" },
-    { id: 7, firstName: "Arnaud", lastName: "Fleury" },
-    { id: 8, firstName: "Loïc", lastName: "Hérault" },
-    { id: 9, firstName: "Olivier", lastName: "Simmonet" },
-    { id: 10, firstName: "Romain", lastName: "Pedeneau" },
-    { id: 11, firstName: "Noa", lastName: "Flosseau" },
-    { id: 12, firstName: "Anthony", lastName: "Baudry" },
-    { id: 13, firstName: "Jean-Claude", lastName: "Lamberton" },
-];
-
-// Liste des chantiers par défaut (par ordre alphabétique)
-const defaultSites = [
-    "Brouage",
-    "Château d'Oléron",
-    "Consac",
-    "Cram Chaban",
-    "Dépôt",
-    "Forges",
-    "Javrezac",
-    "Puybautier"
-];
+// Les données sensibles (ouvriers et chantiers) sont chargées depuis workers-data.js
+// Ce fichier est ignoré par Git pour protéger les informations personnelles
+// Voir workers-data.template.js pour un exemple de structure
 
 // État de l'application
 let state = {
-    availableWorkers: [...defaultWorkers].sort((a, b) => a.lastName.localeCompare(b.lastName)), // Liste complète des ouvriers
-    activeWorkers: [], // Ouvriers ajoutés au rapport
-    nextWorkerId: 14,
-    availableSites: [...defaultSites].sort(), // Liste complète des chantiers
+    availableWorkers: typeof defaultWorkers !== 'undefined' ? [...defaultWorkers].sort((a, b) => a.lastName.localeCompare(b.lastName)) : [],
+    activeWorkers: [],
+    nextWorkerId: 16,
+    availableSites: typeof defaultSites !== 'undefined' ? [...defaultSites].sort() : [], // Liste complète des chantiers
     foremanId: null, // Chef de chantier
     weekNumber: null,
     weekStart: null,

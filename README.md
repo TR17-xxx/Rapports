@@ -309,21 +309,54 @@ Pour chaque ouvrier, vous pouvez choisir le mode de gestion du panier via le men
 
 ## Personnalisation
 
-### Modifier la liste des ouvriers par défaut
+### Modifier la liste des ouvriers et chantiers
 
-Ouvrez le fichier `app.js` et modifiez la section suivante :
+#### 🔒 Données sensibles protégées
+
+Les listes d'ouvriers et de chantiers sont stockées dans le fichier `workers-data.js` qui est **ignoré par Git** pour protéger les informations personnelles.
+
+#### Configuration initiale
+
+1. **Copiez le fichier template** :
+   ```bash
+   cp workers-data.template.js workers-data.js
+   ```
+
+2. **Éditez `workers-data.js`** avec vos données réelles :
 
 ```javascript
+// Liste des ouvriers par défaut
 const defaultWorkers = [
     { id: 1, firstName: "Jean", lastName: "Dupont" },
     { id: 2, firstName: "Marie", lastName: "Martin" },
     { id: 3, firstName: "Pierre", lastName: "Durand" },
-    { id: 4, firstName: "Sophie", lastName: "Bernard" },
-    { id: 5, firstName: "Luc", lastName: "Petit" }
+    // Ajoutez vos ouvriers ici...
+];
+
+// Liste des chantiers par défaut (par ordre alphabétique)
+const defaultSites = [
+    "Chantier 1",
+    "Chantier 2",
+    "Chantier 3",
+    // Ajoutez vos chantiers ici...
 ];
 ```
 
-Ajoutez, modifiez ou supprimez des ouvriers selon vos besoins. N'oubliez pas d'incrémenter les IDs de manière unique.
+3. **Important** : 
+   - ✅ Le fichier `workers-data.js` ne sera **jamais** commité dans Git
+   - ✅ Vos données personnelles restent privées
+   - ✅ Le fichier `workers-data.template.js` peut être partagé (contient des exemples)
+
+#### Ajouter/modifier des ouvriers
+
+- Ajoutez des entrées dans le tableau `defaultWorkers`
+- Incrémentez les IDs de manière unique
+- Format : `{ id: X, firstName: "Prénom", lastName: "Nom" }`
+
+#### Ajouter/modifier des chantiers
+
+- Ajoutez des entrées dans le tableau `defaultSites`
+- Triez par ordre alphabétique pour faciliter la recherche
 
 ### Modifier les heures par défaut
 

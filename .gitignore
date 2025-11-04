@@ -28,3 +28,6 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Données sensibles (ouvriers et chantiers - NE JAMAIS COMMITER)
+workers-data.js
