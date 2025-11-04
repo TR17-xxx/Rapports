@@ -1416,7 +1416,8 @@ function generatePrintSheet() {
         const isInterim = workerData.isInterim !== false;
         
         html += `
-        <div class="print-sheet">
+        <div class="print-sheet" style="position: relative;">
+            ${state.isPrevisionnel ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 80px; font-weight: bold; color: rgba(255, 0, 0, 0.15); pointer-events: none; z-index: 1; white-space: nowrap; text-transform: uppercase; letter-spacing: 15px;">PRÉVISIONNEL</div>' : ''}
             <!-- En-tête -->
             <div class="print-header">
                 <div>
