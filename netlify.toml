@@ -42,10 +42,10 @@
     X-XSS-Protection = "1; mode=block"
 
 [[headers]]
-  # Headers spécifiques pour les fichiers statiques
+  # Headers spécifiques pour les fichiers statiques (cache court pour permettre les mises à jour)
   for = "/*.js"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=300, must-revalidate"
 
 [[headers]]
   # Headers spécifiques pour les fichiers CSS
