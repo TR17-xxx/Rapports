@@ -707,13 +707,12 @@ function addWorkerToActive(workerId) {
     
     // Initialiser ses données
     if (!state.data[workerId]) {
-        // Les ouvriers préenregistrés (id <= 13) ne sont pas intérimaires par défaut
-        // Les nouveaux ouvriers créés (id >= 14) sont intérimaires par défaut
-        const isPreregistered = workerId <= 13;
+        // Tous les ouvriers sont des employés permanents par défaut (non intérimaires)
+        // L'utilisateur peut basculer manuellement en intérimaire si nécessaire
         state.data[workerId] = {
             sites: [createEmptySite()],
             observation: '',
-            isInterim: !isPreregistered, // true pour nouveaux, false pour préenregistrés
+            isInterim: false, // false par défaut = employé permanent
             panierMode: 'panier', // 'panier', 'grand_deplacement', 'personnaliser'
             panierCustom: createEmptyPanierCustom()
         };
@@ -758,7 +757,7 @@ function removeWorkerFromActive(workerId) {
 // Ajouter un chantier à un ouvrier
 function addSiteToWorker(workerId) {
     if (!state.data[workerId]) {
-        state.data[workerId] = { sites: [], observation: '', isInterim: true, panierMode: 'panier', panierCustom: createEmptyPanierCustom() };
+        state.data[workerId] = { sites: [], observation: '', isInterim: false, panierMode: 'panier', panierCustom: createEmptyPanierCustom() };
     }
     // Le premier chantier a des valeurs à 7.5, les suivants à 0
     const isFirstSite = state.data[workerId].sites.length === 0;
