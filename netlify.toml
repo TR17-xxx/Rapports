@@ -21,6 +21,12 @@
   status = 200
 
 [[redirects]]
+  # Redirection pour récupérer les données des ouvriers
+  from = "/api/get-workers-data"
+  to = "/.netlify/functions/get-workers-data"
+  status = 200
+
+[[redirects]]
   # Redirection pour la page d'accueil
   from = "/"
   to = "/index.html"

@@ -101,10 +101,10 @@
 
 // État de l'application
 let state = {
-    availableWorkers: typeof defaultWorkers !== 'undefined' ? [...defaultWorkers].sort((a, b) => a.lastName.localeCompare(b.lastName)) : [],
+    availableWorkers: [],
     activeWorkers: [],
     nextWorkerId: 16,
-    availableSites: typeof defaultSites !== 'undefined' ? [...defaultSites].sort() : [], // Liste complète des chantiers
+    availableSites: [],
     foremanId: null, // Chef de chantier
     weekNumber: null,
     weekStart: null,
@@ -118,11 +118,50 @@ let state = {
         friday: null
     },
     isPrevisionnel: false, // Mode prévisionnel activé/désactivé
-    currentSiteSelection: null // Pour stocker le contexte de sélection de chantier
+    currentSiteSelection: null, // Pour stocker le contexte de sélection de chantier
+    dataLoaded: false // Indicateur de chargement des données
 };
 
+// Fonction pour charger les données des ouvriers et chantiers
+async function loadWorkersData() {
+    // En local, utiliser workers-data.js si disponible
+    if (typeof defaultWorkers !== 'undefined' && typeof defaultSites !== 'undefined') {
+        state.availableWorkers = [...defaultWorkers].sort((a, b) => a.lastName.localeCompare(b.lastName));
+        state.availableSites = [...defaultSites].sort();
+        state.dataLoaded = true;
+        return true;
+    }
+    
+    // En production, charger depuis l'API
+    try {
+        const token = window.ACCESS_TOKEN || 'rapport2024secure';
+        const response = await fetch('/.netlify/functions/get-workers-data', {
+            headers: {
+                'X-Access-Token': token
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load workers data');
+        }
+        
+        const data = await response.json();
+        state.availableWorkers = [...data.workers].sort((a, b) => a.lastName.localeCompare(b.lastName));
+        state.availableSites = [...data.sites].sort();
+        state.dataLoaded = true;
+        return true;
+    } catch (error) {
+        console.error('Error loading workers data:', error);
+        alert('Erreur lors du chargement des données. Veuillez recharger la page.');
+        return false;
+    }
+}
+
 // Initialisation
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Charger les données des ouvriers et chantiers
+    await loadWorkersData();
+    
     initializeWeek();
     initializeWorkers();
     setupEventListeners();
