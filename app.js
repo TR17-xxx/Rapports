@@ -1605,6 +1605,7 @@ function generatePrintSheet() {
             <div class="print-footer">
                 <div>
                     <div class="print-footer-label">Référence: Agenda chef d'équipe</div>
+                    <div class="print-footer-label">Chef de chantier: ${foremanDisplay}</div>
                 </div>
                 <div>
                     <div class="print-footer-label">Visa conducteur:</div>
