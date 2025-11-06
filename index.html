@@ -1056,7 +1056,16 @@
         </div>
     </div>
 
-    <script src="workers-data.js"></script>
+    <!-- Charger workers-data.js uniquement en développement local -->
+    <script>
+        // Tenter de charger workers-data.js, mais ne pas bloquer si absent (production)
+        const script = document.createElement('script');
+        script.src = 'workers-data.js';
+        script.onerror = function() {
+            console.log('workers-data.js non disponible, chargement depuis l\'API...');
+        };
+        document.head.appendChild(script);
+    </script>
     <script src="app.js"></script>
     <script>
         lucide.createIcons();
