@@ -285,6 +285,53 @@ app.post('/api/send-report', async (req, res) => {
     }
 });
 
+// Route pour récupérer les données des ouvriers et chantiers
+app.get('/api/workers-data', (req, res) => {
+    try {
+        // Vérifier le token d'accès
+        const providedToken = req.headers['x-access-token'] || req.query.token;
+        const requiredToken = process.env.ACCESS_TOKEN || 'rapport2024secure';
+        
+        if (providedToken !== requiredToken) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Accès non autorisé - Token invalide' 
+            });
+        }
+
+        // Charger dynamiquement workers-data.js
+        const workersDataPath = path.join(__dirname, 'workers-data.js');
+        
+        // Vérifier si le fichier existe
+        if (!fs.existsSync(workersDataPath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'Fichier workers-data.js introuvable'
+            });
+        }
+
+        // Supprimer le cache pour forcer le rechargement
+        delete require.cache[require.resolve('./workers-data.js')];
+        
+        // Charger les données
+        const workersData = require('./workers-data.js');
+        
+        res.json({
+            success: true,
+            workers: workersData.defaultWorkers || [],
+            sites: workersData.defaultSites || []
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur lors du chargement des données:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors du chargement des données',
+            error: error.message
+        });
+    }
+});
+
 // Route de test
 app.get('/api/test', (req, res) => {
     res.json({ 

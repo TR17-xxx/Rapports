@@ -17,3 +17,8 @@ const defaultSites = [
     "Chantier 3",
     // Ajoutez vos chantiers ici...
 ];
+
+// Export pour Node.js (serveur)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { defaultWorkers, defaultSites };
+}

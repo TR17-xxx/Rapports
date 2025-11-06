@@ -124,7 +124,7 @@ let state = {
 
 // Fonction pour charger les données des ouvriers et chantiers
 async function loadWorkersData() {
-    // En local, utiliser workers-data.js si disponible
+    // En local, utiliser workers-data.js si disponible (chargé via <script>)
     if (typeof defaultWorkers !== 'undefined' && typeof defaultSites !== 'undefined') {
         state.availableWorkers = [...defaultWorkers].sort((a, b) => a.lastName.localeCompare(b.lastName));
         state.availableSites = [...defaultSites].sort();
@@ -132,10 +132,16 @@ async function loadWorkersData() {
         return true;
     }
     
-    // En production, charger depuis l'API
+    // Sinon, charger depuis l'API locale/serveur
     try {
         const token = window.ACCESS_TOKEN || 'rapport2024secure';
-        const response = await fetch('/.netlify/functions/get-workers-data', {
+        
+        // Détecter si on est en local ou en production
+        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? '/api/workers-data'  // Serveur local Node.js
+            : '/.netlify/functions/get-workers-data';  // Production Netlify
+        
+        const response = await fetch(apiUrl, {
             headers: {
                 'X-Access-Token': token
             }
