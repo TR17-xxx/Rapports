@@ -14,6 +14,18 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+// Route spécifique pour servir workers-data.js avec le bon type MIME
+app.get('/workers-data.js', (req, res) => {
+    const filePath = path.join(__dirname, 'workers-data.js');
+    if (fs.existsSync(filePath)) {
+        res.type('application/javascript');
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send('// workers-data.js not found\nconst defaultWorkers = [];\nconst defaultSites = [];');
+    }
+});
+
 app.use(express.static(__dirname));
 
 // Configuration du transporteur email
