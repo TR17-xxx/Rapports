@@ -456,7 +456,13 @@ function updateWorkerObservation(workerId, observation) {
 function showAddWorkerModal() {
     updateWorkerSelectOptions();
     switchTab('existing'); // Par défaut sur l'onglet sélection
-    document.getElementById('addWorkerModal').classList.remove('hidden');
+    const modal = document.getElementById('addWorkerModal');
+    modal.classList.remove('hidden');
+    
+    // Scroller la modale au centre de l'écran visible
+    setTimeout(() => {
+        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 10);
     
     // Détecter si on est sur mobile pour éviter le focus automatique qui ouvre le clavier
     var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -590,7 +596,13 @@ function addWorker() {
 function showSelectForemanModal() {
     updateForemanSelectOptions();
     switchForemanTab('existing');
-    document.getElementById('selectForemanModal').classList.remove('hidden');
+    const modal = document.getElementById('selectForemanModal');
+    modal.classList.remove('hidden');
+    
+    // Scroller la modale au centre de l'écran visible
+    setTimeout(() => {
+        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 10);
     
     // Détecter si on est sur mobile pour éviter le focus automatique
     var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -856,7 +868,13 @@ function showSelectSiteModal(workerId, siteIndex) {
     state.currentSiteSelection = { workerId, siteIndex };
     updateSiteSelectOptions();
     switchSiteTab('existing');
-    document.getElementById('selectSiteModal').classList.remove('hidden');
+    const modal = document.getElementById('selectSiteModal');
+    modal.classList.remove('hidden');
+    
+    // Scroller la modale au centre de l'écran visible
+    setTimeout(() => {
+        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 10);
     
     // Détecter si on est sur mobile pour éviter le focus automatique
     var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1931,10 +1949,14 @@ function showConfirmSendModal() {
     preview.innerHTML = printSheet.innerHTML;
 
     // Afficher la modal
-    document.getElementById('confirmSendModal').classList.remove('hidden');
+    const modal = document.getElementById('confirmSendModal');
+    modal.classList.remove('hidden');
     
-    // Recréer les icônes Lucide dans la modal
-    setTimeout(() => lucide.createIcons(), 0);
+    // Scroller la modale au centre de l'écran visible
+    setTimeout(() => {
+        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        lucide.createIcons();
+    }, 10);
 }
 
 // Masquer la modal de confirmation
