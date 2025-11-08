@@ -2,13 +2,19 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
     <title>Aide - Rapports Hebdomadaires</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            text-size-adjust: 100%;
         }
         .section {
             scroll-margin-top: 2rem;
@@ -27,11 +33,100 @@
             border-radius: 0.5rem;
             overflow-x: auto;
             margin: 1rem 0;
+            -webkit-overflow-scrolling: touch;
         }
         pre code {
             background-color: transparent;
             color: #f9fafb;
             padding: 0;
+        }
+        
+        /* Optimisations pour smartphone */
+        @media (max-width: 768px) {
+            body {
+                font-size: 14px;
+            }
+            
+            .container {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+            
+            h1 {
+                font-size: 1.5rem !important;
+            }
+            
+            h2 {
+                font-size: 1.25rem !important;
+            }
+            
+            h3 {
+                font-size: 1.125rem !important;
+            }
+            
+            /* Boutons optimisés pour mobile */
+            button {
+                min-height: 44px;
+                min-width: 44px;
+                padding: 0.625rem 1rem !important;
+                -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+                touch-action: manipulation;
+                -ms-touch-action: manipulation;
+                cursor: pointer;
+            }
+            
+            /* Inputs et selects */
+            input, select, textarea {
+                font-size: 16px !important;
+                padding: 0.5rem !important;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            
+            /* Liens tactiles */
+            a {
+                -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+                touch-action: manipulation;
+                min-height: 44px;
+                display: inline-block;
+                padding: 0.5rem 0;
+            }
+            
+            /* Espacements réduits */
+            .p-6 {
+                padding: 1rem !important;
+            }
+            
+            .mb-6 {
+                margin-bottom: 1rem !important;
+            }
+            
+            /* Scroll optimisé */
+            * {
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* En-tête responsive */
+            .flex.items-center.justify-between {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 1rem;
+            }
+            
+            .flex.items-center.justify-between > button {
+                width: 100%;
+            }
+        }
+        
+        /* Très petits écrans */
+        @media (max-width: 374px) {
+            h1 {
+                font-size: 1.25rem !important;
+            }
+            
+            h2 {
+                font-size: 1.125rem !important;
+            }
         }
     </style>
 </head>

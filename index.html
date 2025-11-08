@@ -263,8 +263,16 @@
         
         /* Optimisation pour smartphone */
         @media (max-width: 768px) {
-            /* Forcer le rendu matériel pour de meilleures performances */
-            * {
+            /* Forcer le rendu matériel pour les éléments animés et scrollables */
+            .bg-white.rounded-lg,
+            button,
+            input,
+            select,
+            textarea,
+            .overflow-x-auto,
+            .overflow-y-auto,
+            #workersContainer > *,
+            .modal-content {
                 -webkit-transform: translateZ(0);
                 -moz-transform: translateZ(0);
                 -ms-transform: translateZ(0);
@@ -437,18 +445,36 @@
             }
             
             /* Tableaux responsive */
+            .overflow-x-auto {
+                -webkit-overflow-scrolling: touch;
+                overflow-x: auto;
+                overflow-y: visible;
+                -ms-overflow-style: -ms-autohiding-scrollbar;
+            }
+            
             table {
                 font-size: 0.75rem !important;
+                min-width: 100%;
+                width: 100%;
             }
             
             th, td {
                 padding: 0.5rem 0.25rem !important;
+                white-space: nowrap;
+            }
+            
+            /* Permettre le retour à la ligne pour les cellules longues si nécessaire */
+            .overflow-x-auto table th:first-child,
+            .overflow-x-auto table td:first-child {
+                white-space: normal;
+                min-width: 120px;
             }
             
             /* Conducteur de la semaine */
             #driverSelectionRow {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
+                -ms-overflow-style: -ms-autohiding-scrollbar;
             }
             
             .grid.grid-cols-6 {
@@ -466,12 +492,14 @@
                 right: 0 !important;
                 bottom: 0 !important;
                 display: flex !important;
-                align-items: center !important;
+                align-items: flex-start !important;
                 justify-content: center !important;
                 padding: 1rem !important;
+                padding-top: 2rem !important;
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch;
                 z-index: 9999 !important;
+                overscroll-behavior: contain;
             }
             
             #addWorkerModal > div,
@@ -481,8 +509,12 @@
                 max-width: 95% !important;
                 width: 100% !important;
                 margin: auto !important;
-                max-height: 90vh !important;
+                max-height: calc(90vh - 2rem) !important;
                 overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+                transform: translateZ(0);
+                will-change: scroll-position;
             }
             
             /* Améliorer le fond des modals pour mobile */
