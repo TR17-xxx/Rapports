@@ -455,17 +455,23 @@
                 min-width: 100%;
             }
             
-            /* Modal centré sur mobile et desktop */
+            /* Modal centré sur mobile et desktop - toujours sur le viewport visible */
             #addWorkerModal:not(.hidden),
             #selectForemanModal:not(.hidden),
             #selectSiteModal:not(.hidden),
             #confirmSendModal:not(.hidden) {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
                 padding: 1rem !important;
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch;
+                z-index: 9999 !important;
             }
             
             #addWorkerModal > div,
