@@ -1317,6 +1317,258 @@ function openHelp() {
     window.open('aide.html', '_blank');
 }
 
+// Fonction pour télécharger directement le PDF
+async function downloadPdfDirectly() {
+    try {
+        // Vérifier qu'il y a des ouvriers actifs
+        if (state.activeWorkers.length === 0) {
+            alert('Veuillez ajouter au moins un ouvrier avant de télécharger le PDF.');
+            return;
+        }
+        
+        // Vérifier qu'un chef de chantier est sélectionné
+        if (!state.foremanId) {
+            alert('⚠️ Veuillez sélectionner un chef de chantier.');
+            return;
+        }
+        
+        // Vérifier que jsPDF est chargé
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            alert('❌ Erreur: La bibliothèque PDF n\'est pas chargée. Veuillez recharger la page.');
+            return;
+        }
+        
+        // Afficher un indicateur de chargement (important pour mobile)
+        const loadingMessage = document.createElement('div');
+        loadingMessage.id = 'pdfLoadingIndicator';
+        loadingMessage.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px 40px; border-radius: 10px; z-index: 10000; font-size: 16px; text-align: center;';
+        loadingMessage.innerHTML = '📄 Génération du PDF...<br><small>Veuillez patienter</small>';
+        document.body.appendChild(loadingMessage);
+        
+        // Petit délai pour afficher le message
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Récupérer les informations
+        const weekSelector = document.getElementById('weekSelector');
+        const weekDisplay = document.getElementById('weekDisplay');
+        const weekValue = weekSelector.value;
+        
+        let weekNumber = '';
+        if (weekValue) {
+            const [year, week] = weekValue.split('-W');
+            weekNumber = `S${week}-${year}`;
+        }
+        
+        const currentForeman = state.availableWorkers.find(w => w.id === state.foremanId);
+        const foremanName = currentForeman ? `${currentForeman.firstName} ${currentForeman.lastName}` : 'Non défini';
+        
+        state.activeWorkers.forEach((worker, index) => {
+            if (index > 0) {
+                doc.addPage();
+            }
+            
+            const workerData = state.data[worker.id];
+            const isInterim = workerData.isInterim !== false;
+            
+            // En-tête - 3 colonnes
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('Semaine', 15, 15);
+            doc.text(weekNumber || '', 15, 20);
+            
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('FICHE DE POINTAGE HEBDOMADAIRE', 105, 15, { align: 'center' });
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.text(weekDisplay.textContent || '', 105, 20, { align: 'center' });
+            
+            doc.setFontSize(9);
+            doc.text('NOM:', 170, 15);
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${worker.lastName} ${worker.firstName}` || '', 170, 20, { maxWidth: 35 });
+            doc.setFont(undefined, 'normal');
+            
+            // Tableau des heures
+            const tableData = [];
+            
+            // Ajouter les chantiers
+            workerData.sites.forEach(site => {
+                const total = (site.hours.monday || 0) + (site.hours.tuesday || 0) + 
+                              (site.hours.wednesday || 0) + (site.hours.thursday || 0) + 
+                              (site.hours.friday || 0);
+                
+                tableData.push([
+                    site.siteName || '',
+                    site.hours.monday ? site.hours.monday.toString() : '',
+                    site.hours.tuesday ? site.hours.tuesday.toString() : '',
+                    site.hours.wednesday ? site.hours.wednesday.toString() : '',
+                    site.hours.thursday ? site.hours.thursday.toString() : '',
+                    site.hours.friday ? site.hours.friday.toString() : '',
+                    '',
+                    total > 0 ? total.toFixed(1) : ''
+                ]);
+            });
+            
+            // Lignes vides
+            const emptyRows = Math.max(0, 5 - workerData.sites.length);
+            for (let i = 0; i < emptyRows; i++) {
+                tableData.push(['', '', '', '', '', '', '', '']);
+            }
+            
+            // Calculer les totaux
+            let mondayTotal = 0, tuesdayTotal = 0, wednesdayTotal = 0, thursdayTotal = 0, fridayTotal = 0;
+            workerData.sites.forEach(site => {
+                mondayTotal += site.hours.monday || 0;
+                tuesdayTotal += site.hours.tuesday || 0;
+                wednesdayTotal += site.hours.wednesday || 0;
+                thursdayTotal += site.hours.thursday || 0;
+                fridayTotal += site.hours.friday || 0;
+            });
+            const grandTotal = mondayTotal + tuesdayTotal + wednesdayTotal + thursdayTotal + fridayTotal;
+            
+            tableData.push(['', '', '', '', '', '', 'Total', grandTotal > 0 ? grandTotal.toFixed(1) : '']);
+            
+            // Calculs PANIER, TRANSPORT, TRAJET
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+            const workedDays = days.map(day => {
+                let totalHours = 0;
+                workerData.sites.forEach(site => {
+                    totalHours += site.hours[day] || 0;
+                });
+                return totalHours > 0;
+            });
+            
+            const isDriverDays = days.map(day => state.drivers[day] === worker.id);
+            
+            // PANIER
+            const panierMode = workerData.panierMode || 'panier';
+            const panierCustom = workerData.panierCustom || {};
+            let panierValues = [];
+            
+            if (panierMode === 'panier') {
+                panierValues = workedDays.map(worked => worked ? '1' : '');
+            } else if (panierMode === 'grand_deplacement') {
+                panierValues = workedDays.map(worked => worked ? 'GD' : '');
+            } else if (panierMode === 'personnaliser') {
+                panierValues = days.map((day, index) => {
+                    return workedDays[index] ? (panierCustom[day] || '') : '';
+                });
+            }
+            const panierTotal = panierValues.filter(v => v !== '').length;
+            
+            const transportValues = isDriverDays.map(isDriver => isDriver ? '1' : '');
+            const transportTotal = transportValues.filter(v => v === '1').length;
+            
+            const trajetValues = workedDays.map(worked => worked ? '1' : '');
+            const trajetTotal = trajetValues.filter(v => v === '1').length;
+            
+            tableData.push(['PANIER', panierValues[0] || '', panierValues[1] || '', panierValues[2] || '', panierValues[3] || '', panierValues[4] || '', '', panierTotal > 0 ? panierTotal.toString() : '']);
+            tableData.push(['TRANSPORT', transportValues[0] || '', transportValues[1] || '', transportValues[2] || '', transportValues[3] || '', transportValues[4] || '', '', transportTotal > 0 ? transportTotal.toString() : '']);
+            tableData.push(['TRAJET', trajetValues[0] || '', trajetValues[1] || '', trajetValues[2] || '', trajetValues[3] || '', trajetValues[4] || '', '', trajetTotal > 0 ? trajetTotal.toString() : '']);
+            
+            doc.autoTable({
+                startY: 30,
+                head: [['CHANTIER', 'LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI', 'TOTAL']],
+                body: tableData,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+                headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.5, lineColor: [0, 0, 0] },
+                bodyStyles: { lineWidth: 0.5, lineColor: [0, 0, 0] },
+                columnStyles: {
+                    0: { cellWidth: 44, halign: 'left', fontSize: 8, overflow: 'linebreak' },
+                    1: { cellWidth: 19, halign: 'center', fontSize: 8 },
+                    2: { cellWidth: 19, halign: 'center', fontSize: 8 },
+                    3: { cellWidth: 19, halign: 'center', fontSize: 8 },
+                    4: { cellWidth: 19, halign: 'center', fontSize: 8 },
+                    5: { cellWidth: 19, halign: 'center', fontSize: 8 },
+                    6: { cellWidth: 19, halign: 'center', fontSize: 8 },
+                    7: { cellWidth: 20, halign: 'center', fontSize: 9, fontStyle: 'bold' }
+                },
+                didParseCell: function(data) {
+                    const rowData = tableData[data.row.index];
+                    if (rowData && (rowData[0] === 'PANIER' || rowData[0] === 'TRANSPORT' || rowData[0] === 'TRAJET')) {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [240, 240, 240];
+                    }
+                    if (rowData && rowData[6] === 'Total') {
+                        data.cell.styles.fontStyle = 'bold';
+                        if (data.column.index === 7) {
+                            data.cell.styles.textColor = [255, 0, 0];
+                        }
+                    }
+                }
+            });
+            
+            // Observations
+            const finalY = doc.lastAutoTable.finalY + 10;
+            const boxX = 15;
+            const boxY = finalY - 3;
+            const boxWidth = 180;
+            const boxHeight = 25;
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.5);
+            doc.rect(boxX, boxY, boxWidth, boxHeight);
+            
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text('OBSERVATIONS:', boxX + 2, finalY);
+            
+            if (isInterim) {
+                doc.setTextColor(255, 140, 0);
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.text('INTÉRIMAIRE', boxX + 50, finalY);
+            }
+            
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+            if (workerData.observation) {
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'italic');
+                const lines = doc.splitTextToSize(workerData.observation, boxWidth - 8);
+                doc.text(lines, boxX + 4, finalY + 7);
+            }
+            
+            // Pied de page
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            doc.text('Référence: Agenda chef d\'équipe', 15, 270);
+            doc.text(`Chef de chantier: ${foremanName}`, 15, 275);
+            doc.text('Visa conducteur:', 110, 270);
+        });
+        
+        // Télécharger le PDF
+        const fileName = `Rapport_${weekDisplay.textContent.replace(/\s+/g, '_')}.pdf`;
+        doc.save(fileName);
+        
+        // Retirer l'indicateur de chargement
+        const indicator = document.getElementById('pdfLoadingIndicator');
+        if (indicator) {
+            indicator.remove();
+        }
+        
+        // Message de succès (optionnel, peut être commenté si trop intrusif)
+        // alert('✅ PDF téléchargé avec succès!');
+        
+    } catch (error) {
+        console.error('Erreur lors de la génération du PDF:', error);
+        
+        // Retirer l'indicateur de chargement en cas d'erreur
+        const indicator = document.getElementById('pdfLoadingIndicator');
+        if (indicator) {
+            indicator.remove();
+        }
+        
+        alert('❌ Erreur lors de la génération du PDF: ' + error.message);
+    }
+}
+
 // Fonction pour lancer l'impression (optimisée pour toutes versions)
 function printReport() {
     try {
@@ -1805,7 +2057,13 @@ async function sendReportByEmail(event) {
         }
 
         if (result.success) {
-            alert(`✅ Rapport envoyé avec succès!\n\nLe rapport a été envoyé aux destinataires configurés.`);
+            // Proposer le téléchargement du PDF
+            const downloadPdf = confirm(`✅ Rapport envoyé avec succès!\n\nLe rapport a été envoyé aux destinataires configurés.\n\nSouhaitez-vous télécharger le PDF maintenant ?`);
+            
+            if (downloadPdf) {
+                // Déclencher le téléchargement direct du PDF
+                downloadPdfDirectly();
+            }
         } else {
             alert(`❌ Erreur lors de l'envoi: ${result.message}`);
         }

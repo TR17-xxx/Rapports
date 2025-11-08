@@ -427,6 +427,7 @@ async function generatePDF(reportData, weekInfo) {
             doc.setFontSize(9);
             doc.setFont(undefined, 'bold');
             doc.text('Référence: Agenda chef d\'équipe', 15, 270);
+            doc.text(`Chef de chantier: ${weekInfo.foreman || 'Non défini'}`, 15, 275);
             doc.text('Visa conducteur:', 110, 270);
         });
         
