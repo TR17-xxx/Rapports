@@ -1319,6 +1319,7 @@ function openHelp() {
 
 // Fonction pour télécharger directement le PDF
 async function downloadPdfDirectly() {
+    console.log('[DEBUG] downloadPdfDirectly() appelée');
     try {
         // Vérifier qu'il y a des ouvriers actifs
         if (state.activeWorkers.length === 0) {
@@ -1333,10 +1334,13 @@ async function downloadPdfDirectly() {
         }
         
         // Vérifier que jsPDF est chargé
+        console.log('[DEBUG] window.jspdf:', window.jspdf);
         if (!window.jspdf || !window.jspdf.jsPDF) {
+            console.error('[DEBUG] jsPDF non chargé!');
             alert('❌ Erreur: La bibliothèque PDF n\'est pas chargée. Veuillez recharger la page.');
             return;
         }
+        console.log('[DEBUG] jsPDF chargé avec succès');
         
         // Afficher un indicateur de chargement (important pour mobile)
         const loadingMessage = document.createElement('div');
@@ -2060,9 +2064,16 @@ async function sendReportByEmail(event) {
             // Proposer le téléchargement du PDF
             const downloadPdf = confirm(`✅ Rapport envoyé avec succès!\n\nLe rapport a été envoyé aux destinataires configurés.\n\nSouhaitez-vous télécharger le PDF maintenant ?`);
             
+            console.log('[DEBUG] downloadPdf:', downloadPdf);
+            
             if (downloadPdf) {
+                console.log('[DEBUG] Appel de downloadPdfDirectly()');
                 // Déclencher le téléchargement direct du PDF
-                downloadPdfDirectly();
+                try {
+                    await downloadPdfDirectly();
+                } catch (error) {
+                    console.error('[DEBUG] Erreur dans downloadPdfDirectly:', error);
+                }
             }
         } else {
             alert(`❌ Erreur lors de l'envoi: ${result.message}`);
