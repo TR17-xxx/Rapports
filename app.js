@@ -278,12 +278,19 @@ function clearState() {
         
         // Réinitialiser le mode prévisionnel dans l'interface
         const watermark = document.getElementById('previsionnelWatermark');
-        const checkbox = document.getElementById('previsionnelCheckbox');
+        const btn = document.getElementById('previsionnelBtn');
+        const icon = document.getElementById('previsionnelIcon');
         if (watermark) {
             watermark.classList.remove('active');
         }
-        if (checkbox) {
-            checkbox.checked = false;
+        if (btn) {
+            btn.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+            btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+        }
+        if (icon) {
+            icon.setAttribute('data-lucide', 'x');
+            icon.style.color = '#dc2626'; // red-600
+            lucide.createIcons();
         }
         
         alert('✅ Les données sauvegardées ont été effacées avec succès.');
@@ -377,14 +384,33 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Restaurer le mode prévisionnel si sauvegardé
+    const watermark = document.getElementById('previsionnelWatermark');
+    const btn = document.getElementById('previsionnelBtn');
+    const icon = document.getElementById('previsionnelIcon');
+    
     if (stateLoaded && state.isPrevisionnel) {
-        const watermark = document.getElementById('previsionnelWatermark');
-        const checkbox = document.getElementById('previsionnelCheckbox');
         if (watermark) {
             watermark.classList.add('active');
         }
-        if (checkbox) {
-            checkbox.checked = true;
+        if (btn) {
+            btn.classList.remove('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+            btn.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700');
+        }
+        if (icon) {
+            icon.setAttribute('data-lucide', 'check');
+            icon.style.color = 'white';
+            lucide.createIcons();
+        }
+    } else {
+        // S'assurer que le bouton est en mode désactivé (gris) au démarrage
+        if (btn) {
+            btn.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+            btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+        }
+        if (icon) {
+            icon.setAttribute('data-lucide', 'x');
+            icon.style.color = '#dc2626'; // red-600
+            lucide.createIcons();
         }
     }
     
@@ -1941,26 +1967,46 @@ function printReport() {
 
 // Activer/Désactiver le mode prévisionnel
 function togglePrevisionnel() {
-    const checkbox = document.getElementById('previsionnelCheckbox');
+    const btn = document.getElementById('previsionnelBtn');
+    const icon = document.getElementById('previsionnelIcon');
     const watermark = document.getElementById('previsionnelWatermark');
     
-    // Mettre à jour l'état selon la case à cocher
-    if (checkbox) {
-        state.isPrevisionnel = checkbox.checked;
-    } else {
-        // Si la case n'existe pas encore, basculer l'état
-        state.isPrevisionnel = !state.isPrevisionnel;
+    // Basculer l'état
+    state.isPrevisionnel = !state.isPrevisionnel;
+    
+    // Mettre à jour le bouton selon l'état
+    if (btn) {
+        if (state.isPrevisionnel) {
+            // Mode activé : vert avec coche
+            btn.classList.remove('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+            btn.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700');
+        } else {
+            // Mode désactivé : gris avec croix
+            btn.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+            btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+        }
     }
     
+    // Mettre à jour l'icône
+    if (icon) {
+        if (state.isPrevisionnel) {
+            // Coche verte
+            icon.setAttribute('data-lucide', 'check');
+            icon.style.color = 'white';
+        } else {
+            // Croix rouge
+            icon.setAttribute('data-lucide', 'x');
+            icon.style.color = '#dc2626'; // red-600
+        }
+        // Recréer l'icône Lucide
+        lucide.createIcons();
+    }
+    
+    // Mettre à jour le filigrane
     if (state.isPrevisionnel) {
         watermark.classList.add('active');
     } else {
         watermark.classList.remove('active');
-    }
-    
-    // Mettre à jour la case à cocher si elle existe
-    if (checkbox) {
-        checkbox.checked = state.isPrevisionnel;
     }
     
     // Sauvegarder l'état
@@ -2254,6 +2300,18 @@ function showConfirmSendModal() {
     const preview = document.getElementById('confirmPreview');
     preview.innerHTML = printSheet.innerHTML;
 
+    // Afficher/masquer l'alerte prévisionnel
+    const previsionnelAlert = document.getElementById('previsionnelAlert');
+    if (previsionnelAlert) {
+        if (state.isPrevisionnel) {
+            previsionnelAlert.classList.remove('hidden');
+        } else {
+            previsionnelAlert.classList.add('hidden');
+        }
+        // Recréer les icônes Lucide
+        lucide.createIcons();
+    }
+
     // Afficher la modal
     const modal = document.getElementById('confirmSendModal');
     modal.classList.remove('hidden');
@@ -2272,6 +2330,14 @@ function hideConfirmSendModal() {
 
 // Confirmer et envoyer le rapport
 async function confirmAndSendReport() {
+    // Avertir l'utilisateur si le mode prévisionnel est activé
+    if (state.isPrevisionnel) {
+        const confirmSend = confirm('⚠️ ATTENTION : Le mode PRÉVISIONNEL est activé.\n\nLe rapport sera envoyé avec le filigrane "PRÉVISIONNEL".\n\nVoulez-vous continuer l\'envoi ?');
+        if (!confirmSend) {
+            return; // L'utilisateur a annulé
+        }
+    }
+    
     hideConfirmSendModal();
     await sendReportByEmail();
 }
