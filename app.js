@@ -122,150 +122,6 @@ let state = {
     dataLoaded: false // Indicateur de chargement des données
 };
 
-// ============================================
-// SYSTÈME DE PERSISTANCE DES DONNÉES (8 JOURS)
-// ============================================
-
-// Durée de conservation des données en millisecondes (8 jours)
-const DATA_RETENTION_DAYS = 8;
-const DATA_RETENTION_MS = DATA_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-
-// Obtenir ou créer un identifiant unique pour cet utilisateur
-function getUserId() {
-    let userId = localStorage.getItem('rapport_user_id');
-    if (!userId) {
-        // Générer un ID unique basé sur timestamp + random
-        userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('rapport_user_id', userId);
-    }
-    return userId;
-}
-
-// Sauvegarder les données de l'utilisateur dans localStorage
-function saveUserData() {
-    try {
-        const userId = getUserId();
-        const dataToSave = {
-            userId: userId,
-            timestamp: Date.now(),
-            state: {
-                availableWorkers: state.availableWorkers,
-                activeWorkers: state.activeWorkers,
-                nextWorkerId: state.nextWorkerId,
-                availableSites: state.availableSites,
-                foremanId: state.foremanId,
-                weekNumber: state.weekNumber,
-                data: state.data,
-                drivers: state.drivers,
-                isPrevisionnel: state.isPrevisionnel
-            }
-        };
-        
-        localStorage.setItem('rapport_user_data_' + userId, JSON.stringify(dataToSave));
-        console.log('[PERSISTENCE] Données sauvegardées pour l\'utilisateur:', userId);
-    } catch (error) {
-        console.error('[PERSISTENCE] Erreur lors de la sauvegarde:', error);
-    }
-}
-
-// Charger les données de l'utilisateur depuis localStorage
-function loadUserData() {
-    try {
-        const userId = getUserId();
-        const savedDataStr = localStorage.getItem('rapport_user_data_' + userId);
-        
-        if (!savedDataStr) {
-            console.log('[PERSISTENCE] Aucune donnée sauvegardée trouvée pour cet utilisateur');
-            return false;
-        }
-        
-        const savedData = JSON.parse(savedDataStr);
-        
-        // Vérifier si les données ont expiré (plus de 5 jours)
-        const now = Date.now();
-        const dataAge = now - savedData.timestamp;
-        
-        if (dataAge > DATA_RETENTION_MS) {
-            console.log('[PERSISTENCE] Données expirées (âge: ' + Math.floor(dataAge / (24 * 60 * 60 * 1000)) + ' jours)');
-            // Supprimer les données expirées
-            localStorage.removeItem('rapport_user_data_' + userId);
-            return false;
-        }
-        
-        // Restaurer l'état depuis les données sauvegardées
-        if (savedData.state) {
-            // Restaurer les ouvriers disponibles s'ils existent (ouvriers créés par l'utilisateur)
-            if (savedData.state.availableWorkers && savedData.state.availableWorkers.length > 0) {
-                state.availableWorkers = savedData.state.availableWorkers;
-            }
-            state.activeWorkers = savedData.state.activeWorkers || [];
-            state.nextWorkerId = savedData.state.nextWorkerId || 16;
-            // Restaurer les chantiers disponibles s'ils existent
-            if (savedData.state.availableSites && savedData.state.availableSites.length > 0) {
-                state.availableSites = savedData.state.availableSites;
-            }
-            state.foremanId = savedData.state.foremanId || null;
-            state.weekNumber = savedData.state.weekNumber || null;
-            state.data = savedData.state.data || {};
-            state.drivers = savedData.state.drivers || {
-                monday: null,
-                tuesday: null,
-                wednesday: null,
-                thursday: null,
-                friday: null
-            };
-            state.isPrevisionnel = savedData.state.isPrevisionnel || false;
-            
-            const daysRemaining = Math.ceil((DATA_RETENTION_MS - dataAge) / (24 * 60 * 60 * 1000));
-            console.log('[PERSISTENCE] Données chargées avec succès. Expiration dans ' + daysRemaining + ' jour(s)');
-            return true;
-        }
-        
-        return false;
-    } catch (error) {
-        console.error('[PERSISTENCE] Erreur lors du chargement:', error);
-        return false;
-    }
-}
-
-// Effacer les données de l'utilisateur
-function clearUserData() {
-    try {
-        const userId = getUserId();
-        localStorage.removeItem('rapport_user_data_' + userId);
-        console.log('[PERSISTENCE] Données effacées pour l\'utilisateur:', userId);
-    } catch (error) {
-        console.error('[PERSISTENCE] Erreur lors de l\'effacement:', error);
-    }
-}
-
-// Obtenir les informations sur les données sauvegardées
-function getUserDataInfo() {
-    try {
-        const userId = getUserId();
-        const savedDataStr = localStorage.getItem('rapport_user_data_' + userId);
-        
-        if (!savedDataStr) {
-            return null;
-        }
-        
-        const savedData = JSON.parse(savedDataStr);
-        const now = Date.now();
-        const dataAge = now - savedData.timestamp;
-        const daysRemaining = Math.ceil((DATA_RETENTION_MS - dataAge) / (24 * 60 * 60 * 1000));
-        
-        return {
-            userId: userId,
-            savedAt: new Date(savedData.timestamp),
-            daysRemaining: daysRemaining,
-            isExpired: dataAge > DATA_RETENTION_MS
-        };
-    } catch (error) {
-        console.error('[PERSISTENCE] Erreur lors de la récupération des infos:', error);
-        return null;
-    }
-}
-
 // Fonction pour charger les données des ouvriers et chantiers
 async function loadWorkersData() {
     // En local, utiliser workers-data.js si disponible (chargé via <script>)
@@ -312,26 +168,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Charger les données des ouvriers et chantiers
     await loadWorkersData();
     
-    // Charger les données sauvegardées de l'utilisateur
-    const dataRestored = loadUserData();
-    
     initializeWeek();
-    
-    // Si des données ont été restaurées et qu'une semaine était sélectionnée, la restaurer
-    if (dataRestored && state.weekNumber) {
-        const weekInput = document.getElementById('weekSelector');
-        if (weekInput) {
-            weekInput.value = state.weekNumber;
-            updateWeekDisplay();
-        }
-    }
-    
     initializeWorkers();
     setupEventListeners();
     renderAll();
-    
-    // Synchroniser la checkbox prévisionnel avec l'état
-    updatePrevisionnelCheckbox();
     
     // Prévenir le zoom sur iOS lors du focus sur les inputs
     preventIOSZoom();
@@ -341,26 +181,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Masquer l'écran de chargement avec animation de fondu
     hideLoadingScreen();
-    
-    // Afficher un message si des données ont été restaurées
-    if (dataRestored) {
-        const info = getUserDataInfo();
-        if (info) {
-            console.log('[PERSISTENCE] Données restaurées. Expiration dans ' + info.daysRemaining + ' jour(s)');
-        }
-        
-        // Restaurer l'état du mode prévisionnel
-        if (state.isPrevisionnel) {
-            const watermark = document.getElementById('previsionnelWatermark');
-            const checkbox = document.getElementById('previsionnelCheckbox');
-            if (watermark) {
-                watermark.classList.add('active');
-            }
-            if (checkbox) {
-                checkbox.checked = true;
-            }
-        }
-    }
 });
 
 // Masquer l'écran de chargement avec animation de fondu
@@ -511,9 +331,6 @@ function updateWeekDisplay() {
     
     document.getElementById('weekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
     document.getElementById('printWeekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
-    
-    // Sauvegarder les données quand la semaine change
-    saveUserData();
 }
 
 // Obtenir la date du lundi d'une semaine ISO
@@ -656,7 +473,6 @@ function updateDriver(day, workerId) {
 function updateWorkerObservation(workerId, observation) {
     if (state.data[workerId]) {
         state.data[workerId].observation = observation;
-        saveUserData(); // Sauvegarder immédiatement
     }
 }
 
@@ -1027,7 +843,7 @@ function addSiteToWorker(workerId) {
     // Le premier chantier a des valeurs à 7.5, les suivants à 0
     const isFirstSite = state.data[workerId].sites.length === 0;
     state.data[workerId].sites.push(createEmptySite(isFirstSite));
-    renderAll(); // Utiliser renderAll() pour déclencher la sauvegarde
+    renderWorkerCards();
     setTimeout(() => lucide.createIcons(), 0);
 }
 
@@ -1050,7 +866,7 @@ function toggleWorkerObservation(workerId) {
 function toggleInterimStatus(workerId) {
     if (state.data[workerId]) {
         state.data[workerId].isInterim = !state.data[workerId].isInterim;
-        renderAll(); // Utiliser renderAll() pour déclencher la sauvegarde
+        renderWorkerCards();
         setTimeout(() => lucide.createIcons(), 0);
     }
 }
@@ -1059,7 +875,7 @@ function toggleInterimStatus(workerId) {
 function updatePanierMode(workerId, mode) {
     if (state.data[workerId]) {
         state.data[workerId].panierMode = mode;
-        renderAll(); // Utiliser renderAll() pour déclencher la sauvegarde
+        renderWorkerCards();
         setTimeout(() => lucide.createIcons(), 0);
     }
 }
@@ -1068,7 +884,6 @@ function updatePanierMode(workerId, mode) {
 function updatePanierCustom(workerId, day, value) {
     if (state.data[workerId]) {
         state.data[workerId].panierCustom[day] = value;
-        saveUserData(); // Sauvegarder immédiatement
     }
 }
 
@@ -1160,7 +975,7 @@ function selectSite(siteName) {
     const { workerId, siteIndex } = state.currentSiteSelection;
     updateSiteName(workerId, siteIndex, siteName);
     hideSelectSiteModal();
-    renderAll(); // Utiliser renderAll() pour déclencher la sauvegarde
+    renderWorkerCards();
     setTimeout(() => lucide.createIcons(), 0);
 }
 
@@ -1275,9 +1090,6 @@ function renderAll() {
     renderDriverSelection();
     renderWorkerCards();
     calculateAndRenderTotals();
-    
-    // Sauvegarder automatiquement les données après chaque modification
-    saveUserData();
 }
 
 // Rendre la ligne de sélection du conducteur
@@ -1545,75 +1357,6 @@ function calculateAndRenderTotals() {
 // Fonction pour ouvrir l'aide
 function openHelp() {
     window.open('aide.html', '_blank');
-}
-
-// Fonction pour afficher les informations de sauvegarde
-function showDataInfo() {
-    const info = getUserDataInfo();
-    
-    if (!info) {
-        alert('❌ Aucune donnée sauvegardée\n\nVous n\'avez pas encore de données enregistrées. Les données sont automatiquement sauvegardées lorsque vous modifiez le rapport.');
-        return;
-    }
-    
-    const savedDate = info.savedAt.toLocaleDateString('fr-FR', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    
-    const message = `💾 Informations de sauvegarde\n\n` +
-        `📅 Dernière sauvegarde : ${savedDate}\n` +
-        `⏳ Expiration dans : ${info.daysRemaining} jour(s)\n` +
-        `🆔 Identifiant utilisateur : ${info.userId.substring(0, 20)}...\n\n` +
-        `ℹ️ Vos données sont conservées pendant ${DATA_RETENTION_DAYS} jours et sont automatiquement réinitialisées après cette période.\n\n` +
-        `Souhaitez-vous réinitialiser vos données maintenant ?`;
-    
-    if (confirm(message)) {
-        resetUserData();
-    }
-}
-
-// Fonction pour réinitialiser les données de l'utilisateur
-async function resetUserData() {
-    if (confirm('⚠️ Confirmation de réinitialisation\n\nToutes vos données sauvegardées seront définitivement supprimées.\n\nÊtes-vous sûr de vouloir continuer ?')) {
-        clearUserData();
-        
-        // Réinitialiser l'état de l'application
-        state.activeWorkers = [];
-        state.nextWorkerId = 16;
-        state.foremanId = null;
-        state.data = {};
-        state.drivers = {
-            monday: null,
-            tuesday: null,
-            wednesday: null,
-            thursday: null,
-            friday: null
-        };
-        state.isPrevisionnel = false;
-        
-        // Recharger les ouvriers et chantiers depuis la source initiale
-        await loadWorkersData();
-        
-        // Réinitialiser le mode prévisionnel visuellement
-        const watermark = document.getElementById('previsionnelWatermark');
-        const checkbox = document.getElementById('previsionnelCheckbox');
-        if (watermark) {
-            watermark.classList.remove('active');
-        }
-        if (checkbox) {
-            checkbox.checked = false;
-        }
-        
-        // Réinitialiser l'affichage
-        updateForemanDisplay();
-        renderAll();
-        
-        alert('✅ Données réinitialisées\n\nVos données ont été supprimées avec succès. Vous pouvez maintenant créer un nouveau rapport.');
-    }
 }
 
 // Fonction pour télécharger directement le PDF
@@ -1939,38 +1682,20 @@ function printReport() {
     }
 }
 
-// Activer/Désactiver le mode prévisionnel (via checkbox)
-function togglePrevisionnelCheckbox() {
-    const checkbox = document.getElementById('previsionnelCheckbox');
-    state.isPrevisionnel = checkbox.checked;
-    
+// Activer/Désactiver le mode prévisionnel
+function togglePrevisionnel() {
+    state.isPrevisionnel = !state.isPrevisionnel;
     const watermark = document.getElementById('previsionnelWatermark');
+    const btn = document.getElementById('previsionnelBtn');
     
     if (state.isPrevisionnel) {
         watermark.classList.add('active');
+        btn.classList.remove('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+        btn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600');
     } else {
         watermark.classList.remove('active');
-    }
-    
-    // Sauvegarder l'état du mode prévisionnel
-    saveUserData();
-}
-
-// Fonction pour mettre à jour la checkbox (utilisée lors du chargement)
-function updatePrevisionnelCheckbox() {
-    const checkbox = document.getElementById('previsionnelCheckbox');
-    const watermark = document.getElementById('previsionnelWatermark');
-    
-    if (checkbox) {
-        checkbox.checked = state.isPrevisionnel;
-    }
-    
-    if (watermark) {
-        if (state.isPrevisionnel) {
-            watermark.classList.add('active');
-        } else {
-            watermark.classList.remove('active');
-        }
+        btn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
+        btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
     }
 }
 
@@ -2245,14 +1970,6 @@ function showConfirmSendModal() {
         }
     });
     document.getElementById('confirmTotalHours').textContent = totalHours.toFixed(1) + 'h';
-
-    // Afficher un avertissement si le mode prévisionnel est activé
-    const previsionnelWarning = document.getElementById('previsionnelWarning');
-    if (state.isPrevisionnel) {
-        previsionnelWarning.classList.remove('hidden');
-    } else {
-        previsionnelWarning.classList.add('hidden');
-    }
 
     // Générer l'aperçu du rapport
     generatePrintSheet();
