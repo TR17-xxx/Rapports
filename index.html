@@ -531,7 +531,6 @@
             /* Améliorer le support tactile */
             input, select, textarea, button {
                 -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-                tap-highlight-color: rgba(0, 0, 0, 0.1);
                 touch-action: manipulation;
                 -ms-touch-action: manipulation;
                 cursor: pointer;
@@ -549,7 +548,6 @@
                 min-width: 44px; /* Largeur minimale pour zone tactile */
                 padding: 0.625rem 1rem !important;
                 -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-                tap-highlight-color: rgba(0, 0, 0, 0.1);
                 cursor: pointer;
                 /* Améliorer la réactivité sur anciens appareils */
                 -webkit-user-select: none;
@@ -892,22 +890,28 @@
                         <p class="text-gray-600">Gestion des heures de chantier</p>
                     </div>
                 </div>
-                <div class="flex space-x-2 no-print">
-                    <button onclick="openHelp()" class="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
-                        <i data-lucide="help-circle" style="width: 20px; height: 20px;"></i>
-                        <span>Aide</span>
+                <div class="flex flex-wrap gap-2 no-print">
+                    <!-- Bouton Mes données -->
+                    <button onclick="showDataInfo()" class="flex items-center space-x-2 bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 transition" title="Mes données">
+                        <i data-lucide="database" style="width: 20px; height: 20px;"></i>
+                        <span class="hidden sm:inline">Mes données</span>
                     </button>
-                    <button id="previsionnelBtn" onclick="togglePrevisionnel()" class="flex items-center space-x-2 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
-                        <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
-                        <span>Prévisionnel</span>
-                    </button>
-                    <button onclick="printReport()" class="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                    
+                    <!-- Bouton Imprimer -->
+                    <button onclick="printReport()" class="flex items-center space-x-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition" title="Imprimer / PDF">
                         <i data-lucide="printer" style="width: 20px; height: 20px;"></i>
-                        <span>Imprimer / PDF</span>
+                        <span class="hidden sm:inline">Imprimer</span>
                     </button>
-                    <button onclick="showConfirmSendModal()" class="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition">
+                    
+                    <!-- Bouton Envoyer -->
+                    <button onclick="showConfirmSendModal()" class="flex items-center space-x-2 bg-orange-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-orange-700 transition" title="Envoyer par email">
                         <i data-lucide="mail" style="width: 20px; height: 20px;"></i>
-                        <span>Envoyer à Mickaël et Virginie</span>
+                        <span class="hidden sm:inline">Envoyer</span>
+                    </button>
+                    
+                    <!-- Bouton Aide (plus discret) -->
+                    <button onclick="openHelp()" class="flex items-center justify-center w-10 h-10 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 transition" title="Aide">
+                        <i data-lucide="help-circle" style="width: 18px; height: 18px;"></i>
                     </button>
                 </div>
             </div>
@@ -927,6 +931,13 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Période</label>
                     <div id="weekDisplay" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 font-medium h-[42px] flex items-center">-</div>
+                    <!-- Checkbox Prévisionnel -->
+                    <div class="mt-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="previsionnelCheckbox" onchange="togglePrevisionnelCheckbox()" class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                            <span class="text-sm font-medium text-gray-700">Mode prévisionnel</span>
+                        </label>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Chef de chantier</label>
@@ -1148,6 +1159,20 @@
                 <p class="text-orange-800 font-medium">
                     📧 Le rapport sera envoyé à <strong>Mickaël et Virginie</strong>
                 </p>
+            </div>
+            
+            <!-- Avertissement mode prévisionnel -->
+            <div id="previsionnelWarning" class="hidden mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded">
+                <div class="flex items-start space-x-3">
+                    <i data-lucide="alert-triangle" style="width: 24px; height: 24px; min-width: 24px;" class="text-red-600 mt-0.5"></i>
+                    <div>
+                        <p class="text-red-800 font-bold mb-1">⚠️ ATTENTION : Mode Prévisionnel Activé</p>
+                        <p class="text-red-700 text-sm">
+                            Vous êtes sur le point d'envoyer un rapport en mode <strong>PRÉVISIONNEL</strong>. 
+                            Assurez-vous que c'est bien votre intention avant de confirmer l'envoi.
+                        </p>
+                    </div>
+                </div>
             </div>
             
             <!-- Récapitulatif du rapport -->
