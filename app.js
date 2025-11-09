@@ -330,6 +330,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupEventListeners();
     renderAll();
     
+    // Synchroniser la checkbox prévisionnel avec l'état
+    updatePrevisionnelCheckbox();
+    
     // Prévenir le zoom sur iOS lors du focus sur les inputs
     preventIOSZoom();
     
@@ -1956,8 +1959,18 @@ function togglePrevisionnelCheckbox() {
 // Fonction pour mettre à jour la checkbox (utilisée lors du chargement)
 function updatePrevisionnelCheckbox() {
     const checkbox = document.getElementById('previsionnelCheckbox');
+    const watermark = document.getElementById('previsionnelWatermark');
+    
     if (checkbox) {
         checkbox.checked = state.isPrevisionnel;
+    }
+    
+    if (watermark) {
+        if (state.isPrevisionnel) {
+            watermark.classList.add('active');
+        } else {
+            watermark.classList.remove('active');
+        }
     }
 }
 
