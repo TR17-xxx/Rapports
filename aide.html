@@ -161,6 +161,9 @@
                 <li><a href="#utilisation" class="text-blue-600 hover:text-blue-800 hover:underline">→ Utilisation</a></li>
                 <li><a href="#remarques" class="text-blue-600 hover:text-blue-800 hover:underline">→ Remarques importantes</a></li>
             </ul>
+            <p class="text-sm text-gray-600 mt-4">
+                <strong>Nouvelles fonctionnalités :</strong> Sauvegarde automatique (8 jours), Mode prévisionnel, Mentions personnalisables (Férié, Vacances, etc.)
+            </p>
         </div>
 
         <!-- Fonctionnalités -->
@@ -226,6 +229,22 @@
                     <span class="text-green-600 font-bold">✅</span>
                     <span>Interface responsive (mobile/tablette)</span>
                 </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Sauvegarde automatique locale (8 jours)</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Mode prévisionnel avec filigrane</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Mentions personnalisables pour les jours (Férié, Vacances, etc.)</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Ouvriers et chantiers personnalisés sauvegardés</span>
+                </div>
             </div>
         </div>
 
@@ -258,11 +277,18 @@
                 <ol class="list-decimal list-inside space-y-2 ml-4 text-gray-700">
                     <li><strong>Sélectionner la semaine</strong> : Utilisez le sélecteur de semaine en haut de la page</li>
                     <li><strong>Désigner le chef de chantier</strong> : Sélectionnez le chef de chantier dans la liste déroulante</li>
+                    <li><strong>Activer le mode prévisionnel</strong> (optionnel) : Cliquez sur le bouton "Mode prévisionnel" sous la période :
+                        <ul class="list-disc list-inside ml-6 mt-1">
+                            <li>Bouton <strong>vert avec coche</strong> = Mode prévisionnel activé (filigrane sur l'impression)</li>
+                            <li>Bouton <strong>gris avec croix</strong> = Mode prévisionnel désactivé</li>
+                            <li>Un avertissement s'affichera avant l'envoi si le mode est activé</li>
+                        </ul>
+                    </li>
                     <li><strong>Choisir les conducteurs</strong> : Pour chaque jour (lundi à vendredi), sélectionnez qui conduit (par défaut le chef de chantier)</li>
                     <li><strong>Ajouter des ouvriers</strong> : Cliquez sur "Ajouter un ouvrier" pour :
                         <ul class="list-disc list-inside ml-6 mt-1">
                             <li>Sélectionner un ouvrier préenregistré</li>
-                            <li>Ou créer un nouvel ouvrier (prénom et nom)</li>
+                            <li>Ou créer un nouvel ouvrier (prénom et nom) - sera sauvegardé dans la liste</li>
                         </ul>
                     </li>
                 </ol>
@@ -279,7 +305,7 @@
                     <li><strong>Sélectionner le chantier</strong> : Cliquez sur le bouton "Sélectionner un chantier" pour :
                         <ul class="list-disc list-inside ml-6 mt-1">
                             <li>Choisir un chantier prédéfini (Brouage, Château d'Oléron, Consac, etc.)</li>
-                            <li>Ou créer un nouveau chantier</li>
+                            <li>Ou créer un nouveau chantier - sera sauvegardé dans la liste</li>
                         </ul>
                     </li>
                     <li><strong>Modifier les heures</strong> si elles diffèrent de 7.5h (pré-remplies par défaut pour le premier chantier)</li>
@@ -287,6 +313,13 @@
                     <li><strong>Configurer le panier</strong> : Sélectionnez le mode de panier approprié (voir section ci-dessous)</li>
                     <li><strong>Ajouter une observation</strong> (optionnel) : Cliquez sur "Ajouter une observation" pour saisir des remarques</li>
                     <li><strong>Marquer comme intérimaire</strong> (si applicable) : Cliquez sur le bouton "Intérimaire" pour activer/désactiver le statut</li>
+                    <li><strong>Ajouter une mention pour un jour</strong> (optionnel) : Cliquez sur le bouton d'édition sous le champ heures d'un jour pour :
+                        <ul class="list-disc list-inside ml-6 mt-1">
+                            <li>Sélectionner "Férié" ou "Vacances"</li>
+                            <li>Ou saisir une mention personnalisée (ex: Formation, Congé, etc.)</li>
+                            <li>La mention remplace les heures pour ce jour dans l'impression</li>
+                        </ul>
+                    </li>
                     <li>Les totaux se calculent automatiquement</li>
                 </ol>
             </div>
@@ -366,6 +399,16 @@
                             <li>Mettez 0 dans la case du jour d'absence</li>
                         </ul>
                     </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-gray-800 mb-2">📌 Jour férié ou en vacances</h4>
+                        <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1">
+                            <li>Cliquez sur le bouton d'édition sous le champ heures du jour concerné</li>
+                            <li>Sélectionnez "Férié", "Vacances" ou saisissez une mention personnalisée</li>
+                            <li>La mention remplacera les heures dans l'impression</li>
+                            <li>Pour retirer la mention, cliquez sur la croix rouge à côté</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
@@ -378,19 +421,55 @@
                 <ol class="list-decimal list-inside space-y-2 ml-4 text-gray-700">
                     <li><strong>Imprimer</strong> : Cliquez sur le bouton "Imprimer / PDF" en haut à droite</li>
                     <li><strong>Enregistrer en PDF</strong> : Dans la fenêtre d'impression, choisissez "Enregistrer au format PDF"</li>
+                    <li><strong>Envoyer par email</strong> : Cliquez sur "Envoyer à Mickaël et Virginie" :
+                        <ul class="list-disc list-inside ml-6 mt-1">
+                            <li>Un récapitulatif s'affiche avant l'envoi</li>
+                            <li>Si le mode prévisionnel est activé, un avertissement apparaît</li>
+                            <li>Confirmez l'envoi pour envoyer le rapport</li>
+                        </ul>
+                    </li>
                     <li>Le rapport inclut :
                         <ul class="list-disc list-inside ml-6 mt-1">
                             <li>La période de la semaine</li>
-                            <li>Le chef de chantier</li>
+                            <li>Le chef de chantier (en bas à gauche)</li>
                             <li>Les conducteurs pour chaque jour</li>
-                            <li>Le détail par ouvrier et chantier avec les heures</li>
+                            <li>Le détail par ouvrier et chantier avec les heures ou mentions</li>
                             <li>Les lignes <strong>PANIER</strong> (selon le mode choisi), <strong>TRANSPORT</strong> et <strong>TRAJET</strong></li>
                             <li>Les observations de chaque ouvrier</li>
                             <li>Le statut intérimaire (si applicable)</li>
+                            <li>Les mentions personnalisées (Férié, Vacances, etc.) pour les jours non travaillés</li>
+                            <li>Le filigrane "PRÉVISIONNEL" si le mode est activé</li>
                             <li>Les tableaux récapitulatifs (totaux par ouvrier et par chantier)</li>
                         </ul>
                     </li>
                 </ol>
+            </div>
+
+            <!-- 5. Sauvegarde et gestion des données -->
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 flex items-center space-x-2">
+                    <span class="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">5</span>
+                    <span>Sauvegarde et gestion des données</span>
+                </h3>
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded mb-4">
+                    <h4 class="font-semibold text-green-800 mb-2">💾 Sauvegarde automatique</h4>
+                    <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1">
+                        <li>Toutes les données sont <strong>sauvegardées automatiquement</strong> dans le navigateur</li>
+                        <li>La sauvegarde inclut : ouvriers actifs, heures, chantiers, observations, chef de chantier, conducteurs, mode prévisionnel, mentions, etc.</li>
+                        <li>Les <strong>ouvriers et chantiers créés manuellement</strong> sont également sauvegardés</li>
+                        <li>Les données sont <strong>valables pendant 8 jours</strong>, puis expirées automatiquement</li>
+                        <li>Les données sont <strong>restaurées automatiquement</strong> au chargement de la page</li>
+                    </ul>
+                </div>
+                <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded">
+                    <h4 class="font-semibold text-purple-800 mb-2">🗑️ Effacer les données</h4>
+                    <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1">
+                        <li>Cliquez sur le bouton <strong>"Données"</strong> (violet) en haut à droite</li>
+                        <li>Confirmez l'effacement pour supprimer toutes les données sauvegardées</li>
+                        <li>Cela supprime également les <strong>ouvriers et chantiers personnalisés</strong> créés manuellement</li>
+                        <li>Les ouvriers et chantiers de base (prédéfinis) restent disponibles</li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -401,9 +480,14 @@
                 <span>Remarques importantes</span>
             </h2>
             <div class="space-y-4">
-                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                    <p class="text-red-800">
-                        <strong>⚠️ Pas de sauvegarde automatique</strong> : Les données sont perdues si vous fermez la page. Pensez à imprimer ou exporter en PDF avant de fermer.
+                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                    <p class="text-green-800">
+                        <strong>✅ Sauvegarde automatique</strong> : Les données sont sauvegardées automatiquement dans le navigateur et valables pendant 8 jours. Elles sont restaurées automatiquement au chargement de la page.
+                    </p>
+                </div>
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                    <p class="text-yellow-800">
+                        <strong>⚠️ Mode prévisionnel</strong> : Si vous activez le mode prévisionnel, un filigrane "PRÉVISIONNEL" apparaîtra sur l'impression. Un avertissement s'affichera avant l'envoi par email.
                     </p>
                 </div>
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
