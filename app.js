@@ -111,7 +111,7 @@ let state = {
     weekNumber: null,
     weekStart: null,
     weekEnd: null,
-    data: {}, // { workerId: { sites: [{ siteName, hours: { monday, tuesday, ... } }], observation: '', isInterim: true, panierMode: 'panier', panierCustom: { monday, tuesday, ... } } }
+    data: {}, // { workerId: { sites: [{ siteName, hours: { monday, tuesday, ... } }], observation: '', isInterim: true, panierMode: 'panier', panierCustom: { monday, tuesday, ... }, dayMentions: { monday: '', tuesday: '', ... } } }
     drivers: { // Qui conduit chaque jour (par défaut le chef de chantier)
         monday: null,
         tuesday: null,
@@ -121,6 +121,7 @@ let state = {
     },
     isPrevisionnel: false, // Mode prévisionnel activé/désactivé
     currentSiteSelection: null, // Pour stocker le contexte de sélection de chantier
+    currentDayMention: null, // Pour stocker le contexte de sélection de mention de jour
     dataLoaded: false // Indicateur de chargement des données
 };
 
@@ -215,6 +216,12 @@ function loadState() {
         }
         if (parsedData.data) {
             state.data = parsedData.data;
+            // S'assurer que dayMentions existe pour chaque ouvrier
+            Object.keys(state.data).forEach(workerId => {
+                if (!state.data[workerId].dayMentions) {
+                    state.data[workerId].dayMentions = createEmptyDayMentions();
+                }
+            });
         }
         if (parsedData.drivers) {
             state.drivers = parsedData.drivers;
@@ -621,6 +628,17 @@ function createEmptyPanierCustom() {
     };
 }
 
+// Créer les mentions par défaut pour les jours
+function createEmptyDayMentions() {
+    return {
+        monday: '',
+        tuesday: '',
+        wednesday: '',
+        thursday: '',
+        friday: ''
+    };
+}
+
 // Configuration des écouteurs d'événements
 function setupEventListeners() {
     document.getElementById('weekSelector').addEventListener('change', updateWeekDisplay);
@@ -645,7 +663,8 @@ function setupModalBackdropClose() {
         { id: 'addWorkerModal', closeFunc: hideAddWorkerModal },
         { id: 'selectForemanModal', closeFunc: hideSelectForemanModal },
         { id: 'selectSiteModal', closeFunc: hideSelectSiteModal },
-        { id: 'confirmSendModal', closeFunc: hideConfirmSendModal }
+        { id: 'confirmSendModal', closeFunc: hideConfirmSendModal },
+        { id: 'dayMentionModal', closeFunc: hideDayMentionModal }
     ];
     
     modals.forEach(function(modal) {
@@ -1054,7 +1073,8 @@ function addWorkerToActive(workerId) {
             observation: '',
             isInterim: false, // false par défaut = employé permanent
             panierMode: 'panier', // 'panier', 'grand_deplacement', 'personnaliser'
-            panierCustom: createEmptyPanierCustom()
+            panierCustom: createEmptyPanierCustom(),
+            dayMentions: createEmptyDayMentions()
         };
     }
     
@@ -1101,7 +1121,7 @@ function removeWorkerFromActive(workerId) {
 // Ajouter un chantier à un ouvrier
 function addSiteToWorker(workerId) {
     if (!state.data[workerId]) {
-        state.data[workerId] = { sites: [], observation: '', isInterim: false, panierMode: 'panier', panierCustom: createEmptyPanierCustom() };
+        state.data[workerId] = { sites: [], observation: '', isInterim: false, panierMode: 'panier', panierCustom: createEmptyPanierCustom(), dayMentions: createEmptyDayMentions() };
     }
     // Le premier chantier a des valeurs à 7.5, les suivants à 0
     const isFirstSite = state.data[workerId].sites.length === 0;
@@ -1318,6 +1338,11 @@ function updateHours(workerId, siteIndex, day, hours) {
         const newValue = parseFloat(hours) || 0;
         state.data[workerId].sites[siteIndex].hours[day] = newValue;
         
+        // Si des heures sont saisies, retirer la mention pour ce jour
+        if (newValue > 0 && state.data[workerId].dayMentions) {
+            state.data[workerId].dayMentions[day] = '';
+        }
+        
         // Si la valeur est > 7 sur un chantier autre que le premier, mettre le premier chantier à 0 pour ce jour
         if (newValue > 7 && siteIndex > 0 && state.data[workerId].sites.length > 1) {
             state.data[workerId].sites[0].hours[day] = 0;
@@ -1330,6 +1355,74 @@ function updateHours(workerId, siteIndex, day, hours) {
         // Sauvegarder l'état
         saveState();
     }
+}
+
+// Fonction pour afficher le modal de sélection de mention
+function showDayMentionModal(workerId, siteIndex, day) {
+    state.currentDayMention = { workerId, siteIndex, day };
+    const modal = document.getElementById('dayMentionModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Réinitialiser le champ personnalisé
+        const customInput = document.getElementById('customDayMention');
+        if (customInput) {
+            customInput.value = '';
+        }
+    }
+}
+
+// Fonction pour mettre à jour une mention
+function updateDayMention(workerId, siteIndex, day, mention) {
+    if (!state.data[workerId]) {
+        state.data[workerId] = { sites: [], observation: '', isInterim: true, panierMode: 'panier', panierCustom: createEmptyPanierCustom(), dayMentions: createEmptyDayMentions() };
+    }
+    if (!state.data[workerId].dayMentions) {
+        state.data[workerId].dayMentions = createEmptyDayMentions();
+    }
+    
+    state.data[workerId].dayMentions[day] = mention;
+    
+    // Si une mention est ajoutée, mettre les heures à 0 pour ce jour et ce chantier
+    if (mention && state.data[workerId].sites[siteIndex]) {
+        state.data[workerId].sites[siteIndex].hours[day] = 0;
+    }
+    
+    renderAll();
+    setTimeout(() => lucide.createIcons(), 0);
+    saveState();
+}
+
+// Fonction pour retirer une mention
+function clearDayMention(workerId, siteIndex, day) {
+    if (state.data[workerId] && state.data[workerId].dayMentions) {
+        state.data[workerId].dayMentions[day] = '';
+        renderAll();
+        setTimeout(() => lucide.createIcons(), 0);
+        saveState();
+    }
+}
+
+// Fonction pour sélectionner une mention prédéfinie
+function selectDayMention(mention) {
+    if (!mention || mention.trim() === '') {
+        alert('Veuillez entrer une mention');
+        return;
+    }
+    
+    if (state.currentDayMention) {
+        const { workerId, siteIndex, day } = state.currentDayMention;
+        updateDayMention(workerId, siteIndex, day, mention.trim());
+        hideDayMentionModal();
+    }
+}
+
+// Fonction pour masquer le modal
+function hideDayMentionModal() {
+    const modal = document.getElementById('dayMentionModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    state.currentDayMention = null;
 }
 
 // Calculer le total d'un chantier
@@ -1416,7 +1509,7 @@ function renderWorkerCards() {
 
 // Créer une carte d'ouvrier
 function createWorkerCard(worker) {
-    const workerData = state.data[worker.id] || { sites: [createEmptySite()], observation: '', isInterim: true, panierMode: 'panier', panierCustom: createEmptyPanierCustom() };
+    const workerData = state.data[worker.id] || { sites: [createEmptySite()], observation: '', isInterim: true, panierMode: 'panier', panierCustom: createEmptyPanierCustom(), dayMentions: createEmptyDayMentions() };
     const isForeman = state.foremanId === worker.id;
     const isInterim = workerData.isInterim !== false; // Par défaut true
     const panierMode = workerData.panierMode || 'panier';
@@ -1476,18 +1569,52 @@ function createWorkerCard(worker) {
                 <div class="flex-1 grid grid-cols-5 gap-1 site-days-grid">
                     ${['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].map((day, index) => {
                         const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+                        const hours = site.hours[day] || 0;
+                        const dayMentions = workerData.dayMentions || createEmptyDayMentions();
+                        const mention = dayMentions[day] || '';
+                        const hasMention = mention !== '';
+                        
                         return `
                             <div class="text-center">
                                 <label class="block text-xs font-medium text-gray-600 mb-1">${dayNames[index]}</label>
-                                <input 
-                                    type="number" 
-                                    value="${site.hours[day]}" 
-                                    min="0" 
-                                    max="24" 
-                                    step="0.5"
-                                    onchange="updateHours(${worker.id}, ${siteIndex}, '${day}', this.value)"
-                                    class="w-full px-1 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
-                                >
+                                ${hasMention ? `
+                                    <div class="relative">
+                                        <input 
+                                            type="text" 
+                                            value="${mention}" 
+                                            onchange="updateDayMention(${worker.id}, ${siteIndex}, '${day}', this.value)"
+                                            placeholder="Mention"
+                                            class="w-full px-1 py-1 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-xs bg-purple-50"
+                                        >
+                                        <button 
+                                            onclick="clearDayMention(${worker.id}, ${siteIndex}, '${day}')"
+                                            class="absolute right-0 top-0 p-0.5 text-red-500 hover:text-red-700 no-print"
+                                            title="Retirer la mention"
+                                            style="font-size: 10px;"
+                                        >
+                                            <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                                        </button>
+                                    </div>
+                                ` : `
+                                    <div class="space-y-1">
+                                        <input 
+                                            type="number" 
+                                            value="${hours}" 
+                                            min="0" 
+                                            max="24" 
+                                            step="0.5"
+                                            onchange="updateHours(${worker.id}, ${siteIndex}, '${day}', this.value)"
+                                            class="w-full px-1 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                                        >
+                                        <button 
+                                            onclick="showDayMentionModal(${worker.id}, ${siteIndex}, '${day}')"
+                                            class="w-full px-1 py-0.5 text-xs text-purple-600 hover:bg-purple-50 rounded no-print flex items-center justify-center"
+                                            title="Ajouter une mention"
+                                        >
+                                            <i data-lucide="edit-2" style="width: 12px; height: 12px;"></i>
+                                        </button>
+                                    </div>
+                                `}
                             </div>
                         `;
                     }).join('')}
@@ -2040,10 +2167,11 @@ function generatePrintSheet() {
             html += '<div class="print-break"></div>';
         }
         
-        const workerData = state.data[worker.id] || { sites: [], observation: '', isInterim: true };
+        const workerData = state.data[worker.id] || { sites: [], observation: '', isInterim: true, dayMentions: createEmptyDayMentions() };
         const workerTotal = calculateWorkerTotal(worker.id);
         const workerObservation = workerData.observation || '';
         const isInterim = workerData.isInterim !== false;
+        const dayMentions = workerData.dayMentions || createEmptyDayMentions();
         
         html += `
         <div class="print-sheet" style="position: relative;">
@@ -2089,11 +2217,11 @@ function generatePrintSheet() {
             html += `
                     <tr>
                         <td class="chantier-col">${siteName}</td>
-                        <td>${site.hours.monday || ''}</td>
-                        <td>${site.hours.tuesday || ''}</td>
-                        <td>${site.hours.wednesday || ''}</td>
-                        <td>${site.hours.thursday || ''}</td>
-                        <td>${site.hours.friday || ''}</td>
+                        <td>${dayMentions.monday ? dayMentions.monday : (site.hours.monday || '')}</td>
+                        <td>${dayMentions.tuesday ? dayMentions.tuesday : (site.hours.tuesday || '')}</td>
+                        <td>${dayMentions.wednesday ? dayMentions.wednesday : (site.hours.wednesday || '')}</td>
+                        <td>${dayMentions.thursday ? dayMentions.thursday : (site.hours.thursday || '')}</td>
+                        <td>${dayMentions.friday ? dayMentions.friday : (site.hours.friday || '')}</td>
                         <td></td>
                         <td class="total-col">${siteTotal > 0 ? siteTotal.toFixed(1) : ''}</td>
                     </tr>
