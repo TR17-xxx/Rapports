@@ -105,6 +105,8 @@ let state = {
     activeWorkers: [],
     nextWorkerId: 16,
     availableSites: [],
+    customWorkers: [], // Ouvriers ajoutés manuellement
+    customSites: [], // Chantiers ajoutés manuellement
     foremanId: null, // Chef de chantier
     weekNumber: null,
     weekStart: null,
@@ -121,6 +123,175 @@ let state = {
     currentSiteSelection: null, // Pour stocker le contexte de sélection de chantier
     dataLoaded: false // Indicateur de chargement des données
 };
+
+// Clé pour le localStorage
+const STORAGE_KEY = 'rapport_hebdomadaire_state';
+const STORAGE_EXPIRY_DAYS = 8;
+
+// Sauvegarder l'état dans le localStorage
+function saveState() {
+    try {
+        const stateToSave = {
+            activeWorkers: state.activeWorkers,
+            nextWorkerId: state.nextWorkerId,
+            customWorkers: state.customWorkers, // Ouvriers ajoutés manuellement
+            customSites: state.customSites, // Chantiers ajoutés manuellement
+            foremanId: state.foremanId,
+            weekNumber: state.weekNumber,
+            weekStart: state.weekStart ? state.weekStart.toISOString() : null,
+            weekEnd: state.weekEnd ? state.weekEnd.toISOString() : null,
+            data: state.data,
+            drivers: state.drivers,
+            isPrevisionnel: state.isPrevisionnel,
+            savedAt: new Date().toISOString(),
+            expiryDate: new Date(Date.now() + (STORAGE_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString()
+        };
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+        console.log('État sauvegardé avec succès');
+    } catch (error) {
+        console.error('Erreur lors de la sauvegarde:', error);
+    }
+}
+
+// Charger l'état depuis le localStorage
+function loadState() {
+    try {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (!savedData) {
+            return false;
+        }
+        
+        const parsedData = JSON.parse(savedData);
+        
+        // Vérifier l'expiration
+        const expiryDate = new Date(parsedData.expiryDate);
+        const now = new Date();
+        
+        if (now > expiryDate) {
+            console.log('Les données sauvegardées ont expiré');
+            clearState();
+            return false;
+        }
+        
+        // Restaurer l'état
+        if (parsedData.activeWorkers) {
+            state.activeWorkers = parsedData.activeWorkers;
+        }
+        if (parsedData.nextWorkerId !== undefined) {
+            state.nextWorkerId = parsedData.nextWorkerId;
+        }
+        if (parsedData.customWorkers) {
+            state.customWorkers = parsedData.customWorkers;
+            // Ajouter les ouvriers personnalisés à la liste disponible
+            parsedData.customWorkers.forEach(worker => {
+                if (!state.availableWorkers.find(w => w.id === worker.id)) {
+                    state.availableWorkers.push(worker);
+                }
+            });
+            state.availableWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
+        }
+        if (parsedData.customSites) {
+            state.customSites = parsedData.customSites;
+            // Ajouter les chantiers personnalisés à la liste disponible
+            parsedData.customSites.forEach(site => {
+                if (!state.availableSites.includes(site)) {
+                    state.availableSites.push(site);
+                }
+            });
+            state.availableSites.sort();
+        }
+        if (parsedData.foremanId !== undefined) {
+            state.foremanId = parsedData.foremanId;
+        }
+        if (parsedData.weekNumber) {
+            state.weekNumber = parsedData.weekNumber;
+        }
+        if (parsedData.weekStart) {
+            state.weekStart = new Date(parsedData.weekStart);
+        }
+        if (parsedData.weekEnd) {
+            state.weekEnd = new Date(parsedData.weekEnd);
+        }
+        if (parsedData.data) {
+            state.data = parsedData.data;
+        }
+        if (parsedData.drivers) {
+            state.drivers = parsedData.drivers;
+        }
+        if (parsedData.isPrevisionnel !== undefined) {
+            state.isPrevisionnel = parsedData.isPrevisionnel;
+        }
+        
+        console.log('État restauré avec succès');
+        return true;
+    } catch (error) {
+        console.error('Erreur lors du chargement:', error);
+        return false;
+    }
+}
+
+// Effacer les données sauvegardées
+function clearState() {
+    // Demander confirmation avant d'effacer
+    if (!confirm('⚠️ Êtes-vous sûr de vouloir effacer toutes les données sauvegardées ?\n\nCette action est irréversible et supprimera :\n- Tous les ouvriers ajoutés\n- Toutes les heures saisies\n- Tous les chantiers\n- Toutes les observations\n- Le chef de chantier sélectionné\n- Les conducteurs\n- Le mode prévisionnel')) {
+        return;
+    }
+    
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+        console.log('Données sauvegardées effacées');
+        
+        // Retirer les ouvriers personnalisés de la liste disponible
+        state.customWorkers.forEach(customWorker => {
+            state.availableWorkers = state.availableWorkers.filter(w => w.id !== customWorker.id);
+        });
+        
+        // Retirer les chantiers personnalisés de la liste disponible
+        state.customSites.forEach(customSite => {
+            state.availableSites = state.availableSites.filter(s => s !== customSite);
+        });
+        
+        // Réinitialiser l'état
+        state.activeWorkers = [];
+        state.customWorkers = [];
+        state.customSites = [];
+        state.foremanId = null;
+        state.weekNumber = null;
+        state.weekStart = null;
+        state.weekEnd = null;
+        state.data = {};
+        state.drivers = {
+            monday: null,
+            tuesday: null,
+            wednesday: null,
+            thursday: null,
+            friday: null
+        };
+        state.isPrevisionnel = false;
+        
+        // Réinitialiser l'interface
+        initializeWeek();
+        initializeWorkers();
+        renderAll();
+        updateForemanDisplay();
+        
+        // Réinitialiser le mode prévisionnel dans l'interface
+        const watermark = document.getElementById('previsionnelWatermark');
+        const checkbox = document.getElementById('previsionnelCheckbox');
+        if (watermark) {
+            watermark.classList.remove('active');
+        }
+        if (checkbox) {
+            checkbox.checked = false;
+        }
+        
+        alert('✅ Les données sauvegardées ont été effacées avec succès.');
+    } catch (error) {
+        console.error('Erreur lors de l\'effacement:', error);
+        alert('❌ Erreur lors de l\'effacement des données.');
+    }
+}
 
 // Fonction pour charger les données des ouvriers et chantiers
 async function loadWorkersData() {
@@ -168,10 +339,54 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Charger les données des ouvriers et chantiers
     await loadWorkersData();
     
-    initializeWeek();
+    // Charger l'état sauvegardé (si disponible et non expiré)
+    const stateLoaded = loadState();
+    
+    // Initialiser la semaine (sauf si restaurée depuis la sauvegarde)
+    if (!stateLoaded || !state.weekNumber) {
+        initializeWeek();
+    } else {
+        // Restaurer la semaine depuis l'état sauvegardé
+        const weekInput = document.getElementById('weekSelector');
+        if (weekInput && state.weekNumber) {
+            weekInput.value = state.weekNumber;
+            updateWeekDisplay();
+        }
+    }
+    
     initializeWorkers();
     setupEventListeners();
     renderAll();
+    
+    // Restaurer l'affichage du chef de chantier si sauvegardé
+    if (stateLoaded && state.foremanId) {
+        // S'assurer que le chef de chantier est dans les ouvriers actifs
+        const foremanInActive = state.activeWorkers.find(w => w.id === state.foremanId);
+        if (!foremanInActive) {
+            // Si le chef de chantier n'est pas dans les ouvriers actifs, l'ajouter
+            const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
+            if (foreman) {
+                state.activeWorkers.push(foreman);
+                state.activeWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
+            }
+        }
+        updateForemanDisplay();
+        resetDriversToForeman();
+        renderDriverSelection();
+        renderAll();
+    }
+    
+    // Restaurer le mode prévisionnel si sauvegardé
+    if (stateLoaded && state.isPrevisionnel) {
+        const watermark = document.getElementById('previsionnelWatermark');
+        const checkbox = document.getElementById('previsionnelCheckbox');
+        if (watermark) {
+            watermark.classList.add('active');
+        }
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+    }
     
     // Prévenir le zoom sur iOS lors du focus sur les inputs
     preventIOSZoom();
@@ -331,6 +546,9 @@ function updateWeekDisplay() {
     
     document.getElementById('weekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
     document.getElementById('printWeekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
+    
+    // Sauvegarder l'état
+    saveState();
 }
 
 // Obtenir la date du lundi d'une semaine ISO
@@ -467,12 +685,16 @@ function updatePrintForeman() {
 function updateDriver(day, workerId) {
     state.drivers[day] = parseInt(workerId) || state.foremanId;
     renderAll();
+    // Sauvegarder l'état
+    saveState();
 }
 
 // Mettre à jour l'observation d'un ouvrier
 function updateWorkerObservation(workerId, observation) {
     if (state.data[workerId]) {
         state.data[workerId].observation = observation;
+        // Sauvegarder l'état
+        saveState();
     }
 }
 
@@ -602,6 +824,9 @@ function addWorker() {
             lastName: lastName
         };
         
+        // Ajouter à la liste des ouvriers personnalisés
+        state.customWorkers.push(newWorker);
+        
         // Ajouter à la liste disponible
         state.availableWorkers.push(newWorker);
         state.availableWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
@@ -611,6 +836,9 @@ function addWorker() {
         
         // Ajouter directement au rapport
         addWorkerToActive(newWorker.id);
+        
+        // Sauvegarder l'état
+        saveState();
     }
     
     hideAddWorkerModal();
@@ -715,6 +943,8 @@ function selectForeman(workerId) {
     updateForemanDisplay();
     renderAll();
     hideSelectForemanModal();
+    // Sauvegarder l'état
+    saveState();
 }
 
 // Mettre à jour l'affichage du chef de chantier
@@ -763,6 +993,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     lastName: lastName
                 };
                 
+                // Ajouter à la liste des ouvriers personnalisés
+                state.customWorkers.push(newWorker);
+                
                 // Ajouter à la liste disponible
                 state.availableWorkers.push(newWorker);
                 state.availableWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
@@ -803,6 +1036,8 @@ function addWorkerToActive(workerId) {
     state.activeWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
     
     renderAll();
+    // Sauvegarder l'état
+    saveState();
 }
 
 // Retirer un ouvrier de la liste active
@@ -833,6 +1068,8 @@ function removeWorkerFromActive(workerId) {
     });
     
     renderAll();
+    // Sauvegarder l'état
+    saveState();
 }
 
 // Ajouter un chantier à un ouvrier
@@ -845,6 +1082,8 @@ function addSiteToWorker(workerId) {
     state.data[workerId].sites.push(createEmptySite(isFirstSite));
     renderWorkerCards();
     setTimeout(() => lucide.createIcons(), 0);
+    // Sauvegarder l'état
+    saveState();
 }
 
 // Basculer l'affichage de l'observation d'un ouvrier
@@ -868,6 +1107,8 @@ function toggleInterimStatus(workerId) {
         state.data[workerId].isInterim = !state.data[workerId].isInterim;
         renderWorkerCards();
         setTimeout(() => lucide.createIcons(), 0);
+        // Sauvegarder l'état
+        saveState();
     }
 }
 
@@ -877,6 +1118,8 @@ function updatePanierMode(workerId, mode) {
         state.data[workerId].panierMode = mode;
         renderWorkerCards();
         setTimeout(() => lucide.createIcons(), 0);
+        // Sauvegarder l'état
+        saveState();
     }
 }
 
@@ -884,6 +1127,8 @@ function updatePanierMode(workerId, mode) {
 function updatePanierCustom(workerId, day, value) {
     if (state.data[workerId]) {
         state.data[workerId].panierCustom[day] = value;
+        // Sauvegarder l'état
+        saveState();
     }
 }
 
@@ -1007,6 +1252,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!state.availableSites.includes(newSiteName)) {
                     state.availableSites.push(newSiteName);
                     state.availableSites.sort();
+                    // Ajouter à la liste des chantiers personnalisés
+                    if (!state.customSites.includes(newSiteName)) {
+                        state.customSites.push(newSiteName);
+                    }
+                    // Sauvegarder l'état
+                    saveState();
                 }
                 
                 selectSite(newSiteName);
@@ -1020,6 +1271,8 @@ function removeSiteFromWorker(workerId, siteIndex) {
     if (state.data[workerId] && state.data[workerId].sites.length > 1) {
         state.data[workerId].sites.splice(siteIndex, 1);
         renderAll();
+        // Sauvegarder l'état
+        saveState();
     }
 }
 
@@ -1028,6 +1281,8 @@ function updateSiteName(workerId, siteIndex, siteName) {
     if (state.data[workerId] && state.data[workerId].sites[siteIndex]) {
         state.data[workerId].sites[siteIndex].siteName = siteName;
         calculateAndRenderTotals();
+        // Sauvegarder l'état
+        saveState();
     }
 }
 
@@ -1046,6 +1301,8 @@ function updateHours(workerId, siteIndex, day, hours) {
         }
         
         calculateAndRenderTotals();
+        // Sauvegarder l'état
+        saveState();
     }
 }
 
@@ -1409,7 +1666,7 @@ async function downloadPdfDirectly() {
         }
         
         const currentForeman = state.availableWorkers.find(w => w.id === state.foremanId);
-        const foremanName = currentForeman ? `${currentForeman.firstName} ${currentForeman.lastName}` : 'Non défini';
+        const foremanName = currentForeman ? `${currentForeman.lastName} ${currentForeman.firstName}` : 'Non défini';
         
         state.activeWorkers.forEach((worker, index) => {
             if (index > 0) {
@@ -1684,19 +1941,30 @@ function printReport() {
 
 // Activer/Désactiver le mode prévisionnel
 function togglePrevisionnel() {
-    state.isPrevisionnel = !state.isPrevisionnel;
+    const checkbox = document.getElementById('previsionnelCheckbox');
     const watermark = document.getElementById('previsionnelWatermark');
-    const btn = document.getElementById('previsionnelBtn');
+    
+    // Mettre à jour l'état selon la case à cocher
+    if (checkbox) {
+        state.isPrevisionnel = checkbox.checked;
+    } else {
+        // Si la case n'existe pas encore, basculer l'état
+        state.isPrevisionnel = !state.isPrevisionnel;
+    }
     
     if (state.isPrevisionnel) {
         watermark.classList.add('active');
-        btn.classList.remove('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
-        btn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600');
     } else {
         watermark.classList.remove('active');
-        btn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
-        btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
     }
+    
+    // Mettre à jour la case à cocher si elle existe
+    if (checkbox) {
+        checkbox.checked = state.isPrevisionnel;
+    }
+    
+    // Sauvegarder l'état
+    saveState();
 }
 
 // Générer la fiche de pointage pour l'impression
@@ -1704,9 +1972,18 @@ function generatePrintSheet() {
     const printSheet = document.getElementById('printSheet');
     if (!printSheet) return;
     
+    // Mettre à jour le nom du chef de chantier avant la génération
+    updatePrintForeman();
+    
     // Récupérer les informations
     const weekDisplay = document.getElementById('weekDisplay').textContent;
-    const foremanDisplay = document.getElementById('printForemanDisplay').textContent;
+    let foremanDisplay = 'Non défini';
+    if (state.foremanId) {
+        const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
+        if (foreman) {
+            foremanDisplay = `${foreman.lastName} ${foreman.firstName}`;
+        }
+    }
     const weekNumber = state.weekNumber ? state.weekNumber.split('-W')[1] : '';
     
     // Générer une fiche par ouvrier

@@ -958,9 +958,9 @@
                         <i data-lucide="help-circle" style="width: 20px; height: 20px;"></i>
                         <span>Aide</span>
                     </button>
-                    <button id="previsionnelBtn" onclick="togglePrevisionnel()" class="flex items-center space-x-2 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
-                        <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
-                        <span>Prévisionnel</span>
+                    <button onclick="clearState()" class="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition" title="Effacer les données sauvegardées">
+                        <i data-lucide="trash-2" style="width: 20px; height: 20px;"></i>
+                        <span>Données</span>
                     </button>
                     <button onclick="printReport()" class="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
                         <i data-lucide="printer" style="width: 20px; height: 20px;"></i>
@@ -995,6 +995,13 @@
                         <span id="foremanDisplay">⚠️ Sélectionner un chef de chantier</span>
                     </button>
                 </div>
+            </div>
+            <!-- Mode prévisionnel -->
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="previsionnelCheckbox" onchange="togglePrevisionnel()" class="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-2 focus:ring-red-500">
+                    <span class="text-sm font-medium text-gray-700">Mode prévisionnel</span>
+                </label>
             </div>
             <div class="mt-4">
                 <button onclick="showAddWorkerModal()" class="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
