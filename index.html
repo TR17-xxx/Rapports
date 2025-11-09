@@ -263,6 +263,129 @@
             letter-spacing: 20px;
         }
         
+        /* Écran de chargement */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 1;
+            transition: opacity 1s ease-out;
+        }
+        
+        .loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-screen.hidden {
+            display: none;
+        }
+        
+        .loading-content {
+            text-align: center;
+        }
+        
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .loading-logo {
+            max-width: 400px;
+            max-height: 300px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+        
+        .logo-fallback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .logo-letters {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            font-size: 120px;
+            font-weight: bold;
+            color: #20B2AA;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .letter-h,
+        .letter-c {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo-slash {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            width: 4px;
+            height: 180px;
+            background: #20B2AA;
+            z-index: 2;
+        }
+        
+        .logo-box {
+            background: #20B2AA;
+            padding: 12px 30px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        
+        .logo-text {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .logo-subtitle {
+            color: #20B2AA;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        /* Animation pour mobile */
+        @media (max-width: 768px) {
+            .logo-letters {
+                font-size: 80px;
+            }
+            
+            .logo-slash {
+                height: 120px;
+            }
+            
+            .logo-text {
+                font-size: 18px;
+            }
+            
+            .logo-subtitle {
+                font-size: 12px;
+            }
+        }
+        
         /* Optimisation pour smartphone */
         @media (max-width: 768px) {
             /* Forcer le rendu matériel pour les éléments animés et scrollables */
@@ -733,10 +856,32 @@
         - Performance optimisée pour appareils mobiles
     -->
     
+    <!-- Écran de chargement avec logo -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="logo-container">
+                <img src="HC.png" alt="HORY-CHAUVELIN" class="loading-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" onload="this.nextElementSibling.style.display='none';">
+                <div class="logo-fallback" style="display: none;">
+                    <div class="logo-letters">
+                        <div class="letter-h">H</div>
+                        <div class="logo-slash"></div>
+                        <div class="letter-c">C</div>
+                    </div>
+                    <div class="logo-box">
+                        <span class="logo-text">HORY-CHAUVELIN</span>
+                    </div>
+                    <div class="logo-subtitle">
+                        MAÇONNERIE - TAILLE DE PIERRE - GROS OEUVRE
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Filigrane Prévisionnel -->
     <div id="previsionnelWatermark">PRÉVISIONNEL</div>
     
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <div class="container mx-auto px-4 py-8 max-w-7xl" id="mainContent" style="display: none;">
         <!-- En-tête -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="flex items-center justify-between flex-wrap gap-4">

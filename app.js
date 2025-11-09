@@ -178,7 +178,31 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Améliorer les performances sur mobile
     optimizeMobilePerformance();
+    
+    // Masquer l'écran de chargement avec animation de fondu
+    hideLoadingScreen();
 });
+
+// Masquer l'écran de chargement avec animation de fondu
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    const mainContent = document.getElementById('mainContent');
+    
+    if (loadingScreen && mainContent) {
+        // Attendre 3 secondes avant de commencer la transition (logo visible)
+        setTimeout(function() {
+            // Ajouter la classe fade-out pour déclencher l'animation
+            loadingScreen.classList.add('fade-out');
+            
+            // Après la fin de l'animation (1 seconde), masquer complètement et afficher le contenu
+            setTimeout(function() {
+                loadingScreen.classList.add('hidden');
+                mainContent.style.display = 'block';
+            }, 1000); // Durée de l'animation de fondu (1s)
+        }, 3000); // Affichage du logo pendant 3 secondes
+        // Total : 3s (affichage) + 1s (transition) = 4 secondes
+    }
+}
 
 // Prévenir le zoom automatique sur iOS
 function preventIOSZoom() {
