@@ -394,6 +394,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const watermark = document.getElementById('previsionnelWatermark');
     const btn = document.getElementById('previsionnelBtn');
     const icon = document.getElementById('previsionnelIcon');
+    const typingText = document.querySelector('.typing-text');
     
     if (stateLoaded && state.isPrevisionnel) {
         if (watermark) {
@@ -419,6 +420,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             icon.style.color = '#dc2626'; // red-600
             lucide.createIcons();
         }
+    }
+    
+    // Finaliser l'animation de frappe du texte sous le logo
+    if (typingText) {
+        typingText.addEventListener('animationend', function(event) {
+            if (event.animationName === 'typing') {
+                typingText.classList.add('typing-finished');
+            }
+        });
     }
     
     // Prévenir le zoom sur iOS lors du focus sur les inputs
