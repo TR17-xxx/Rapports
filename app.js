@@ -400,12 +400,14 @@ async function loadVehicleOptions() {
     if (typeof defaultVehicles !== 'undefined' && Array.isArray(defaultVehicles) && defaultVehicles.length > 0) {
         initializeVehicleOptions(defaultVehicles);
         console.log('Véhicules chargés depuis vehicles-data.js');
+        renderAll();
         return;
     }
     
     if (typeof window !== 'undefined' && Array.isArray(window.customVehicles) && window.customVehicles.length > 0) {
         initializeVehicleOptions(window.customVehicles);
         console.log('Véhicules chargés depuis window.customVehicles');
+        renderAll();
         return;
     }
     
@@ -424,7 +426,8 @@ async function loadVehicleOptions() {
         if (data && Array.isArray(data.vehicles)) {
             const success = initializeVehicleOptions(data.vehicles);
             if (success) {
-                console.log('Véhicules chargés depuis l’API Netlify (get-vehicles).');
+                console.log('Véhicules chargés depuis l\'API Netlify (get-vehicles).');
+                renderAll();
                 return;
             }
         }
@@ -435,6 +438,7 @@ async function loadVehicleOptions() {
     }
     
     initializeVehicleOptions([]);
+    renderAll();
 }
 
 // Callback déclenché lorsque vehicles-data.js est chargé (en local uniquement)
@@ -1851,18 +1855,17 @@ function renderDriverSelection() {
         const dayDiv = document.createElement('div');
         
         if (isMobileLayout) {
-            dayDiv.className = 'flex flex-col items-center justify-between rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-2 py-3 shadow-sm';
-            dayDiv.style.backdropFilter = 'blur(4px)';
+            dayDiv.className = 'flex flex-col items-center justify-between rounded-xl border-2 border-orange-300 bg-white px-2 py-3 shadow-sm';
             dayDiv.style.height = '100%';
             dayDiv.style.display = 'flex';
             dayDiv.style.flexDirection = 'column';
             dayDiv.style.justifyContent = 'space-between';
             dayDiv.style.width = '100%';
             dayDiv.innerHTML = `
-                <span class="text-sm font-semibold uppercase tracking-wide text-orange-300 mb-2">${dayNames[index]}</span>
+                <span class="text-sm font-semibold uppercase tracking-wide text-orange-800 mb-2">${dayNames[index]}</span>
                 <select 
                     onchange="updateDriver('${day}', this.value)"
-                    class="block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white text-center transition"
+                    class="block w-full px-3 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base font-semibold text-gray-800 text-center transition"
                 >
                     ${state.activeWorkers.map(w => {
                         const selected = currentDriver === w.id ? 'selected' : '';
@@ -1900,7 +1903,7 @@ function renderDriverSelection() {
             <select 
                 onchange="updateWeeklyVehicleSelection(this)"
                 class="${isMobileLayout
-                    ? 'block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition'
+                    ? 'block w-full px-3 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base font-semibold text-gray-800 transition'
                     : 'w-full px-3 py-2 border border-orange-200 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm'}"
             >
                 <option value="">Sélectionner un véhicule</option>
@@ -1916,7 +1919,7 @@ function renderDriverSelection() {
         `
         : `
             <div class="${isMobileLayout
-                ? 'px-3 py-2 border-2 border-dashed border-orange-400 rounded-xl bg-black bg-opacity-30 text-sm text-orange-200 text-center'
+                ? 'px-3 py-2 border-2 border-dashed border-orange-300 rounded-lg bg-white text-sm text-orange-700 text-center'
                 : 'px-3 py-2 border-2 border-dashed border-orange-300 rounded-lg bg-white text-sm text-orange-700'}">
                 Aucun véhicule configuré
             </div>
@@ -1927,13 +1930,13 @@ function renderDriverSelection() {
     weeklyDiv.style.gridColumn = 'span 5 / span 5';
     weeklyDiv.innerHTML = isMobileLayout
         ? `
-            <div class="rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-4 py-5 shadow-md space-y-4" style="backdrop-filter: blur(6px);">
+            <div class="rounded-xl border-2 border-orange-300 bg-white px-4 py-5 shadow-md space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Véhicule utilisé</label>
+                    <label class="block text-sm font-semibold text-orange-800 mb-2 uppercase tracking-wide">Véhicule utilisé</label>
                     ${weeklyVehicleSelect}
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Kilométrage véhicule (km)</label>
+                    <label class="block text-sm font-semibold text-orange-800 mb-2 uppercase tracking-wide">Kilométrage véhicule (km)</label>
                     <input 
                         type="number"
                         min="0"
@@ -1941,9 +1944,9 @@ function renderDriverSelection() {
                         placeholder="Saisir le kilométrage total"
                         value="${escapeHtml(weeklyMileageValue)}"
                         oninput="updateWeeklyMileage(this)"
-                        class="w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition"
+                        class="w-full px-3 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base font-semibold text-gray-800 transition"
                     >
-                    <p class="text-xs text-orange-200 text-opacity-80 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
+                    <p class="text-xs text-gray-600 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
                 </div>
             </div>
         `
