@@ -105,7 +105,7 @@ let state = {
     activeWorkers: [],
     nextWorkerId: 16,
     availableSites: [],
-    vehicleOptions: [], // Véhicules disponibles (chargés depuis un fichier protégé)
+    vehicleOptions: [], // Véhicules disponibles (chargés depuis un fichier protégé ou l'API)
     vehicleUsage: createEmptyVehicleUsage(), // Sélection véhicule + km par jour
     customWorkers: [], // Ouvriers ajoutés manuellement
     customSites: [], // Chantiers ajoutés manuellement
@@ -364,33 +364,87 @@ async function loadWorkersData() {
     }
 }
 
-// Initialiser la liste des véhicules disponibles (données protégées)
-function initializeVehicleOptions() {
-    if (typeof defaultVehicles !== 'undefined' && Array.isArray(defaultVehicles)) {
-        state.vehicleOptions = defaultVehicles.map((vehicle, index) => {
-            const fallbackId = `vehicle-${index + 1}`;
-            const normalizedPlate = vehicle.plate ? String(vehicle.plate).toUpperCase() : '';
-            const id = vehicle.id !== undefined ? vehicle.id : (normalizedPlate ? normalizedPlate : fallbackId);
-            const description = vehicle.description ? String(vehicle.description) : '';
-            const label = vehicle.label ? String(vehicle.label) : '';
-            
-            return {
-                id,
-                plate: normalizedPlate,
-                description,
-                label,
-                raw: vehicle
-            };
-        });
-    } else {
+function initializeVehicleOptions(sourceList) {
+    const vehiclesSource = Array.isArray(sourceList) && sourceList.length > 0
+        ? sourceList
+        : null;
+    
+    if (!vehiclesSource) {
         state.vehicleOptions = [];
+        return false;
     }
+    
+    state.vehicleOptions = vehiclesSource.map((vehicle, index) => {
+        const fallbackId = `vehicle-${index + 1}`;
+        const normalizedPlate = vehicle.plate ? String(vehicle.plate).toUpperCase() : '';
+        const id = vehicle.id !== undefined ? vehicle.id : (normalizedPlate ? normalizedPlate : fallbackId);
+        const description = vehicle.description ? String(vehicle.description) : '';
+        const label = vehicle.label
+            ? String(vehicle.label)
+            : (normalizedPlate && description ? `${normalizedPlate} - ${description}` : (normalizedPlate || description || `Véhicule ${index + 1}`));
+        
+        return {
+            id,
+            plate: normalizedPlate,
+            description,
+            label,
+            raw: vehicle
+        };
+    });
+    
+    return true;
 }
 
-// Callback déclenché lorsque vehicles-data.js est chargé
+// Chargement asynchrone des véhicules
+async function loadVehicleOptions() {
+    if (typeof defaultVehicles !== 'undefined' && Array.isArray(defaultVehicles) && defaultVehicles.length > 0) {
+        initializeVehicleOptions(defaultVehicles);
+        console.log('Véhicules chargés depuis vehicles-data.js');
+        return;
+    }
+    
+    if (typeof window !== 'undefined' && Array.isArray(window.customVehicles) && window.customVehicles.length > 0) {
+        initializeVehicleOptions(window.customVehicles);
+        console.log('Véhicules chargés depuis window.customVehicles');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/.netlify/functions/get-vehicles', {
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Réponse invalide du service véhicules');
+        }
+        
+        const data = await response.json();
+        if (data && Array.isArray(data.vehicles)) {
+            const success = initializeVehicleOptions(data.vehicles);
+            if (success) {
+                console.log('Véhicules chargés depuis l’API Netlify (get-vehicles).');
+                return;
+            }
+        }
+        
+        console.warn('Aucun véhicule disponible depuis l’API.');
+    } catch (error) {
+        console.error('Erreur lors du chargement des véhicules via l’API:', error);
+    }
+    
+    initializeVehicleOptions([]);
+}
+
+// Callback déclenché lorsque vehicles-data.js est chargé (en local uniquement)
 if (typeof window !== 'undefined') {
     window.__onVehicleDataLoaded = function() {
-        initializeVehicleOptions();
+        if (typeof defaultVehicles !== 'undefined' && Array.isArray(defaultVehicles)) {
+            initializeVehicleOptions(defaultVehicles);
+        } else if (Array.isArray(window.customVehicles)) {
+            initializeVehicleOptions(window.customVehicles);
+        }
         renderAll();
         generatePrintSheet();
     };
@@ -401,8 +455,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Charger les données des ouvriers et chantiers
     await loadWorkersData();
     
-    // Charger la liste des véhicules protégés (si disponible)
-    initializeVehicleOptions();
+    // Charger la liste des véhicules
+    await loadVehicleOptions();
     
     // Charger l'état sauvegardé (si disponible et non expiré)
     const stateLoaded = loadState();
@@ -422,6 +476,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     initializeWorkers();
     setupEventListeners();
     renderAll();
+    
+    if (typeof window !== 'undefined') {
+        let resizeTimer = null;
+        window.addEventListener('resize', function() {
+            if (resizeTimer) {
+                clearTimeout(resizeTimer);
+            }
+            resizeTimer = setTimeout(function() {
+                renderDriverSelection();
+            }, 150);
+        });
+    }
     
     // Restaurer l'affichage du chef de chantier si sauvegardé
     if (stateLoaded && state.foremanId) {
@@ -1758,8 +1824,18 @@ function renderAll() {
 function renderDriverSelection() {
     const container = document.getElementById('driverSelectionRow');
     container.innerHTML = '';
-    container.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
-    container.style.columnGap = '12px';
+    
+    const isMobileLayout = (typeof window !== 'undefined' && window.matchMedia)
+        ? window.matchMedia('(max-width: 768px)').matches
+        : (typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+    
+    if (isMobileLayout) {
+        container.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
+        container.style.columnGap = '12px';
+    } else {
+        container.style.gridTemplateColumns = '';
+        container.style.columnGap = '';
+    }
     
     const vehicleOptions = state.vehicleOptions || [];
     
@@ -1773,25 +1849,45 @@ function renderDriverSelection() {
         ensureVehicleUsageDay(day);
         
         const dayDiv = document.createElement('div');
-        dayDiv.className = 'flex flex-col items-center justify-between rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-2 py-3 shadow-sm';
-        dayDiv.style.backdropFilter = 'blur(4px)';
-        dayDiv.style.height = '100%';
-        dayDiv.style.display = 'flex';
-        dayDiv.style.flexDirection = 'column';
-        dayDiv.style.justifyContent = 'space-between';
-        dayDiv.style.width = '100%';
-        dayDiv.innerHTML = `
-            <span class="text-sm font-semibold uppercase tracking-wide text-orange-300 mb-2">${dayNames[index]}</span>
-            <select 
-                onchange="updateDriver('${day}', this.value)"
-                class="block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white text-center transition"
-            >
-                ${state.activeWorkers.map(w => {
-                    const selected = currentDriver === w.id ? 'selected' : '';
-                    return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)} ${escapeHtml(w.firstName)}</option>`;
-                }).join('')}
-            </select>
-        `;
+        
+        if (isMobileLayout) {
+            dayDiv.className = 'flex flex-col items-center justify-between rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-2 py-3 shadow-sm';
+            dayDiv.style.backdropFilter = 'blur(4px)';
+            dayDiv.style.height = '100%';
+            dayDiv.style.display = 'flex';
+            dayDiv.style.flexDirection = 'column';
+            dayDiv.style.justifyContent = 'space-between';
+            dayDiv.style.width = '100%';
+            dayDiv.innerHTML = `
+                <span class="text-sm font-semibold uppercase tracking-wide text-orange-300 mb-2">${dayNames[index]}</span>
+                <select 
+                    onchange="updateDriver('${day}', this.value)"
+                    class="block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white text-center transition"
+                >
+                    ${state.activeWorkers.map(w => {
+                        const selected = currentDriver === w.id ? 'selected' : '';
+                        return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)} ${escapeHtml(w.firstName)}</option>`;
+                    }).join('')}
+                </select>
+            `;
+        } else {
+            dayDiv.className = 'space-y-3 bg-white rounded-xl p-4 border border-orange-100 shadow-sm';
+            dayDiv.innerHTML = `
+                <div>
+                    <label class="block text-sm font-bold text-orange-800 mb-2">${dayNames[index]}</label>
+                    <select 
+                        onchange="updateDriver('${day}', this.value)"
+                        class="w-full px-4 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-medium text-gray-800 shadow-sm"
+                    >
+                        ${state.activeWorkers.map(w => {
+                            const selected = currentDriver === w.id ? 'selected' : '';
+                            return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)} ${escapeHtml(w.firstName)}</option>`;
+                        }).join('')}
+                    </select>
+                </div>
+            `;
+        }
+        
         container.appendChild(dayDiv);
     });
     
@@ -1803,7 +1899,9 @@ function renderDriverSelection() {
         ? `
             <select 
                 onchange="updateWeeklyVehicleSelection(this)"
-                class="block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition"
+                class="${isMobileLayout
+                    ? 'block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition'
+                    : 'w-full px-3 py-2 border border-orange-200 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm'}"
             >
                 <option value="">Sélectionner un véhicule</option>
                 ${vehicleOptions.map(vehicle => {
@@ -1817,7 +1915,9 @@ function renderDriverSelection() {
             </select>
         `
         : `
-            <div class="px-3 py-2 border-2 border-dashed border-orange-400 rounded-xl bg-black bg-opacity-30 text-sm text-orange-200 text-center">
+            <div class="${isMobileLayout
+                ? 'px-3 py-2 border-2 border-dashed border-orange-400 rounded-xl bg-black bg-opacity-30 text-sm text-orange-200 text-center'
+                : 'px-3 py-2 border-2 border-dashed border-orange-300 rounded-lg bg-white text-sm text-orange-700'}">
                 Aucun véhicule configuré
             </div>
         `;
@@ -1825,27 +1925,49 @@ function renderDriverSelection() {
     const weeklyDiv = document.createElement('div');
     weeklyDiv.classList.add('col-span-5', 'w-full');
     weeklyDiv.style.gridColumn = 'span 5 / span 5';
-    weeklyDiv.innerHTML = `
-        <div class="rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-4 py-5 shadow-md space-y-4" style="backdrop-filter: blur(6px);">
-            <div>
-                <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Véhicule utilisé</label>
-                ${weeklyVehicleSelect}
+    weeklyDiv.innerHTML = isMobileLayout
+        ? `
+            <div class="rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-4 py-5 shadow-md space-y-4" style="backdrop-filter: blur(6px);">
+                <div>
+                    <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Véhicule utilisé</label>
+                    ${weeklyVehicleSelect}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Kilométrage véhicule (km)</label>
+                    <input 
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="Saisir le kilométrage total"
+                        value="${escapeHtml(weeklyMileageValue)}"
+                        oninput="updateWeeklyMileage(this)"
+                        class="w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition"
+                    >
+                    <p class="text-xs text-orange-200 text-opacity-80 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
+                </div>
             </div>
-            <div>
-                <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Kilométrage véhicule (km)</label>
-                <input 
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    placeholder="Saisir le kilométrage total"
-                    value="${escapeHtml(weeklyMileageValue)}"
-                    oninput="updateWeeklyMileage(this)"
-                    class="w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition"
-                >
-                <p class="text-xs text-orange-200 text-opacity-80 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
+        `
+        : `
+            <div class="bg-white rounded-xl p-4 border border-orange-100 shadow-sm space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-orange-700 mb-2 uppercase tracking-wide">Véhicule utilisé</label>
+                    ${weeklyVehicleSelect}
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-orange-700 mb-2 uppercase tracking-wide">Kilométrage véhicule (km)</label>
+                    <input 
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="Saisir le kilométrage total"
+                        value="${escapeHtml(weeklyMileageValue)}"
+                        oninput="updateWeeklyMileage(this)"
+                        class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm"
+                    >
+                    <p class="text-xs text-gray-500 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
+                </div>
             </div>
-        </div>
-    `;
+        `;
     container.appendChild(weeklyDiv);
 }
 
