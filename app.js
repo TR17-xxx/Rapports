@@ -1758,8 +1758,8 @@ function renderAll() {
 function renderDriverSelection() {
     const container = document.getElementById('driverSelectionRow');
     container.innerHTML = '';
-    container.style.gridTemplateColumns = 'repeat(5, minmax(120px, 1fr))';
-    container.style.columnGap = '16px';
+    container.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
+    container.style.columnGap = '12px';
     
     const vehicleOptions = state.vehicleOptions || [];
     
@@ -1774,8 +1774,12 @@ function renderDriverSelection() {
         
         const dayDiv = document.createElement('div');
         dayDiv.className = 'flex flex-col items-center justify-between rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-2 py-3 shadow-sm';
-        dayDiv.style.minWidth = '120px';
         dayDiv.style.backdropFilter = 'blur(4px)';
+        dayDiv.style.height = '100%';
+        dayDiv.style.display = 'flex';
+        dayDiv.style.flexDirection = 'column';
+        dayDiv.style.justifyContent = 'space-between';
+        dayDiv.style.width = '100%';
         dayDiv.innerHTML = `
             <span class="text-sm font-semibold uppercase tracking-wide text-orange-300 mb-2">${dayNames[index]}</span>
             <select 
