@@ -1771,7 +1771,7 @@ function renderDriverSelection() {
         ensureVehicleUsageDay(day);
         
         const dayDiv = document.createElement('div');
-        dayDiv.classList.add('space-y-3', 'bg-white', 'rounded-xl', 'p-4', 'border', 'border-orange-100', 'shadow-sm', 'w-full');
+        dayDiv.classList.add('space-y-3', 'bg-white', 'rounded-xl', 'p-4', 'border', 'border-orange-100', 'shadow-sm');
         dayDiv.innerHTML = `
             <div>
                 <label class="block text-sm font-bold text-orange-800 mb-2">${dayNames[index]}</label>
@@ -1817,7 +1817,8 @@ function renderDriverSelection() {
         `;
     
     const weeklyDiv = document.createElement('div');
-    weeklyDiv.classList.add('col-span-1', 'md:col-span-5', 'w-full');
+    weeklyDiv.classList.add('col-span-5', 'w-full');
+    weeklyDiv.style.gridColumn = 'span 5 / span 5';
     weeklyDiv.innerHTML = `
         <div class="bg-white rounded-xl p-4 border border-orange-100 shadow-sm space-y-4">
             <div>
