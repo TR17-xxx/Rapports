@@ -1465,6 +1465,19 @@
             console.log('workers-data.js non disponible, chargement depuis l\'API...');
         };
         document.head.appendChild(script);
+        
+        // Charger la liste des véhicules (fichier protégé, non versionné)
+        const vehiclesScript = document.createElement('script');
+        vehiclesScript.src = 'vehicles-data.js';
+        vehiclesScript.onerror = function() {
+            console.log('vehicles-data.js non disponible, utiliser la configuration par défaut (aucun véhicule).');
+        };
+        vehiclesScript.onload = function() {
+            if (window.__onVehicleDataLoaded) {
+                window.__onVehicleDataLoaded();
+            }
+        };
+        document.head.appendChild(vehiclesScript);
     </script>
     <script src="app.js"></script>
     <script>

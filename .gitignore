@@ -36,3 +36,4 @@ workers-data-backup.js
 test-workers-load.html
 debug.html
 netlify-env-variables.txt
+vehicles-data.js

@@ -105,6 +105,8 @@ let state = {
     activeWorkers: [],
     nextWorkerId: 16,
     availableSites: [],
+    vehicleOptions: [], // Véhicules disponibles (chargés depuis un fichier protégé)
+    vehicleUsage: createEmptyVehicleUsage(), // Sélection véhicule + km par jour
     customWorkers: [], // Ouvriers ajoutés manuellement
     customSites: [], // Chantiers ajoutés manuellement
     foremanId: null, // Chef de chantier
@@ -122,12 +124,14 @@ let state = {
     isPrevisionnel: false, // Mode prévisionnel activé/désactivé
     currentSiteSelection: null, // Pour stocker le contexte de sélection de chantier
     currentDayMention: null, // Pour stocker le contexte de sélection de mention de jour
-    dataLoaded: false // Indicateur de chargement des données
+    dataLoaded: false, // Indicateur de chargement des données
+    lastEmailSentAt: null // Timestamp du dernier envoi de rapport
 };
 
 // Clé pour le localStorage
 const STORAGE_KEY = 'rapport_hebdomadaire_state';
 const STORAGE_EXPIRY_DAYS = 8;
+const EMAIL_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
 // Sauvegarder l'état dans le localStorage
 function saveState() {
@@ -144,6 +148,8 @@ function saveState() {
             data: state.data,
             drivers: state.drivers,
             isPrevisionnel: state.isPrevisionnel,
+            vehicleUsage: state.vehicleUsage,
+            lastEmailSentAt: state.lastEmailSentAt ? new Date(state.lastEmailSentAt).toISOString() : null,
             savedAt: new Date().toISOString(),
             expiryDate: new Date(Date.now() + (STORAGE_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString()
         };
@@ -229,6 +235,14 @@ function loadState() {
         if (parsedData.isPrevisionnel !== undefined) {
             state.isPrevisionnel = parsedData.isPrevisionnel;
         }
+        if (parsedData.vehicleUsage) {
+            state.vehicleUsage = normalizeVehicleUsage(parsedData.vehicleUsage);
+        } else {
+            state.vehicleUsage = createEmptyVehicleUsage();
+        }
+        if (parsedData.lastEmailSentAt) {
+            state.lastEmailSentAt = new Date(parsedData.lastEmailSentAt).getTime();
+        }
         
         console.log('État restauré avec succès');
         return true;
@@ -276,6 +290,8 @@ function clearState() {
             friday: null
         };
         state.isPrevisionnel = false;
+        state.vehicleUsage = createEmptyVehicleUsage();
+        state.lastEmailSentAt = null;
         
         // Réinitialiser l'interface
         initializeWeek();
@@ -348,10 +364,45 @@ async function loadWorkersData() {
     }
 }
 
+// Initialiser la liste des véhicules disponibles (données protégées)
+function initializeVehicleOptions() {
+    if (typeof defaultVehicles !== 'undefined' && Array.isArray(defaultVehicles)) {
+        state.vehicleOptions = defaultVehicles.map((vehicle, index) => {
+            const fallbackId = `vehicle-${index + 1}`;
+            const normalizedPlate = vehicle.plate ? String(vehicle.plate).toUpperCase() : '';
+            const id = vehicle.id !== undefined ? vehicle.id : (normalizedPlate ? normalizedPlate : fallbackId);
+            const description = vehicle.description ? String(vehicle.description) : '';
+            const label = vehicle.label ? String(vehicle.label) : '';
+            
+            return {
+                id,
+                plate: normalizedPlate,
+                description,
+                label,
+                raw: vehicle
+            };
+        });
+    } else {
+        state.vehicleOptions = [];
+    }
+}
+
+// Callback déclenché lorsque vehicles-data.js est chargé
+if (typeof window !== 'undefined') {
+    window.__onVehicleDataLoaded = function() {
+        initializeVehicleOptions();
+        renderAll();
+        generatePrintSheet();
+    };
+}
+
 // Initialisation
 document.addEventListener('DOMContentLoaded', async function() {
     // Charger les données des ouvriers et chantiers
     await loadWorkersData();
+    
+    // Charger la liste des véhicules protégés (si disponible)
+    initializeVehicleOptions();
     
     // Charger l'état sauvegardé (si disponible et non expiré)
     const stateLoaded = loadState();
@@ -652,6 +703,86 @@ function createEmptyDayMentions() {
     };
 }
 
+// Créer la structure par défaut pour l'utilisation des véhicules
+function createEmptyVehicleUsage() {
+    return {
+        selectedVehicleId: '',
+        totalMileage: '',
+        monday: { vehicleId: '' },
+        tuesday: { vehicleId: '' },
+        wednesday: { vehicleId: '' },
+        thursday: { vehicleId: '' },
+        friday: { vehicleId: '' }
+    };
+}
+
+// Normaliser les données d'utilisation des véhicules (pour la restauration depuis le stockage)
+function normalizeVehicleUsage(usage) {
+    const normalized = createEmptyVehicleUsage();
+    if (!usage || typeof usage !== 'object') {
+        return normalized;
+    }
+    
+    Object.keys(normalized).forEach(day => {
+        const dayUsage = usage[day] || {};
+        const vehicleId = (dayUsage && (typeof dayUsage.vehicleId === 'string' || typeof dayUsage.vehicleId === 'number'))
+            ? String(dayUsage.vehicleId)
+            : '';
+        normalized[day] = { vehicleId };
+    });
+    
+    if (usage.selectedVehicleId !== undefined && usage.selectedVehicleId !== null) {
+        normalized.selectedVehicleId = String(usage.selectedVehicleId);
+    } else if (usage.vehicleId) {
+        normalized.selectedVehicleId = String(usage.vehicleId);
+    } else {
+        // Compatibilité : essayer de déduire depuis les jours
+        const firstDayWithVehicle = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].find(day => {
+            const dayUsage = usage[day];
+            return dayUsage && dayUsage.vehicleId;
+        });
+        if (firstDayWithVehicle) {
+            normalized.selectedVehicleId = String(usage[firstDayWithVehicle].vehicleId);
+        }
+    }
+    
+    // Kilométrage total (conversion depuis l'ancien format si nécessaire)
+    if (usage && usage.totalMileage !== undefined && usage.totalMileage !== null && String(usage.totalMileage).trim() !== '') {
+        const numericMileage = parseFloat(String(usage.totalMileage).replace(',', '.'));
+        normalized.totalMileage = isNaN(numericMileage) ? '' : parseFloat(numericMileage.toFixed(1)).toString();
+    } else {
+        // Ancien format : additionner les kilométrages journaliers s'ils existent
+        let total = 0;
+        let hasValue = false;
+        ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+            const dayUsage = usage && usage[day];
+            if (dayUsage && dayUsage.mileage !== undefined && dayUsage.mileage !== null && String(dayUsage.mileage).trim() !== '') {
+                const numericMileage = parseFloat(String(dayUsage.mileage).replace(',', '.'));
+                if (!isNaN(numericMileage) && numericMileage >= 0) {
+                    total += numericMileage;
+                    hasValue = true;
+                }
+            }
+        });
+        normalized.totalMileage = hasValue ? parseFloat(total.toFixed(1)).toString() : '';
+    }
+    
+    return normalized;
+}
+
+// Échapper les caractères spéciaux pour éviter les injections HTML
+function escapeHtml(str) {
+    if (str === undefined || str === null) {
+        return '';
+    }
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Configuration des écouteurs d'événements
 function setupEventListeners() {
     document.getElementById('weekSelector').addEventListener('change', updateWeekDisplay);
@@ -745,6 +876,148 @@ function updateDriver(day, workerId) {
     renderAll();
     // Sauvegarder l'état
     saveState();
+}
+
+// S'assurer que la structure d'utilisation véhicule existe pour un jour donné
+function ensureVehicleUsageDay(day) {
+    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
+        state.vehicleUsage = createEmptyVehicleUsage();
+    }
+    if (!state.vehicleUsage[day]) {
+        state.vehicleUsage[day] = { vehicleId: '' };
+    }
+    if (typeof state.vehicleUsage.totalMileage !== 'string') {
+        state.vehicleUsage.totalMileage = state.vehicleUsage.totalMileage ? String(state.vehicleUsage.totalMileage) : '';
+    }
+    if (state.vehicleUsage.selectedVehicleId === undefined || state.vehicleUsage.selectedVehicleId === null) {
+        state.vehicleUsage.selectedVehicleId = '';
+    }
+}
+
+// Obtenir l'intitulé à afficher pour un véhicule
+function getVehicleLabelById(vehicleId) {
+    if (!vehicleId && vehicleId !== 0) return '';
+    const idString = String(vehicleId);
+    const vehicle = (state.vehicleOptions || []).find(v => String(v.id) === idString);
+    if (!vehicle) return '';
+    
+    if (vehicle.label) {
+        return vehicle.label;
+    }
+    
+    const plate = vehicle.plate ? vehicle.plate.toUpperCase() : '';
+    const description = vehicle.description ? vehicle.description : '';
+    if (plate && description) {
+        return `${plate} - ${description}`;
+    }
+    return plate || description || '';
+}
+
+// Mettre à jour le véhicule sélectionné pour la semaine
+function updateWeeklyVehicleSelection(selectElement) {
+    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
+        state.vehicleUsage = createEmptyVehicleUsage();
+    }
+    const value = selectElement ? selectElement.value : '';
+    state.vehicleUsage.selectedVehicleId = value;
+    
+    // Mettre à jour également les anciennes structures journalières pour compatibilité
+    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+        ensureVehicleUsageDay(day);
+        state.vehicleUsage[day].vehicleId = value;
+    });
+    
+    saveState();
+}
+
+// Mettre à jour le kilométrage total de la semaine
+function updateWeeklyMileage(inputElement) {
+    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
+        state.vehicleUsage = createEmptyVehicleUsage();
+    }
+    if (!inputElement) {
+        return;
+    }
+    
+    let rawValue = inputElement.value;
+    if (rawValue === '') {
+        state.vehicleUsage.totalMileage = '';
+        saveState();
+        return;
+    }
+    
+    rawValue = String(rawValue).replace(',', '.');
+    const parsed = parseFloat(rawValue);
+    
+    if (isNaN(parsed) || parsed < 0) {
+        state.vehicleUsage.totalMileage = '';
+        inputElement.value = '';
+    } else {
+        const normalized = parseFloat(parsed.toFixed(1));
+        state.vehicleUsage.totalMileage = normalized.toString();
+        inputElement.value = normalized.toString();
+    }
+    
+    saveState();
+}
+
+// Obtenir un récapitulatif conducteur/véhicule/km pour chaque jour
+function getDriverVehicleSummary() {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    const dayLabels = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+    
+    const rows = days.map((dayKey, index) => {
+        const driverId = state.drivers[dayKey] || state.foremanId;
+        let driverName = '';
+        if (driverId) {
+            const driver = state.availableWorkers.find(w => w.id === driverId);
+            if (driver) {
+                driverName = `${driver.lastName} ${driver.firstName}`;
+            }
+        }
+        
+        ensureVehicleUsageDay(dayKey);
+        const weeklyVehicleLabel = getVehicleLabelById(state.vehicleUsage.selectedVehicleId);
+        
+        return {
+            dayKey,
+            dayLabel: dayLabels[index],
+            driverName,
+            vehicleLabel: weeklyVehicleLabel
+        };
+    });
+    
+    const weeklyMileage = state.vehicleUsage && typeof state.vehicleUsage.totalMileage === 'string'
+        ? state.vehicleUsage.totalMileage
+        : '';
+    
+    const weeklyVehicleLabel = getVehicleLabelById(state.vehicleUsage.selectedVehicleId);
+    
+    return {
+        rows,
+        weeklyMileage,
+        weeklyVehicleLabel
+    };
+}
+
+// Obtenir l'observation à afficher pour un ouvrier (avec ajout automatique du kilométrage pour le chef)
+function getWorkerObservationWithMileage(worker) {
+    const workerData = state.data[worker.id] || {};
+    let observation = workerData.observation || '';
+    const weeklyMileage = state.vehicleUsage && typeof state.vehicleUsage.totalMileage === 'string'
+        ? state.vehicleUsage.totalMileage
+        : '';
+    
+    if (weeklyMileage && weeklyMileage !== '' && state.foremanId === worker.id) {
+        const mileageNote = `Kilométrage total véhicule: ${weeklyMileage} km`;
+        if (observation && !observation.includes(mileageNote)) {
+            observation += `\n${mileageNote}`;
+        } else if (!observation) {
+            observation = mileageNote;
+        }
+    }
+    
+    return observation;
 }
 
 // Mettre à jour l'observation d'un ouvrier
@@ -1485,26 +1758,95 @@ function renderAll() {
 function renderDriverSelection() {
     const container = document.getElementById('driverSelectionRow');
     container.innerHTML = '';
+    container.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
+    container.style.columnGap = '12px';
+    
+    const vehicleOptions = state.vehicleOptions || [];
+    
+    const weeklySelectedVehicleId = state.vehicleUsage && typeof state.vehicleUsage.selectedVehicleId !== 'undefined'
+        ? state.vehicleUsage.selectedVehicleId
+        : '';
     
     ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach((day, index) => {
         const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
         const currentDriver = state.drivers[day] || state.foremanId;
+        ensureVehicleUsageDay(day);
         
         const dayDiv = document.createElement('div');
+        dayDiv.className = 'flex flex-col items-center justify-between rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-2 py-3 shadow-sm';
+        dayDiv.style.backdropFilter = 'blur(4px)';
+        dayDiv.style.height = '100%';
+        dayDiv.style.display = 'flex';
+        dayDiv.style.flexDirection = 'column';
+        dayDiv.style.justifyContent = 'space-between';
+        dayDiv.style.width = '100%';
         dayDiv.innerHTML = `
-            <label class="block text-sm font-bold text-orange-800 mb-2">${dayNames[index]}</label>
+            <span class="text-sm font-semibold uppercase tracking-wide text-orange-300 mb-2">${dayNames[index]}</span>
             <select 
                 onchange="updateDriver('${day}', this.value)"
-                class="w-full px-4 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-medium text-gray-800 shadow-sm"
+                class="block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white text-center transition"
             >
                 ${state.activeWorkers.map(w => {
                     const selected = currentDriver === w.id ? 'selected' : '';
-                    return `<option value="${w.id}" ${selected}>${w.lastName} ${w.firstName}</option>`;
+                    return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)} ${escapeHtml(w.firstName)}</option>`;
                 }).join('')}
             </select>
         `;
         container.appendChild(dayDiv);
     });
+    
+    const weeklyMileageValue = (state.vehicleUsage && typeof state.vehicleUsage.totalMileage === 'string')
+        ? state.vehicleUsage.totalMileage
+        : '';
+    
+    const weeklyVehicleSelect = vehicleOptions.length > 0
+        ? `
+            <select 
+                onchange="updateWeeklyVehicleSelection(this)"
+                class="block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition"
+            >
+                <option value="">Sélectionner un véhicule</option>
+                ${vehicleOptions.map(vehicle => {
+                    const vehicleId = vehicle.id !== undefined ? vehicle.id : vehicle.plate || vehicle.label || vehicle.description || '';
+                    const label = vehicle.label 
+                        ? vehicle.label 
+                        : `${vehicle.plate ? vehicle.plate.toUpperCase() : ''}${vehicle.plate && vehicle.description ? ' - ' : ''}${vehicle.description || ''}`;
+                    const isSelected = String(weeklySelectedVehicleId) === String(vehicleId) ? 'selected' : '';
+                    return `<option value="${escapeHtml(vehicleId)}" ${isSelected}>${escapeHtml(label)}</option>`;
+                }).join('')}
+            </select>
+        `
+        : `
+            <div class="px-3 py-2 border-2 border-dashed border-orange-400 rounded-xl bg-black bg-opacity-30 text-sm text-orange-200 text-center">
+                Aucun véhicule configuré
+            </div>
+        `;
+    
+    const weeklyDiv = document.createElement('div');
+    weeklyDiv.classList.add('col-span-5', 'w-full');
+    weeklyDiv.style.gridColumn = 'span 5 / span 5';
+    weeklyDiv.innerHTML = `
+        <div class="rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-4 py-5 shadow-md space-y-4" style="backdrop-filter: blur(6px);">
+            <div>
+                <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Véhicule utilisé</label>
+                ${weeklyVehicleSelect}
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Kilométrage véhicule (km)</label>
+                <input 
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="Saisir le kilométrage total"
+                    value="${escapeHtml(weeklyMileageValue)}"
+                    oninput="updateWeeklyMileage(this)"
+                    class="w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition"
+                >
+                <p class="text-xs text-orange-200 text-opacity-80 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
+            </div>
+        </div>
+    `;
+    container.appendChild(weeklyDiv);
 }
 
 // Rendre les cartes des ouvriers
@@ -1833,14 +2175,60 @@ async function downloadPdfDirectly() {
         
         const currentForeman = state.availableWorkers.find(w => w.id === state.foremanId);
         const foremanName = currentForeman ? `${currentForeman.lastName} ${currentForeman.firstName}` : 'Non défini';
+        const driverSummary = getDriverVehicleSummary();
+        const driverSummaryRows = driverSummary.rows;
+        const weeklyMileage = driverSummary.weeklyMileage;
+        const weeklyVehicleLabel = driverSummary.weeklyVehicleLabel;
+        const hasDriverSummary = driverSummaryRows.some(row => row.driverName || row.vehicleLabel) || (weeklyMileage && weeklyMileage !== '') || (weeklyVehicleLabel && weeklyVehicleLabel !== '');
+        
+        if (hasDriverSummary) {
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('RÉCAPITULATIF CONDUCTEURS & VÉHICULES', 105, 18, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(weekDisplay.textContent || '', 105, 24, { align: 'center' });
+            
+            const summaryTableData = driverSummaryRows.map(row => ([
+                row.dayLabel || '',
+                row.driverName || '—',
+                row.vehicleLabel || '—',
+                '—'
+            ]));
+            if (weeklyMileage || weeklyVehicleLabel) {
+                summaryTableData.push([
+                    'Total semaine',
+                    '',
+                    weeklyVehicleLabel || '',
+                    weeklyMileage ? `${weeklyMileage} km` : ''
+                ]);
+            }
+            
+            doc.autoTable({
+                startY: 32,
+                head: [['Jour', 'Conducteur', 'Véhicule', 'Kilométrage']],
+                body: summaryTableData,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
+                headStyles: { fillColor: [255, 243, 205], textColor: [133, 77, 14], fontStyle: 'bold', lineWidth: 0.4, lineColor: [224, 180, 90] },
+                bodyStyles: { lineWidth: 0.4, lineColor: [224, 180, 90] },
+                columnStyles: {
+                    0: { cellWidth: 32, halign: 'center' },
+                    1: { cellWidth: 60 },
+                    2: { cellWidth: 68 },
+                    3: { cellWidth: 28, halign: 'center' }
+                }
+            });
+        }
         
         state.activeWorkers.forEach((worker, index) => {
-            if (index > 0) {
+            if (hasDriverSummary || index > 0) {
                 doc.addPage();
             }
             
             const workerData = state.data[worker.id];
             const isInterim = workerData.isInterim !== false;
+            const observationText = getWorkerObservationWithMileage(worker);
             
             // En-tête - 3 colonnes
             doc.setFontSize(10);
@@ -2000,10 +2388,10 @@ async function downloadPdfDirectly() {
             
             doc.setTextColor(0, 0, 0);
             doc.setFont(undefined, 'normal');
-            if (workerData.observation) {
+            if (observationText) {
                 doc.setFontSize(9);
                 doc.setFont(undefined, 'italic');
-                const lines = doc.splitTextToSize(workerData.observation, boxWidth - 8);
+                const lines = doc.splitTextToSize(observationText, boxWidth - 8);
                 doc.text(lines, boxX + 4, finalY + 7);
             }
             
@@ -2175,6 +2563,51 @@ function generatePrintSheet() {
     // Générer une fiche par ouvrier
     let html = '';
     
+    const driverSummary = getDriverVehicleSummary();
+    const driverSummaryRows = driverSummary.rows;
+    const weeklyMileage = driverSummary.weeklyMileage;
+    const weeklyVehicleLabel = driverSummary.weeklyVehicleLabel;
+    const hasDriverSummary = driverSummaryRows.some(row => row.driverName || row.vehicleLabel) || (weeklyMileage && weeklyMileage !== '') || (weeklyVehicleLabel && weeklyVehicleLabel !== '');
+    
+    if (hasDriverSummary) {
+        html += `
+        <div class="print-sheet" style="margin-bottom: 12px;">
+            <div style="padding: 12px; border-bottom: 2px solid black; font-weight: bold; font-size: 12pt; text-align: center; background-color: #fffbe6;">
+                RÉCAPITULATIF CONDUCTEURS & VÉHICULES
+            </div>
+            <table class="print-table">
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">Jour</th>
+                        <th>Conducteur</th>
+                        <th>Véhicule</th>
+                        <th style="width: 90px;">Kilométrage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${driverSummaryRows.map(row => `
+                        <tr>
+                            <td>${escapeHtml(row.dayLabel)}</td>
+                            <td>${row.driverName ? escapeHtml(row.driverName) : '—'}</td>
+                            <td>${row.vehicleLabel ? escapeHtml(row.vehicleLabel) : '—'}</td>
+                            <td>—</td>
+                        </tr>
+                    `).join('')}
+                    ${(weeklyMileage || weeklyVehicleLabel) ? `
+                        <tr style="font-weight: bold; background-color: #fff9e6;">
+                            <td>Total semaine</td>
+                            <td></td>
+                            <td>${weeklyVehicleLabel ? escapeHtml(weeklyVehicleLabel) : '—'}</td>
+                            <td>${weeklyMileage ? escapeHtml(`${weeklyMileage} km`) : '—'}</td>
+                        </tr>
+                    ` : ''}
+                </tbody>
+            </table>
+        </div>
+        <div class="print-break"></div>
+        `;
+    }
+    
     state.activeWorkers.forEach((worker, workerIndex) => {
         if (workerIndex > 0) {
             html += '<div class="print-break"></div>';
@@ -2182,7 +2615,7 @@ function generatePrintSheet() {
         
         const workerData = state.data[worker.id] || { sites: [], observation: '', isInterim: true, dayMentions: createEmptyDayMentions() };
         const workerTotal = calculateWorkerTotal(worker.id);
-        const workerObservation = workerData.observation || '';
+        const workerObservation = getWorkerObservationWithMileage(worker);
         const isInterim = workerData.isInterim !== false;
         const dayMentions = workerData.dayMentions || createEmptyDayMentions();
         
@@ -2499,6 +2932,25 @@ async function sendReportByEmail(event) {
             return;
         }
 
+        // Empêcher les envois trop rapprochés (5 minutes)
+        const now = Date.now();
+        if (state.lastEmailSentAt && (now - state.lastEmailSentAt) < EMAIL_COOLDOWN_MS) {
+            const remainingMs = EMAIL_COOLDOWN_MS - (now - state.lastEmailSentAt);
+            const remainingSecondsTotal = Math.ceil(remainingMs / 1000);
+            const remainingMinutes = Math.floor(remainingSecondsTotal / 60);
+            const remainingSeconds = remainingSecondsTotal % 60;
+            const parts = [];
+            if (remainingMinutes > 0) {
+                parts.push(`${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`);
+            }
+            if (remainingSeconds > 0) {
+                parts.push(`${remainingSeconds} seconde${remainingSeconds > 1 ? 's' : ''}`);
+            }
+            const remainingText = parts.join(' et ');
+            alert(`⏳ Merci de patienter encore ${remainingText || 'quelques instants'} avant d'envoyer un nouveau rapport.`);
+            return;
+        }
+
         // Vérifier qu'il y a au moins un ouvrier
         if (state.activeWorkers.length === 0) {
             alert('⚠️ Veuillez ajouter au moins un ouvrier avant d\'envoyer le rapport.');
@@ -2563,7 +3015,7 @@ async function sendReportByEmail(event) {
                             friday: site.hours.friday || 0
                         }
                     })),
-                    observation: workerData.observation || '',
+                    observation: getWorkerObservationWithMileage(worker),
                     drivers: drivers,
                     panierMode: workerData.panierMode || 'panier',
                     panierCustom: workerData.panierCustom || {},
@@ -2571,6 +3023,8 @@ async function sendReportByEmail(event) {
                 };
             })
         };
+        reportData.vehicleSummary = getDriverVehicleSummary();
+        reportData.isPrevisionnel = state.isPrevisionnel;
 
         // Envoyer la requête au serveur Netlify
         // URL relative pour fonctionner sur tous les déploiements
@@ -2596,6 +3050,9 @@ async function sendReportByEmail(event) {
         }
 
         if (result.success) {
+            state.lastEmailSentAt = Date.now();
+            saveState();
+
             // Proposer le téléchargement du PDF
             const downloadPdf = confirm(`✅ Rapport envoyé avec succès!\n\nLe rapport a été envoyé aux destinataires configurés.\n\nSouhaitez-vous télécharger le PDF maintenant ?`);
             
