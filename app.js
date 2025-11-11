@@ -1758,6 +1758,8 @@ function renderAll() {
 function renderDriverSelection() {
     const container = document.getElementById('driverSelectionRow');
     container.innerHTML = '';
+    container.style.gridTemplateColumns = 'repeat(5, minmax(120px, 1fr))';
+    container.style.columnGap = '16px';
     
     const vehicleOptions = state.vehicleOptions || [];
     
@@ -1771,20 +1773,20 @@ function renderDriverSelection() {
         ensureVehicleUsageDay(day);
         
         const dayDiv = document.createElement('div');
-        dayDiv.classList.add('space-y-3', 'bg-white', 'rounded-xl', 'p-4', 'border', 'border-orange-100', 'shadow-sm');
+        dayDiv.className = 'flex flex-col items-center justify-between rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-2 py-3 shadow-sm';
+        dayDiv.style.minWidth = '120px';
+        dayDiv.style.backdropFilter = 'blur(4px)';
         dayDiv.innerHTML = `
-            <div>
-                <label class="block text-sm font-bold text-orange-800 mb-2">${dayNames[index]}</label>
-                <select 
-                    onchange="updateDriver('${day}', this.value)"
-                    class="w-full px-4 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-medium text-gray-800 shadow-sm"
-                >
-                    ${state.activeWorkers.map(w => {
-                        const selected = currentDriver === w.id ? 'selected' : '';
-                        return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)} ${escapeHtml(w.firstName)}</option>`;
-                    }).join('')}
-                </select>
-            </div>
+            <span class="text-sm font-semibold uppercase tracking-wide text-orange-300 mb-2">${dayNames[index]}</span>
+            <select 
+                onchange="updateDriver('${day}', this.value)"
+                class="block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white text-center transition"
+            >
+                ${state.activeWorkers.map(w => {
+                    const selected = currentDriver === w.id ? 'selected' : '';
+                    return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)} ${escapeHtml(w.firstName)}</option>`;
+                }).join('')}
+            </select>
         `;
         container.appendChild(dayDiv);
     });
@@ -1797,7 +1799,7 @@ function renderDriverSelection() {
         ? `
             <select 
                 onchange="updateWeeklyVehicleSelection(this)"
-                class="w-full px-3 py-2 border border-orange-200 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm"
+                class="block w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition"
             >
                 <option value="">Sélectionner un véhicule</option>
                 ${vehicleOptions.map(vehicle => {
@@ -1811,7 +1813,7 @@ function renderDriverSelection() {
             </select>
         `
         : `
-            <div class="px-3 py-2 border-2 border-dashed border-orange-300 rounded-lg bg-white text-sm text-orange-700">
+            <div class="px-3 py-2 border-2 border-dashed border-orange-400 rounded-xl bg-black bg-opacity-30 text-sm text-orange-200 text-center">
                 Aucun véhicule configuré
             </div>
         `;
@@ -1820,13 +1822,13 @@ function renderDriverSelection() {
     weeklyDiv.classList.add('col-span-5', 'w-full');
     weeklyDiv.style.gridColumn = 'span 5 / span 5';
     weeklyDiv.innerHTML = `
-        <div class="bg-white rounded-xl p-4 border border-orange-100 shadow-sm space-y-4">
+        <div class="rounded-2xl border-2 border-orange-500 bg-black bg-opacity-20 text-orange-100 px-4 py-5 shadow-md space-y-4" style="backdrop-filter: blur(6px);">
             <div>
-                <label class="block text-sm font-semibold text-orange-700 mb-2 uppercase tracking-wide">Véhicule utilisé</label>
+                <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Véhicule utilisé</label>
                 ${weeklyVehicleSelect}
             </div>
             <div>
-                <label class="block text-sm font-semibold text-orange-700 mb-2 uppercase tracking-wide">Kilométrage véhicule (km)</label>
+                <label class="block text-sm font-semibold text-orange-300 mb-2 uppercase tracking-wide">Kilométrage véhicule (km)</label>
                 <input 
                     type="number"
                     min="0"
@@ -1834,9 +1836,9 @@ function renderDriverSelection() {
                     placeholder="Saisir le kilométrage total"
                     value="${escapeHtml(weeklyMileageValue)}"
                     oninput="updateWeeklyMileage(this)"
-                    class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm"
+                    class="w-full px-3 py-2 border border-orange-400 bg-gray-800 bg-opacity-80 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-300 text-base font-semibold text-white transition"
                 >
-                <p class="text-xs text-gray-500 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
+                <p class="text-xs text-orange-200 text-opacity-80 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
             </div>
         </div>
     `;
