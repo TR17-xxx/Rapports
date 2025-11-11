@@ -1031,45 +1031,6 @@ function updateWeeklyMileage(inputElement) {
     saveState();
 }
 
-// Obtenir un récapitulatif conducteur/véhicule/km pour chaque jour
-function getDriverVehicleSummary() {
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-    const dayLabels = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
-    
-    const rows = days.map((dayKey, index) => {
-        const driverId = state.drivers[dayKey] || state.foremanId;
-        let driverName = '';
-        if (driverId) {
-            const driver = state.availableWorkers.find(w => w.id === driverId);
-            if (driver) {
-                driverName = `${driver.lastName} ${driver.firstName}`;
-            }
-        }
-        
-        ensureVehicleUsageDay(dayKey);
-        const weeklyVehicleLabel = getVehicleLabelById(state.vehicleUsage.selectedVehicleId);
-        
-        return {
-            dayKey,
-            dayLabel: dayLabels[index],
-            driverName,
-            vehicleLabel: weeklyVehicleLabel
-        };
-    });
-    
-    const weeklyMileage = state.vehicleUsage && typeof state.vehicleUsage.totalMileage === 'string'
-        ? state.vehicleUsage.totalMileage
-        : '';
-    
-    const weeklyVehicleLabel = getVehicleLabelById(state.vehicleUsage.selectedVehicleId);
-    
-    return {
-        rows,
-        weeklyMileage,
-        weeklyVehicleLabel
-    };
-}
-
 // Obtenir l'observation à afficher pour un ouvrier (avec ajout automatique du kilométrage pour le chef)
 function getWorkerObservationWithMileage(worker) {
     const workerData = state.data[worker.id] || {};
@@ -1079,10 +1040,22 @@ function getWorkerObservationWithMileage(worker) {
         : '';
     
     if (weeklyMileage && weeklyMileage !== '' && state.foremanId === worker.id) {
-        const mileageNote = `Kilométrage total véhicule: ${weeklyMileage} km`;
-        if (observation && !observation.includes(mileageNote)) {
-            observation += `\n${mileageNote}`;
-        } else if (!observation) {
+        const selectedVehicleId = state.vehicleUsage ? state.vehicleUsage.selectedVehicleId : null;
+        const vehicle = selectedVehicleId ? state.vehicleOptions.find(v => v.id === selectedVehicleId) : null;
+        const vehicleLabel = vehicle
+            ? [
+                vehicle.plate ? vehicle.plate : '',
+                vehicle.description ? vehicle.description : ''
+              ].filter(Boolean).join(' - ') || 'Véhicule non défini'
+            : 'Véhicule non défini';
+        const vehicleLine = `Véhicule: ${vehicleLabel}`;
+        const mileageLine = `Kilométrage total: ${weeklyMileage} km`;
+        const mileageNote = `${vehicleLine}\n${mileageLine}`;
+        if (observation && observation.trim() !== '') {
+            if (!observation.includes(vehicleLine) && !observation.includes(mileageLine)) {
+                observation = `${vehicleLine}\n${mileageLine}\n${observation}`;
+            }
+        } else {
             observation = mileageNote;
         }
     }
@@ -2300,54 +2273,8 @@ async function downloadPdfDirectly() {
         
         const currentForeman = state.availableWorkers.find(w => w.id === state.foremanId);
         const foremanName = currentForeman ? `${currentForeman.lastName} ${currentForeman.firstName}` : 'Non défini';
-        const driverSummary = getDriverVehicleSummary();
-        const driverSummaryRows = driverSummary.rows;
-        const weeklyMileage = driverSummary.weeklyMileage;
-        const weeklyVehicleLabel = driverSummary.weeklyVehicleLabel;
-        const hasDriverSummary = driverSummaryRows.some(row => row.driverName || row.vehicleLabel) || (weeklyMileage && weeklyMileage !== '') || (weeklyVehicleLabel && weeklyVehicleLabel !== '');
-        
-        if (hasDriverSummary) {
-            doc.setFontSize(14);
-            doc.setFont(undefined, 'bold');
-            doc.text('RÉCAPITULATIF CONDUCTEURS & VÉHICULES', 105, 18, { align: 'center' });
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.text(weekDisplay.textContent || '', 105, 24, { align: 'center' });
-            
-            const summaryTableData = driverSummaryRows.map(row => ([
-                row.dayLabel || '',
-                row.driverName || '—',
-                row.vehicleLabel || '—',
-                '—'
-            ]));
-            if (weeklyMileage || weeklyVehicleLabel) {
-                summaryTableData.push([
-                    'Total semaine',
-                    '',
-                    weeklyVehicleLabel || '',
-                    weeklyMileage ? `${weeklyMileage} km` : ''
-                ]);
-            }
-            
-            doc.autoTable({
-                startY: 32,
-                head: [['Jour', 'Conducteur', 'Véhicule', 'Kilométrage']],
-                body: summaryTableData,
-                theme: 'grid',
-                styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
-                headStyles: { fillColor: [255, 243, 205], textColor: [133, 77, 14], fontStyle: 'bold', lineWidth: 0.4, lineColor: [224, 180, 90] },
-                bodyStyles: { lineWidth: 0.4, lineColor: [224, 180, 90] },
-                columnStyles: {
-                    0: { cellWidth: 32, halign: 'center' },
-                    1: { cellWidth: 60 },
-                    2: { cellWidth: 68 },
-                    3: { cellWidth: 28, halign: 'center' }
-                }
-            });
-        }
-        
         state.activeWorkers.forEach((worker, index) => {
-            if (hasDriverSummary || index > 0) {
+            if (index > 0) {
                 doc.addPage();
             }
             
@@ -2687,51 +2614,6 @@ function generatePrintSheet() {
     
     // Générer une fiche par ouvrier
     let html = '';
-    
-    const driverSummary = getDriverVehicleSummary();
-    const driverSummaryRows = driverSummary.rows;
-    const weeklyMileage = driverSummary.weeklyMileage;
-    const weeklyVehicleLabel = driverSummary.weeklyVehicleLabel;
-    const hasDriverSummary = driverSummaryRows.some(row => row.driverName || row.vehicleLabel) || (weeklyMileage && weeklyMileage !== '') || (weeklyVehicleLabel && weeklyVehicleLabel !== '');
-    
-    if (hasDriverSummary) {
-        html += `
-        <div class="print-sheet" style="margin-bottom: 12px;">
-            <div style="padding: 12px; border-bottom: 2px solid black; font-weight: bold; font-size: 12pt; text-align: center; background-color: #fffbe6;">
-                RÉCAPITULATIF CONDUCTEURS & VÉHICULES
-            </div>
-            <table class="print-table">
-                <thead>
-                    <tr>
-                        <th style="width: 80px;">Jour</th>
-                        <th>Conducteur</th>
-                        <th>Véhicule</th>
-                        <th style="width: 90px;">Kilométrage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${driverSummaryRows.map(row => `
-                        <tr>
-                            <td>${escapeHtml(row.dayLabel)}</td>
-                            <td>${row.driverName ? escapeHtml(row.driverName) : '—'}</td>
-                            <td>${row.vehicleLabel ? escapeHtml(row.vehicleLabel) : '—'}</td>
-                            <td>—</td>
-                        </tr>
-                    `).join('')}
-                    ${(weeklyMileage || weeklyVehicleLabel) ? `
-                        <tr style="font-weight: bold; background-color: #fff9e6;">
-                            <td>Total semaine</td>
-                            <td></td>
-                            <td>${weeklyVehicleLabel ? escapeHtml(weeklyVehicleLabel) : '—'}</td>
-                            <td>${weeklyMileage ? escapeHtml(`${weeklyMileage} km`) : '—'}</td>
-                        </tr>
-                    ` : ''}
-                </tbody>
-            </table>
-        </div>
-        <div class="print-break"></div>
-        `;
-    }
     
     state.activeWorkers.forEach((worker, workerIndex) => {
         if (workerIndex > 0) {
@@ -3148,7 +3030,6 @@ async function sendReportByEmail(event) {
                 };
             })
         };
-        reportData.vehicleSummary = getDriverVehicleSummary();
         reportData.isPrevisionnel = state.isPrevisionnel;
 
         // Envoyer la requête au serveur Netlify

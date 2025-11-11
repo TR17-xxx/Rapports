@@ -194,54 +194,8 @@ exports.handler = async (event, context) => {
 async function generatePDF(reportData, weekInfo) {
     try {
         const doc = new jsPDF();
-        const vehicleSummaryData = reportData.vehicleSummary || {};
-        const vehicleSummaryRows = Array.isArray(vehicleSummaryData.rows) ? vehicleSummaryData.rows : Array.isArray(reportData.vehicleSummary) ? reportData.vehicleSummary : [];
-        const weeklyMileage = vehicleSummaryData.weeklyMileage || '';
-        const weeklyVehicleLabel = vehicleSummaryData.weeklyVehicleLabel || '';
-        const hasVehicleSummary = vehicleSummaryRows.some(row => (row && (row.driverName || row.vehicleLabel))) || (weeklyMileage && weeklyMileage !== '') || (weeklyVehicleLabel && weeklyVehicleLabel !== '');
-        
-        if (hasVehicleSummary) {
-            doc.setFontSize(14);
-            doc.setFont(undefined, 'bold');
-            doc.text('RÉCAPITULATIF CONDUCTEURS & VÉHICULES', 105, 18, { align: 'center' });
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.text(weekInfo.period || '', 105, 24, { align: 'center' });
-            
-            const summaryTableData = vehicleSummaryRows.map(row => ([
-                row.dayLabel || '',
-                row.driverName || '—',
-                row.vehicleLabel || '—',
-                '—'
-            ]));
-            if (weeklyMileage || weeklyVehicleLabel) {
-                summaryTableData.push([
-                    'Total semaine',
-                    '',
-                    weeklyVehicleLabel || '',
-                    weeklyMileage ? `${weeklyMileage} km` : ''
-                ]);
-            }
-            
-            doc.autoTable({
-                startY: 32,
-                head: [['Jour', 'Conducteur', 'Véhicule', 'Kilométrage']],
-                body: summaryTableData,
-                theme: 'grid',
-                styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak' },
-                headStyles: { fillColor: [255, 243, 205], textColor: [133, 77, 14], fontStyle: 'bold', lineWidth: 0.4, lineColor: [224, 180, 90] },
-                bodyStyles: { lineWidth: 0.4, lineColor: [224, 180, 90] },
-                columnStyles: {
-                    0: { cellWidth: 32, halign: 'center' },
-                    1: { cellWidth: 60 },
-                    2: { cellWidth: 68 },
-                    3: { cellWidth: 28, halign: 'center' }
-                }
-            });
-        }
-        
         reportData.workers.forEach((worker, index) => {
-            if (hasVehicleSummary || index > 0) {
+            if (index > 0) {
                 doc.addPage();
             }
             

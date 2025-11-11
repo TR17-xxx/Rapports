@@ -1,7 +1,8 @@
 const DEFAULT_HEADERS = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS'
+    'Access-Control-Allow-Headers': 'Content-Type, X-Access-Token',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Content-Type': 'application/json'
 };
 
 exports.handler = async (event) => {
@@ -22,26 +23,51 @@ exports.handler = async (event) => {
     }
     
     try {
-        const rawData = process.env.VEHICLES_DATA || '[]';
+        const rawData = process.env.VEHICLES_DATA;
+
+        if (!rawData) {
+            console.warn('⚠️  La variable d\'environnement VEHICLES_DATA est absente ou vide.');
+            return {
+                statusCode: 500,
+                headers: DEFAULT_HEADERS,
+                body: JSON.stringify({
+                    message: 'VEHICLES_DATA non configurée',
+                    vehicles: []
+                })
+            };
+        }
+
         let vehicles = [];
         
         try {
             vehicles = JSON.parse(rawData);
         } catch (parseError) {
             console.error('Impossible de parser VEHICLES_DATA:', parseError);
-            vehicles = [];
+            return {
+                statusCode: 500,
+                headers: DEFAULT_HEADERS,
+                body: JSON.stringify({
+                    message: 'Format invalide pour VEHICLES_DATA',
+                    vehicles: []
+                })
+            };
         }
         
         if (!Array.isArray(vehicles)) {
-            vehicles = [];
+            console.error('VEHICLES_DATA n\'est pas un tableau.');
+            return {
+                statusCode: 500,
+                headers: DEFAULT_HEADERS,
+                body: JSON.stringify({
+                    message: 'VEHICLES_DATA doit être un tableau JSON',
+                    vehicles: []
+                })
+            };
         }
         
         return {
             statusCode: 200,
-            headers: {
-                ...DEFAULT_HEADERS,
-                'Content-Type': 'application/json'
-            },
+            headers: DEFAULT_HEADERS,
             body: JSON.stringify({
                 vehicles
             })
