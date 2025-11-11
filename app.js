@@ -437,7 +437,7 @@ function hideLoadingScreen() {
     const mainContent = document.getElementById('mainContent');
     
     if (loadingScreen && mainContent) {
-        // Attendre 3 secondes avant de commencer la transition (logo visible)
+        // Attendre 2,5 secondes avant de commencer la transition (logo visible)
         setTimeout(function() {
             // Ajouter la classe fade-out pour déclencher l'animation
             loadingScreen.classList.add('fade-out');
@@ -446,9 +446,12 @@ function hideLoadingScreen() {
             setTimeout(function() {
                 loadingScreen.classList.add('hidden');
                 mainContent.style.display = 'block';
+                mainContent.classList.remove('rapport-slide-in');
+                void mainContent.offsetWidth;
+                mainContent.classList.add('rapport-slide-in');
             }, 1000); // Durée de l'animation de fondu (1s)
-        }, 3000); // Affichage du logo pendant 3 secondes
-        // Total : 3s (affichage) + 1s (transition) = 4 secondes
+        }, 2500); // Affichage du logo pendant 2,5 secondes
+        // Total : 2,5s (affichage) + 1s (transition) = 3,5 secondes
     }
 }
 

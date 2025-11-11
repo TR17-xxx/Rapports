@@ -28,6 +28,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+GIT_COMMANDS.md
 
 # Données sensibles (ouvriers et chantiers - NE JAMAIS COMMITER)
 workers-data.js
