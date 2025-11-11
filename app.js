@@ -1031,6 +1031,96 @@ function updateWeeklyMileage(inputElement) {
     saveState();
 }
 
+// Afficher le modal de sélection de véhicule
+function showSelectVehicleModal() {
+    const modal = document.getElementById('selectVehicleModal');
+    if (!modal) return;
+    
+    const container = document.getElementById('vehicleListContainer');
+    if (!container) return;
+    
+    // Vider le contenu
+    container.innerHTML = '';
+    
+    const vehicleOptions = state.vehicleOptions || [];
+    const weeklySelectedVehicleId = state.vehicleUsage && typeof state.vehicleUsage.selectedVehicleId !== 'undefined'
+        ? state.vehicleUsage.selectedVehicleId
+        : '';
+    
+    if (vehicleOptions.length === 0) {
+        container.innerHTML = `
+            <div class="px-4 py-3 border-2 border-dashed border-orange-300 rounded-lg bg-orange-50 text-orange-700 text-center">
+                Aucun véhicule configuré
+            </div>
+        `;
+        modal.classList.remove('hidden');
+        return;
+    }
+    
+    // Ajouter un bouton pour désélectionner
+    const clearButton = document.createElement('button');
+    clearButton.onclick = () => selectVehicle('');
+    clearButton.className = 'w-full px-4 py-3 bg-gray-50 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition text-left';
+    clearButton.innerHTML = `
+        <span class="font-semibold text-gray-700">Aucun véhicule</span>
+    `;
+    container.appendChild(clearButton);
+    
+    // Créer un bouton pour chaque véhicule
+    vehicleOptions.forEach(vehicle => {
+        const vehicleId = vehicle.id !== undefined ? vehicle.id : vehicle.plate || vehicle.label || vehicle.description || '';
+        const label = vehicle.label 
+            ? vehicle.label 
+            : `${vehicle.plate ? vehicle.plate.toUpperCase() : ''}${vehicle.plate && vehicle.description ? ' - ' : ''}${vehicle.description || ''}`;
+        
+        const isSelected = String(weeklySelectedVehicleId) === String(vehicleId);
+        
+        const button = document.createElement('button');
+        button.onclick = () => selectVehicle(vehicleId);
+        button.className = `w-full px-4 py-3 border-2 rounded-lg hover:bg-orange-100 transition text-left ${
+            isSelected 
+                ? 'bg-orange-100 border-orange-500' 
+                : 'bg-white border-orange-300'
+        }`;
+        button.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span class="font-semibold text-orange-800">${escapeHtml(label)}</span>
+                ${isSelected ? '<span class="text-orange-600">✓</span>' : ''}
+            </div>
+        `;
+        container.appendChild(button);
+    });
+    
+    modal.classList.remove('hidden');
+}
+
+// Sélectionner un véhicule et fermer le modal
+function selectVehicle(vehicleId) {
+    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
+        state.vehicleUsage = createEmptyVehicleUsage();
+    }
+    
+    state.vehicleUsage.selectedVehicleId = vehicleId;
+    
+    // Mettre à jour également les anciennes structures journalières pour compatibilité
+    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+        ensureVehicleUsageDay(day);
+        state.vehicleUsage[day].vehicleId = vehicleId;
+    });
+    
+    saveState();
+    renderDriverSelection();
+    hideSelectVehicleModal();
+}
+
+// Masquer le modal de sélection de véhicule
+function hideSelectVehicleModal() {
+    const modal = document.getElementById('selectVehicleModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
 // Obtenir l'observation à afficher pour un ouvrier (avec ajout automatique du kilométrage pour le chef)
 function getWorkerObservationWithMileage(worker) {
     const workerData = state.data[worker.id] || {};
@@ -1871,24 +1961,30 @@ function renderDriverSelection() {
         ? state.vehicleUsage.totalMileage
         : '';
     
+    // Obtenir le label du véhicule sélectionné
+    const selectedVehicle = vehicleOptions.find(v => String(v.id) === String(weeklySelectedVehicleId));
+    const selectedVehicleLabel = selectedVehicle
+        ? (selectedVehicle.label 
+            ? selectedVehicle.label 
+            : `${selectedVehicle.plate ? selectedVehicle.plate.toUpperCase() : ''}${selectedVehicle.plate && selectedVehicle.description ? ' - ' : ''}${selectedVehicle.description || ''}`)
+        : '';
+    
     const weeklyVehicleSelect = vehicleOptions.length > 0
         ? `
-            <select 
-                onchange="updateWeeklyVehicleSelection(this)"
+            <button 
+                type="button"
+                onclick="showSelectVehicleModal()"
                 class="${isMobileLayout
-                    ? 'block w-full px-3 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base font-semibold text-gray-800 transition'
-                    : 'w-full px-3 py-2 border border-orange-200 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm'}"
+                    ? 'w-full px-3 py-2 border-2 border-orange-300 bg-white rounded-lg hover:bg-orange-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base font-semibold text-gray-800 transition text-left'
+                    : 'w-full px-3 py-2 border border-orange-200 bg-white rounded-lg hover:bg-orange-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm text-left'}"
             >
-                <option value="">Sélectionner un véhicule</option>
-                ${vehicleOptions.map(vehicle => {
-                    const vehicleId = vehicle.id !== undefined ? vehicle.id : vehicle.plate || vehicle.label || vehicle.description || '';
-                    const label = vehicle.label 
-                        ? vehicle.label 
-                        : `${vehicle.plate ? vehicle.plate.toUpperCase() : ''}${vehicle.plate && vehicle.description ? ' - ' : ''}${vehicle.description || ''}`;
-                    const isSelected = String(weeklySelectedVehicleId) === String(vehicleId) ? 'selected' : '';
-                    return `<option value="${escapeHtml(vehicleId)}" ${isSelected}>${escapeHtml(label)}</option>`;
-                }).join('')}
-            </select>
+                <div class="flex items-center justify-between">
+                    <span>${selectedVehicleLabel ? escapeHtml(selectedVehicleLabel) : 'Sélectionner un véhicule'}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-600">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </div>
+            </button>
         `
         : `
             <div class="${isMobileLayout

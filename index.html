@@ -1456,6 +1456,26 @@
         </div>
     </div>
 
+    <!-- Modal Sélection de véhicule -->
+    <div id="selectVehicleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Sélectionner un véhicule</h3>
+            
+            <div id="vehicleListContainer" class="space-y-3 mb-4">
+                <!-- Les boutons de véhicules seront générés ici -->
+            </div>
+            
+            <div class="flex space-x-2">
+                <button 
+                    onclick="hideSelectVehicleModal()"
+                    class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
+                >
+                    Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Charger workers-data.js uniquement en développement local -->
     <script>
         const isLocalEnv = ['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.protocol === 'file:';
