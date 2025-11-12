@@ -125,7 +125,8 @@ let state = {
     currentSiteSelection: null, // Pour stocker le contexte de sélection de chantier
     currentDayMention: null, // Pour stocker le contexte de sélection de mention de jour
     dataLoaded: false, // Indicateur de chargement des données
-    lastEmailSentAt: null // Timestamp du dernier envoi de rapport
+    lastEmailSentAt: null, // Timestamp du dernier envoi de rapport
+    isEditingMileage: false // Protection contre les re-renders pendant la saisie du kilométrage
 };
 
 // Clé pour le localStorage
@@ -1000,6 +1001,11 @@ function updateWeeklyVehicleSelection(selectElement) {
     saveState();
 }
 
+// Marquer le début de l'édition du kilométrage
+function startEditingMileage() {
+    state.isEditingMileage = true;
+}
+
 // Mettre à jour le kilométrage total de la semaine
 function updateWeeklyMileage(inputElement) {
     if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
@@ -1012,6 +1018,7 @@ function updateWeeklyMileage(inputElement) {
     let rawValue = inputElement.value;
     if (rawValue === '') {
         state.vehicleUsage.totalMileage = '';
+        state.isEditingMileage = false;
         saveState();
         return;
     }
@@ -1028,6 +1035,7 @@ function updateWeeklyMileage(inputElement) {
         inputElement.value = normalized.toString();
     }
     
+    state.isEditingMileage = false;
     saveState();
 }
 
@@ -1889,6 +1897,11 @@ function renderAll() {
 
 // Rendre la ligne de sélection du conducteur
 function renderDriverSelection() {
+    // Ne pas re-render si l'utilisateur est en train de saisir le kilométrage
+    if (state.isEditingMileage) {
+        return;
+    }
+    
     const container = document.getElementById('driverSelectionRow');
     container.innerHTML = '';
     
@@ -2012,6 +2025,7 @@ function renderDriverSelection() {
                         step="0.1"
                         placeholder="Saisir le kilométrage total"
                         value="${escapeHtml(weeklyMileageValue)}"
+                        onfocus="startEditingMileage()"
                         onchange="updateWeeklyMileage(this)"
                         class="w-full px-3 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base font-semibold text-gray-800 transition"
                     >
@@ -2033,6 +2047,7 @@ function renderDriverSelection() {
                         step="0.1"
                         placeholder="Saisir le kilométrage total"
                         value="${escapeHtml(weeklyMileageValue)}"
+                        onfocus="startEditingMileage()"
                         onchange="updateWeeklyMileage(this)"
                         class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm"
                     >
