@@ -1016,37 +1016,6 @@ function updateWeeklyMileage(inputElement) {
         return;
     }
     
-    // Sauvegarder la valeur brute sans normaliser pendant la saisie
-    // La normalisation sera faite au blur
-    rawValue = String(rawValue).replace(',', '.');
-    const parsed = parseFloat(rawValue);
-    
-    if (isNaN(parsed) || parsed < 0) {
-        state.vehicleUsage.totalMileage = '';
-    } else {
-        // Sauvegarder la valeur sans modifier l'input pendant la saisie
-        state.vehicleUsage.totalMileage = rawValue;
-    }
-    
-    saveState();
-}
-
-// Normaliser le kilométrage lorsque l'utilisateur quitte le champ
-function normalizeWeeklyMileage(inputElement) {
-    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
-        state.vehicleUsage = createEmptyVehicleUsage();
-    }
-    if (!inputElement) {
-        return;
-    }
-    
-    let rawValue = inputElement.value;
-    if (rawValue === '') {
-        state.vehicleUsage.totalMileage = '';
-        saveState();
-        return;
-    }
-    
     rawValue = String(rawValue).replace(',', '.');
     const parsed = parseFloat(rawValue);
     
@@ -2043,8 +2012,7 @@ function renderDriverSelection() {
                         step="0.1"
                         placeholder="Saisir le kilométrage total"
                         value="${escapeHtml(weeklyMileageValue)}"
-                        oninput="updateWeeklyMileage(this)"
-                        onblur="normalizeWeeklyMileage(this)"
+                        onchange="updateWeeklyMileage(this)"
                         class="w-full px-3 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base font-semibold text-gray-800 transition"
                     >
                     <p class="text-xs text-gray-600 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
@@ -2065,8 +2033,7 @@ function renderDriverSelection() {
                         step="0.1"
                         placeholder="Saisir le kilométrage total"
                         value="${escapeHtml(weeklyMileageValue)}"
-                        oninput="updateWeeklyMileage(this)"
-                        onblur="normalizeWeeklyMileage(this)"
+                        onchange="updateWeeklyMileage(this)"
                         class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm text-gray-800 shadow-sm"
                     >
                     <p class="text-xs text-gray-500 mt-2">Ce kilométrage sera indiqué automatiquement dans l'observation du rapport du chef de chantier.</p>
