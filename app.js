@@ -2392,6 +2392,7 @@ async function downloadPdfDirectly() {
             const workerData = state.data[worker.id];
             const isInterim = workerData.isInterim !== false;
             const observationText = getWorkerObservationWithMileage(worker);
+            const dayMentions = workerData.dayMentions || createEmptyDayMentions();
             
             // En-tête - 3 colonnes
             doc.setFontSize(10);
@@ -2413,22 +2414,45 @@ async function downloadPdfDirectly() {
             doc.text(`${worker.lastName} ${worker.firstName}` || '', 170, 20, { maxWidth: 35 });
             doc.setFont(undefined, 'normal');
             
+            // Ajouter le filigrane PRÉVISIONNEL si activé
+            if (state.isPrevisionnel) {
+                doc.setFontSize(80);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(255, 0, 0);
+                doc.saveGraphicsState();
+                doc.setGState(new doc.GState({ opacity: 0.15 }));
+                doc.text('PRÉVISIONNEL', 105, 150, { 
+                    align: 'center', 
+                    angle: 45,
+                    baseline: 'middle'
+                });
+                doc.restoreGraphicsState();
+                doc.setTextColor(0, 0, 0);
+            }
+            
             // Tableau des heures
             const tableData = [];
             
-            // Ajouter les chantiers
+            // Ajouter les chantiers avec support des mentions de jour
             workerData.sites.forEach(site => {
-                const total = (site.hours.monday || 0) + (site.hours.tuesday || 0) + 
-                              (site.hours.wednesday || 0) + (site.hours.thursday || 0) + 
-                              (site.hours.friday || 0);
+                // Calculer le total en tenant compte des mentions de jour
+                let total = 0;
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+                days.forEach(day => {
+                    // Si pas de mention, ajouter les heures au total
+                    if (!dayMentions[day]) {
+                        total += site.hours[day] || 0;
+                    }
+                });
                 
+                // Afficher les mentions de jour à la place des heures quand elles existent
                 tableData.push([
                     site.siteName || '',
-                    site.hours.monday ? site.hours.monday.toString() : '',
-                    site.hours.tuesday ? site.hours.tuesday.toString() : '',
-                    site.hours.wednesday ? site.hours.wednesday.toString() : '',
-                    site.hours.thursday ? site.hours.thursday.toString() : '',
-                    site.hours.friday ? site.hours.friday.toString() : '',
+                    dayMentions.monday ? dayMentions.monday : (site.hours.monday ? site.hours.monday.toString() : ''),
+                    dayMentions.tuesday ? dayMentions.tuesday : (site.hours.tuesday ? site.hours.tuesday.toString() : ''),
+                    dayMentions.wednesday ? dayMentions.wednesday : (site.hours.wednesday ? site.hours.wednesday.toString() : ''),
+                    dayMentions.thursday ? dayMentions.thursday : (site.hours.thursday ? site.hours.thursday.toString() : ''),
+                    dayMentions.friday ? dayMentions.friday : (site.hours.friday ? site.hours.friday.toString() : ''),
                     '',
                     total > 0 ? total.toFixed(1) : ''
                 ]);
@@ -2456,6 +2480,11 @@ async function downloadPdfDirectly() {
             // Calculs PANIER, TRANSPORT, TRAJET
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
             const workedDays = days.map(day => {
+                // Si une mention existe pour ce jour (Férié, Vacances, etc.), le jour n'est pas travaillé
+                if (dayMentions[day]) {
+                    return false;
+                }
+                // Sinon, vérifier si des heures sont saisies
                 let totalHours = 0;
                 workerData.sites.forEach(site => {
                     totalHours += site.hours[day] || 0;
@@ -2828,6 +2857,11 @@ function generatePrintSheet() {
         
         // Pour chaque jour, vérifier si l'ouvrier a travaillé
         const workedDays = days.map(day => {
+            // Si une mention existe pour ce jour (Férié, Vacances, etc.), le jour n'est pas travaillé
+            if (dayMentions[day]) {
+                return false;
+            }
+            // Sinon, vérifier si des heures sont saisies
             let totalHours = 0;
             workerData.sites.forEach(site => {
                 totalHours += site.hours[day] || 0;
