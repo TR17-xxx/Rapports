@@ -307,8 +307,10 @@ async function generatePDF(reportData, weekInfo) {
             }
             const panierTotal = panierValues.filter(v => v !== '').length;
             
-            // TRANSPORT
-            const transportValues = isDriverDays.map(isDriver => isDriver ? '1' : '');
+            // TRANSPORT : 1 si l'ouvrier est conducteur ET a travaillé ce jour
+            const transportValues = days.map((day, index) => {
+                return (isDriverDays[index] && workedDays[index]) ? '1' : '';
+            });
             const transportTotal = transportValues.filter(v => v === '1').length;
             
             // TRAJET
