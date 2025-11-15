@@ -162,7 +162,10 @@
                 <li><a href="#remarques" class="text-blue-600 hover:text-blue-800 hover:underline">→ Remarques importantes</a></li>
             </ul>
             <p class="text-sm text-gray-600 mt-4">
-                <strong>Nouvelles fonctionnalités :</strong> Sauvegarde automatique (8 jours), Mode prévisionnel, Mentions personnalisables (Férié, Vacances, etc.)
+                <strong class="text-blue-700">Nouvelles fonctionnalités clés :</strong>
+                Sauvegarde automatique <span class="font-semibold">par semaine</span> (8 jours),
+                Mode prévisionnel, Mentions personnalisables (Férié, Vacances, etc.),
+                gestion des véhicules et kilométrage, et boutons <span class="font-semibold text-purple-700">Données</span> / <span class="font-semibold text-red-700">Cache</span> pour gérer les sauvegardes.
             </p>
         </div>
 
@@ -231,7 +234,7 @@
                 </div>
                 <div class="flex items-start space-x-2">
                     <span class="text-green-600 font-bold">✅</span>
-                    <span>Sauvegarde automatique locale (8 jours)</span>
+                    <span>Sauvegarde automatique locale <span class="font-semibold">par semaine</span> (8 jours)</span>
                 </div>
                 <div class="flex items-start space-x-2">
                     <span class="text-green-600 font-bold">✅</span>
@@ -243,7 +246,15 @@
                 </div>
                 <div class="flex items-start space-x-2">
                     <span class="text-green-600 font-bold">✅</span>
-                    <span>Ouvriers et chantiers personnalisés sauvegardés</span>
+                    <span>Ouvriers et chantiers personnalisés sauvegardés (communs à toutes les semaines)</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Gestion des véhicules de l'entreprise et du kilométrage hebdomadaire</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-600 font-bold">✅</span>
+                    <span>Boutons <span class="font-semibold text-purple-700">Données</span> (semaine actuelle) et <span class="font-semibold text-red-700">Cache</span> (toutes les semaines) pour gérer le stockage</span>
                 </div>
             </div>
         </div>
@@ -275,7 +286,12 @@
                     <span>Configuration de la semaine</span>
                 </h3>
                 <ol class="list-decimal list-inside space-y-2 ml-4 text-gray-700">
-                    <li><strong>Sélectionner la semaine</strong> : Utilisez le sélecteur de semaine en haut de la page</li>
+                    <li><strong>Sélectionner la semaine</strong> : Utilisez le sélecteur de semaine en haut de la page.
+                        <div class="mt-1 ml-6 text-xs bg-blue-50 border border-blue-200 rounded px-2 py-1 text-blue-800">
+                            Chaque semaine possède ses propres données (ouvriers, chantiers, heures…).
+                            Lorsque vous changez de semaine, les données déjà saisies pour cette semaine sont automatiquement rechargées.
+                        </div>
+                    </li>
                     <li><strong>Désigner le chef de chantier</strong> : Sélectionnez le chef de chantier dans la liste déroulante</li>
                     <li><strong>Activer le mode prévisionnel</strong> (optionnel) : Cliquez sur le bouton "Mode prévisionnel" sous la période :
                         <ul class="list-disc list-inside ml-6 mt-1">
@@ -322,6 +338,24 @@
                     </li>
                     <li>Les totaux se calculent automatiquement</li>
                 </ol>
+            </div>
+
+            <!-- 2.2. Gestion des véhicules et du kilométrage -->
+            <div class="mb-6 bg-orange-50 p-4 rounded-lg border-2 border-orange-300">
+                <h3 class="text-xl font-semibold text-orange-800 mb-3 flex items-center space-x-2">
+                    <span class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">🚗</span>
+                    <span>Véhicules et kilométrage</span>
+                </h3>
+                <p class="text-gray-700 mb-2">Dans le bloc <strong>"Conducteur de la semaine"</strong> :</p>
+                <ul class="list-disc list-inside space-y-2 ml-4 text-gray-700">
+                    <li><strong>Sélection du véhicule</strong> : choisissez un véhicule de la flotte dans la liste (ou "Aucun véhicule").</li>
+                    <li><strong>Kilométrage total</strong> : saisissez le kilométrage réalisé sur la semaine dans le champ prévu à cet effet.</li>
+                    <li><strong>Observation auto pour le chef</strong> : si un véhicule et un kilométrage sont saisis,
+                        ces informations sont automatiquement ajoutées dans l'observation du chef de chantier.</li>
+                </ul>
+                <p class="text-xs text-orange-800 mt-2 bg-white/70 border border-orange-200 rounded px-2 py-1">
+                    Astuce : laissez le kilométrage vide si aucun véhicule n'a été utilisé cette semaine.
+                </p>
             </div>
 
             <!-- 2.1. Gestion du panier -->
@@ -454,51 +488,59 @@
                 <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded mb-4">
                     <h4 class="font-semibold text-green-800 mb-2">💾 Sauvegarde automatique</h4>
                     <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1">
-                        <li>Toutes les données sont <strong>sauvegardées automatiquement</strong> dans le navigateur</li>
-                        <li>La sauvegarde inclut : ouvriers actifs, heures, chantiers, observations, chef de chantier, conducteurs, mode prévisionnel, mentions, etc.</li>
-                        <li>Les <strong>ouvriers et chantiers créés manuellement</strong> sont également sauvegardés</li>
-                        <li>Les données sont <strong>valables pendant 8 jours</strong>, puis expirées automatiquement</li>
-                        <li>Les données sont <strong>restaurées automatiquement</strong> au chargement de la page</li>
+                        <li><strong>Sauvegarde par semaine :</strong> chaque semaine possède son propre dossier de données (ouvriers actifs, heures, chantiers, observations, conducteurs, mode prévisionnel, véhicule, etc.).</li>
+                        <li>Les <strong>ouvriers et chantiers créés manuellement</strong> sont sauvegardés séparément et restent disponibles pour toutes les semaines.</li>
+                        <li>Les données sont <strong>valides pendant 8 jours</strong> à partir de la dernière sauvegarde, puis expirent automatiquement.</li>
+                        <li>Au chargement de la page, l'application tente de restaurer la dernière semaine utilisée et ses données.</li>
                     </ul>
                 </div>
-                <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded">
-                    <h4 class="font-semibold text-purple-800 mb-2">🗑️ Effacer les données</h4>
-                    <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1">
-                        <li>Cliquez sur le bouton <strong>"Données"</strong> (violet) en haut à droite</li>
-                        <li>Confirmez l'effacement pour supprimer toutes les données sauvegardées</li>
-                        <li>Cela supprime également les <strong>ouvriers et chantiers personnalisés</strong> créés manuellement</li>
-                        <li>Les ouvriers et chantiers de base (prédéfinis) restent disponibles</li>
-                    </ul>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded">
+                        <h4 class="font-semibold text-purple-800 mb-2">🗂️ Bouton "Données" (violet)</h4>
+                        <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1 text-sm">
+                            <li>Efface <strong>uniquement les données de la semaine actuelle</strong>.</li>
+                            <li>Supprime pour cette semaine : ouvriers ajoutés au rapport, heures, chantiers associés, observations, chef de chantier, conducteurs, mode prévisionnel, véhicule et kilométrage.</li>
+                            <li>Les autres semaines et les listes d'ouvriers / chantiers personnalisés restent intactes.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                        <h4 class="font-semibold text-red-800 mb-2">🧹 Bouton "Cache" (rouge)</h4>
+                        <ul class="list-disc list-inside ml-4 text-gray-700 space-y-1 text-sm">
+                            <li>Efface <strong>tout le cache de l'application sur ce navigateur</strong> : toutes les semaines, état global, ouvriers et chantiers personnalisés.</li>
+                            <li>À utiliser en cas de mise à jour importante ou de problème de données.</li>
+                            <li>Après confirmation, la page est automatiquement rechargée pour repartir sur une base totalement propre.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Remarques importantes -->
-        <div id="remarques" class="bg-white rounded-lg shadow-md p-6 mb-6 section">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
-                <i data-lucide="alert-triangle" class="text-red-600" style="width: 28px; height: 28px;"></i>
-                <span>Remarques importantes</span>
-            </h2>
-            <div class="space-y-4">
-                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-                    <p class="text-green-800">
-                        <strong>✅ Sauvegarde automatique</strong> : Les données sont sauvegardées automatiquement dans le navigateur et valables pendant 8 jours. Elles sont restaurées automatiquement au chargement de la page.
-                    </p>
-                </div>
-                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
-                    <p class="text-yellow-800">
-                        <strong>⚠️ Mode prévisionnel</strong> : Si vous activez le mode prévisionnel, un filigrane "PRÉVISIONNEL" apparaîtra sur l'impression. Un avertissement s'affichera avant l'envoi par email.
-                    </p>
-                </div>
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                    <p class="text-blue-800">
-                        <strong>💡 Navigateur moderne requis</strong> : Fonctionne avec Chrome, Firefox, Edge, Safari (versions récentes)
-                    </p>
-                </div>
-                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-                    <p class="text-green-800">
-                        <strong>📱 Responsive</strong> : Fonctionne sur ordinateur, tablette et mobile
-                    </p>
+            <!-- Remarques importantes -->
+            <div id="remarques" class="bg-white rounded-lg shadow-md p-6 mb-6 section">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                    <i data-lucide="alert-triangle" class="text-red-600" style="width: 28px; height: 28px;"></i>
+                    <span>Remarques importantes</span>
+                </h2>
+                <div class="space-y-4">
+                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                        <p class="text-green-800">
+                            <strong>✅ Sauvegarde automatique</strong> : Les données sont sauvegardées automatiquement dans le navigateur et valables pendant 8 jours. Elles sont restaurées automatiquement au chargement de la page.
+                        </p>
+                    </div>
+                    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                        <p class="text-yellow-800">
+                            <strong>⚠️ Mode prévisionnel</strong> : Si vous activez le mode prévisionnel, un filigrane "PRÉVISIONNEL" apparaîtra sur l'impression. Un avertissement s'affichera avant l'envoi par email.
+                        </p>
+                    </div>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                        <p class="text-blue-800">
+                            <strong>💡 Navigateur moderne requis</strong> : Fonctionne avec Chrome, Firefox, Edge, Safari (versions récentes)
+                        </p>
+                    </div>
+                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                        <p class="text-green-800">
+                            <strong>📱 Responsive</strong> : Fonctionne sur ordinateur, tablette et mobile
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

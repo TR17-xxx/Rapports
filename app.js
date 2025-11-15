@@ -129,208 +129,299 @@ let state = {
     isEditingMileage: false // Protection contre les re-renders pendant la saisie du kilométrage
 };
 
-// Clés pour le localStorage
-const GLOBAL_STORAGE_KEY = 'rapport_hebdomadaire_global_state'; // Pour les données globales (ouvriers/chantiers perso)
-const WEEKLY_STORAGE_KEY_PREFIX = 'rapport_hebdomadaire_weekly_state_'; // Préfixe pour les données hebdomadaires
+// Clé pour le localStorage
+const STORAGE_KEY = 'rapport_hebdomadaire_state';
+const WEEKLY_STORAGE_KEY_PREFIX = 'rapport_hebdomadaire_weekly_state_';
 const STORAGE_EXPIRY_DAYS = 8;
 const EMAIL_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
 
 // Obtenir la clé de stockage pour une semaine donnée
 function getWeeklyStorageKey(weekNumber) {
     if (!weekNumber) return null;
-    return `${WEEKLY_STORAGE_KEY_PREFIX}${weekNumber}`;
+    return WEEKLY_STORAGE_KEY_PREFIX + String(weekNumber);
 }
 
-// Sauvegarder les données globales (ouvriers/chantiers personnalisés, chef)
-function saveGlobalState() {
+// Sauvegarder l'état dans le localStorage (global + semaine courante)
+function saveState() {
     try {
-        const globalState = {
+        const now = new Date();
+        const expiry = new Date(Date.now() + (STORAGE_EXPIRY_DAYS * 24 * 60 * 60 * 1000));
+
+        // État global (ouvr iers / chantiers perso, chef, compteur IDs, dernier envoi)
+        const globalStateToSave = {
+            nextWorkerId: state.nextWorkerId,
             customWorkers: state.customWorkers,
             customSites: state.customSites,
             foremanId: state.foremanId,
-            nextWorkerId: state.nextWorkerId,
-        };
-        localStorage.setItem(GLOBAL_STORAGE_KEY, JSON.stringify(globalState));
-    } catch (error) {
-        console.error('Erreur lors de la sauvegarde globale:', error);
-    }
-}
-
-// Sauvegarder les données de la semaine actuelle
-function saveCurrentWeekState() {
-    const weekNumber = state.weekNumber;
-    if (!weekNumber) return;
-
-    const storageKey = getWeeklyStorageKey(weekNumber);
-    if (!storageKey) return;
-
-    try {
-        const weeklyState = {
-            weekNumber: state.weekNumber,
-            weekStart: state.weekStart ? state.weekStart.toISOString() : null,
-            weekEnd: state.weekEnd ? state.weekEnd.toISOString() : null,
-            data: state.data,
-            drivers: state.drivers,
-            isPrevisionnel: state.isPrevisionnel,
-            vehicleUsage: state.vehicleUsage,
-            activeWorkers: state.activeWorkers.map(w => w.id), // Sauvegarder uniquement les IDs
             lastEmailSentAt: state.lastEmailSentAt ? new Date(state.lastEmailSentAt).toISOString() : null,
-            savedAt: new Date().toISOString(),
-            expiryDate: new Date(Date.now() + (STORAGE_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString()
+            lastWeekNumber: state.weekNumber || null,
+            savedAt: now.toISOString(),
+            expiryDate: expiry.toISOString()
         };
-        localStorage.setItem(storageKey, JSON.stringify(weeklyState));
-        console.log(`État pour la semaine ${weekNumber} sauvegardé.`);
-    } catch (error) {
-        console.error(`Erreur lors de la sauvegarde de la semaine ${weekNumber}:`, error);
-    }
 
-    // Toujours sauvegarder l'état global en même temps
-    saveGlobalState();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(globalStateToSave));
+
+        // État spécifique à la semaine courante
+        if (state.weekNumber) {
+            const weeklyStateToSave = {
+                weekNumber: state.weekNumber,
+                weekStart: state.weekStart ? state.weekStart.toISOString() : null,
+                weekEnd: state.weekEnd ? state.weekEnd.toISOString() : null,
+                activeWorkers: state.activeWorkers,
+                data: state.data,
+                drivers: state.drivers,
+                isPrevisionnel: state.isPrevisionnel,
+                vehicleUsage: state.vehicleUsage,
+                savedAt: now.toISOString(),
+                expiryDate: expiry.toISOString()
+            };
+
+            const weeklyKey = getWeeklyStorageKey(state.weekNumber);
+            if (weeklyKey) {
+                localStorage.setItem(weeklyKey, JSON.stringify(weeklyStateToSave));
+            }
+        }
+
+        console.log('État sauvegardé avec succès');
+    } catch (error) {
+        console.error('Erreur lors de la sauvegarde:', error);
+    }
 }
 
-// Alias pour la rétrocompatibilité
-const saveState = saveCurrentWeekState;
-
-// Charger les données globales
-function loadGlobalState() {
+// Charger l'état global depuis le localStorage (ouvr iers/chantiers perso, chef, etc.)
+function loadState() {
     try {
-        const savedGlobal = localStorage.getItem(GLOBAL_STORAGE_KEY);
-        if (savedGlobal) {
-            const parsedGlobal = JSON.parse(savedGlobal);
-            state.customWorkers = parsedGlobal.customWorkers || [];
-            state.customSites = parsedGlobal.customSites || [];
-            state.foremanId = parsedGlobal.foremanId || null;
-            state.nextWorkerId = parsedGlobal.nextWorkerId || 16;
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (!savedData) {
+            return false;
+        }
 
-            // Intégrer les données perso dans les listes disponibles
-            state.customWorkers.forEach(worker => {
+        const parsedData = JSON.parse(savedData);
+
+        // Vérifier l'expiration du global
+        const expiryDate = new Date(parsedData.expiryDate);
+        const now = new Date();
+
+        if (now > expiryDate) {
+            console.log('Les données sauvegardées ont expiré');
+            clearState();
+            return false;
+        }
+
+        // Restaurer la partie globale
+        if (parsedData.nextWorkerId !== undefined) {
+            state.nextWorkerId = parsedData.nextWorkerId;
+        }
+        if (parsedData.customWorkers) {
+            state.customWorkers = parsedData.customWorkers;
+            // Ajouter les ouvriers personnalisés à la liste disponible
+            parsedData.customWorkers.forEach(worker => {
                 if (!state.availableWorkers.find(w => w.id === worker.id)) {
                     state.availableWorkers.push(worker);
                 }
             });
             state.availableWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
-
-            state.customSites.forEach(site => {
+        }
+        if (parsedData.customSites) {
+            state.customSites = parsedData.customSites;
+            parsedData.customSites.forEach(site => {
                 if (!state.availableSites.includes(site)) {
                     state.availableSites.push(site);
                 }
             });
             state.availableSites.sort();
         }
+        if (parsedData.foremanId !== undefined) {
+            state.foremanId = parsedData.foremanId;
+        }
+        if (parsedData.lastEmailSentAt) {
+            state.lastEmailSentAt = new Date(parsedData.lastEmailSentAt).getTime();
+        }
+
+        // Si une dernière semaine utilisée est connue, la charger
+        if (parsedData.lastWeekNumber) {
+            const loadedWeek = loadWeekState(parsedData.lastWeekNumber);
+            if (loadedWeek) {
+                state.weekNumber = parsedData.lastWeekNumber;
+            }
+        }
+
+        console.log('État global restauré avec succès');
+        return true;
     } catch (error) {
-        console.error('Erreur chargement état global:', error);
+        console.error('Erreur lors du chargement:', error);
+        return false;
     }
 }
 
-// Charger les données pour une semaine spécifique
+// Charger l'état d'une semaine spécifique depuis le localStorage
 function loadWeekState(weekNumber) {
-    const storageKey = getWeeklyStorageKey(weekNumber);
-    if (!storageKey) return false;
+    if (!weekNumber) return false;
 
     try {
-        const savedData = localStorage.getItem(storageKey);
+        const weeklyKey = getWeeklyStorageKey(weekNumber);
+        if (!weeklyKey) return false;
+
+        const savedData = localStorage.getItem(weeklyKey);
         if (!savedData) {
-            resetCurrentWeekData(); // Pas de données, on réinitialise
             return false;
         }
 
         const parsedData = JSON.parse(savedData);
 
+        // Vérifier l'expiration
         const expiryDate = new Date(parsedData.expiryDate);
-        if (new Date() > expiryDate) {
-            console.log(`Données pour la semaine ${weekNumber} expirées.`);
-            localStorage.removeItem(storageKey);
-            resetCurrentWeekData();
+        const now = new Date();
+
+        if (now > expiryDate) {
+            console.log('Les données de la semaine ont expiré');
+            localStorage.removeItem(weeklyKey);
             return false;
         }
 
-        // Restaurer l'état de la semaine
-        state.data = parsedData.data || {};
-        state.drivers = parsedData.drivers || createEmptyDrivers();
-        state.isPrevisionnel = parsedData.isPrevisionnel || false;
-        state.vehicleUsage = normalizeVehicleUsage(parsedData.vehicleUsage);
-        state.lastEmailSentAt = parsedData.lastEmailSentAt ? new Date(parsedData.lastEmailSentAt).getTime() : null;
-
-        // Restaurer les ouvriers actifs pour cette semaine
-        if (parsedData.activeWorkers && Array.isArray(parsedData.activeWorkers)) {
-            state.activeWorkers = parsedData.activeWorkers.map(workerId => 
-                state.availableWorkers.find(w => w.id === workerId)
-            ).filter(Boolean); // Filtrer les IDs invalides
+        // Restaurer l'état hebdomadaire
+        if (parsedData.activeWorkers) {
+            state.activeWorkers = parsedData.activeWorkers;
         } else {
             state.activeWorkers = [];
         }
 
-        console.log(`État pour la semaine ${weekNumber} restauré.`);
+        if (parsedData.data) {
+            state.data = parsedData.data;
+            // S'assurer que dayMentions existe pour chaque ouvrier
+            Object.keys(state.data).forEach(workerId => {
+                if (!state.data[workerId].dayMentions) {
+                    state.data[workerId].dayMentions = createEmptyDayMentions();
+                }
+            });
+        } else {
+            state.data = {};
+        }
+
+        if (parsedData.drivers) {
+            state.drivers = parsedData.drivers;
+        } else {
+            state.drivers = {
+                monday: null,
+                tuesday: null,
+                wednesday: null,
+                thursday: null,
+                friday: null
+            };
+        }
+
+        if (parsedData.isPrevisionnel !== undefined) {
+            state.isPrevisionnel = parsedData.isPrevisionnel;
+        } else {
+            state.isPrevisionnel = false;
+        }
+
+        if (parsedData.vehicleUsage) {
+            state.vehicleUsage = normalizeVehicleUsage(parsedData.vehicleUsage);
+        } else {
+            state.vehicleUsage = createEmptyVehicleUsage();
+        }
+
+        if (parsedData.weekStart) {
+            state.weekStart = new Date(parsedData.weekStart);
+        }
+        if (parsedData.weekEnd) {
+            state.weekEnd = new Date(parsedData.weekEnd);
+        }
+
+        console.log('État restauré pour la semaine', weekNumber);
         return true;
     } catch (error) {
-        console.error(`Erreur chargement semaine ${weekNumber}:`, error);
-        resetCurrentWeekData();
+        console.error('Erreur lors du chargement de la semaine:', error);
         return false;
     }
 }
 
-// Alias pour la rétrocompatibilité au démarrage
-const loadState = () => {
-    loadGlobalState();
-    // Le chargement de la semaine se fait dans updateWeekDisplay
-    return false; // On indique que l'état complet n'est pas chargé ici
-};
-
-// Réinitialiser uniquement les données de la semaine courante
-function resetCurrentWeekData() {
-    state.data = {};
-    state.drivers = createEmptyDrivers();
-    state.vehicleUsage = createEmptyVehicleUsage();
-    state.isPrevisionnel = false;
-    state.activeWorkers = [];
-    state.lastEmailSentAt = null;
-    console.log(`Données pour la semaine ${state.weekNumber} réinitialisées.`);
-}
-
-// Effacer les données de la semaine courante du localStorage
-function clearCurrentWeekState() {
-    const weekNumber = state.weekNumber;
-    if (!weekNumber) return;
-
-    if (!confirm(`⚠️ Êtes-vous sûr de vouloir effacer les données de la semaine ${weekNumber} ?\n\nCette action est irréversible.`)) {
+// Effacer les données sauvegardées pour la semaine actuelle uniquement
+function clearState() {
+    // Demander confirmation avant d'effacer
+    if (!confirm('⚠️ Êtes-vous sûr de vouloir effacer toutes les données de la semaine actuelle ?\n\nCette action est irréversible et supprimera pour cette semaine :\n- Tous les ouvriers ajoutés au rapport\n- Toutes les heures saisies\n- Tous les chantiers associés\n- Toutes les observations\n- Le chef de chantier sélectionné\n- Les conducteurs\n- Le mode prévisionnel')) {
         return;
     }
+    
+    try {
+        // Supprimer uniquement l'état de la semaine actuelle dans le localStorage, si défini
+        if (state.weekNumber) {
+            const weeklyKey = getWeeklyStorageKey(state.weekNumber);
+            if (weeklyKey) {
+                localStorage.removeItem(weeklyKey);
+            }
+        }
 
-    const storageKey = getWeeklyStorageKey(weekNumber);
-    if (storageKey) {
-        localStorage.removeItem(storageKey);
-        console.log(`Données pour la semaine ${weekNumber} effacées.`);
-        alert(`✅ Les données de la semaine ${weekNumber} ont été effacées.`);
-        // Recharger la semaine pour repartir de zéro
-        updateWeekDisplay();
+        console.log('Données sauvegardées effacées pour la semaine actuelle');
+        
+        // Réinitialiser uniquement l'état hebdomadaire en mémoire
+        state.activeWorkers = [];
+        state.data = {};
+        state.drivers = {
+            monday: null,
+            tuesday: null,
+            wednesday: null,
+            thursday: null,
+            friday: null
+        };
+        state.isPrevisionnel = false;
+        state.vehicleUsage = createEmptyVehicleUsage();
+        state.foremanId = null;
+        
+        // Réinitialiser l'interface pour cette semaine
+        renderAll();
+        updateForemanDisplay();
+        
+        // Réinitialiser le mode prévisionnel dans l'interface
+        const watermark = document.getElementById('previsionnelWatermark');
+        const btn = document.getElementById('previsionnelBtn');
+        const icon = document.getElementById('previsionnelIcon');
+        if (watermark) {
+            watermark.classList.remove('active');
+        }
+        if (btn) {
+            btn.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+            btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+        }
+        if (icon) {
+            icon.setAttribute('data-lucide', 'x');
+            icon.style.color = '#dc2626'; // red-600
+            lucide.createIcons();
+        }
+        
+        alert('✅ Les données de la semaine actuelle ont été effacées avec succès.');
+    } catch (error) {
+        console.error('Erreur lors de l\'effacement:', error);
+        alert('❌ Erreur lors de l\'effacement des données.');
     }
 }
 
-// Effacer TOUTES les données (globales et hebdomadaires)
-function clearAllData() {
-    if (!confirm('⚠️ ATTENTION !\nÊtes-vous sûr de vouloir effacer TOUTES les données de l\'application ?\n\nCeci inclut :\n- Toutes les semaines sauvegardées\n- Tous les ouvriers et chantiers personnalisés\n- Le chef de chantier\n\nCette action est DÉFINITIVE.')) {
+// Vider complètement le cache de l'application pour cet utilisateur
+function clearUserCache() {
+    if (!confirm('⚠️ Cette action va vider le cache de l\'application sur ce navigateur.\n\nToutes les données locales (semaines, ouvriers ajoutés, paramètres) seront supprimées.\n\nVoulez-vous continuer ?')) {
         return;
     }
 
     try {
-        // Effacer toutes les clés du localStorage liées à l'application
+        // Supprimer l'état global
+        localStorage.removeItem(STORAGE_KEY);
+
+        // Supprimer tous les états hebdomadaires associés à l'application
         Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('rapport_hebdomadaire_')) {
+            if (key.indexOf(WEEKLY_STORAGE_KEY_PREFIX) === 0) {
                 localStorage.removeItem(key);
             }
         });
 
-        alert('✅ Toutes les données de l'application ont été effacées.');
-        // Recharger la page pour repartir sur une base saine
+        alert('✅ Le cache local de l\'application a été vidé. La page va être rechargée.');
+        // Recharger la page pour récupérer la dernière version du code et repartir sur une base saine
         window.location.reload();
     } catch (error) {
-        console.error('Erreur lors de l\'effacement total:', error);
-        alert('❌ Une erreur est survenue lors de la suppression des données.');
+        console.error('Erreur lors du vidage du cache local:', error);
+        alert('❌ Erreur lors du vidage du cache local.');
     }
 }
-
-// Remplacer l'ancien clearState par le nouveau
-const clearState = clearCurrentWeekState;
 
 // Fonction pour charger les données des ouvriers et chantiers
 async function loadWorkersData() {
@@ -471,11 +562,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Charger la liste des véhicules
     await loadVehicleOptions();
     
-    // Charger l'état global (ouvriers/chantiers perso, chef)
-    loadGlobalState();
-
-    // Initialiser la semaine (ce qui déclenchera le chargement des données de la semaine)
-    initializeWeek();
+    // Charger l'état sauvegardé (si disponible et non expiré)
+    const stateLoaded = loadState();
+    
+    // Initialiser la semaine (sauf si restaurée depuis la sauvegarde)
+    if (!stateLoaded || !state.weekNumber) {
+        initializeWeek();
+    } else {
+        // Restaurer la semaine depuis l'état sauvegardé
+        const weekInput = document.getElementById('weekSelector');
+        if (weekInput && state.weekNumber) {
+            weekInput.value = state.weekNumber;
+            updateWeekDisplay();
+        }
+    }
     
     initializeWorkers();
     setupEventListeners();
@@ -494,11 +594,59 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Restaurer l'affichage du chef de chantier si sauvegardé
-    if (state.foremanId) {
-        const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
-        if (foreman) {
+    if (stateLoaded && state.foremanId) {
+        // S'assurer que le chef de chantier est dans les ouvriers actifs
+        const foremanInActive = state.activeWorkers.find(w => w.id === state.foremanId);
+        if (!foremanInActive) {
+            // Si le chef de chantier n'est pas dans les ouvriers actifs, l'ajouter
+            const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
+            if (foreman) {
+                state.activeWorkers.push(foreman);
+                state.activeWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
+            }
+        }
         updateForemanDisplay();
+        resetDriversToForeman();
+        renderDriverSelection();
+        renderAll();
     }
+    
+    // Restaurer le mode prévisionnel si sauvegardé
+    const watermark = document.getElementById('previsionnelWatermark');
+    const btn = document.getElementById('previsionnelBtn');
+    const icon = document.getElementById('previsionnelIcon');
+    const typingText = document.querySelector('.typing-text');
+    
+    if (stateLoaded && state.isPrevisionnel) {
+        if (watermark) {
+            watermark.classList.add('active');
+        }
+        if (btn) {
+            btn.classList.remove('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+            btn.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700');
+        }
+        if (icon) {
+            icon.setAttribute('data-lucide', 'check');
+            icon.style.color = 'white';
+            lucide.createIcons();
+        }
+    } else {
+        // S'assurer que le bouton est en mode désactivé (gris) au démarrage
+        if (btn) {
+            btn.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+            btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+        }
+        if (icon) {
+            icon.setAttribute('data-lucide', 'x');
+            icon.style.color = '#dc2626'; // red-600
+            lucide.createIcons();
+        }
+    }
+    
+    // Finaliser l'animation de frappe du texte sous le logo
+    if (typingText) {
+        typingText.addEventListener('animationend', function(event) {
+            if (event.animationName === 'typing') {
                 typingText.classList.add('typing-finished');
             }
         });
@@ -644,45 +792,68 @@ function getWeekNumber(date) {
 // Mettre à jour l'affichage de la semaine
 function updateWeekDisplay() {
     const weekInput = document.getElementById('weekSelector');
-    const newWeekValue = weekInput.value;
+    const weekValue = weekInput.value;
     
-    if (!newWeekValue) return;
-
+    if (!weekValue) return;
+    
+    const [year, week] = weekValue.split('-W');
     const previousWeekNumber = state.weekNumber;
+    
+    // Si la semaine a changé, sauvegarder la précédente et charger (ou initialiser) la nouvelle
+    if (previousWeekNumber && previousWeekNumber !== weekValue) {
+        console.log(`Changement de semaine détecté: ${previousWeekNumber} -> ${weekValue}`);
 
-    // Si la semaine a changé
-    if (previousWeekNumber && previousWeekNumber !== newWeekValue) {
-        // 1. Sauvegarder les données de l'ancienne semaine
-        saveCurrentWeekState();
+        // Sauvegarder la semaine précédente (global + hebdo)
+        saveState();
+
+        // Tenter de charger les données existantes pour la nouvelle semaine
+        const loaded = loadWeekState(weekValue);
+
+        if (loaded) {
+            console.log('Données existantes chargées pour la semaine', weekValue);
+        } else {
+            // Aucune donnée existante : initialiser une nouvelle semaine totalement vide
+            state.activeWorkers = [];
+            state.data = {};
+            state.drivers = {
+                monday: null,
+                tuesday: null,
+                wednesday: null,
+                thursday: null,
+                friday: null
+            };
+            state.vehicleUsage = createEmptyVehicleUsage();
+            state.foremanId = null;
+
+            console.log('Aucune donnée existante pour cette semaine, initialisation neuve (sans ouvriers ni chef)');
+        }
     }
-
-    // 2. Mettre à jour l'état avec la nouvelle semaine
-    state.weekNumber = newWeekValue;
-    const [year, week] = newWeekValue.split('-W');
+    
+    state.weekNumber = weekValue;
+    
+    // Calculer le lundi et vendredi de la semaine
     const monday = getDateOfISOWeek(parseInt(week), parseInt(year));
     const friday = new Date(monday);
     friday.setDate(monday.getDate() + 4);
+    
     state.weekStart = monday;
     state.weekEnd = friday;
-
-    // 3. Charger les données de la nouvelle semaine (ou réinitialiser si elles n'existent pas)
-    loadWeekState(newWeekValue);
-
-    // 4. Mettre à jour l'interface
+    
     const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
     const mondayStr = monday.toLocaleDateString('fr-FR', options);
     const fridayStr = friday.toLocaleDateString('fr-FR', options);
+    
     document.getElementById('weekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
     document.getElementById('printWeekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
-
-    // 5. Re-render complet de l'interface pour afficher les nouvelles données
-    renderAll();
-    updateForemanDisplay();
-    updatePrevisionnelModeUI();
-    setTimeout(() => lucide.createIcons(), 0);
-
-    // 6. Sauvegarder l'état (au cas où c'est la première fois qu'on charge cette semaine)
-    saveCurrentWeekState();
+    
+    // Re-render l'interface si la semaine a changé
+    if (previousWeekNumber && previousWeekNumber !== weekValue) {
+        renderAll();
+        setTimeout(() => lucide.createIcons(), 0);
+    }
+    
+    // Sauvegarder l'état
+    saveState();
 }
 
 // Obtenir la date du lundi d'une semaine ISO
@@ -730,16 +901,6 @@ function createEmptyPanierCustom() {
 }
 
 // Créer les mentions par défaut pour les jours
-function createEmptyDrivers() {
-    return {
-        monday: null,
-        tuesday: null,
-        wednesday: null,
-        thursday: null,
-        friday: null
-    };
-}
-
 function createEmptyDayMentions() {
     return {
         monday: '',
@@ -854,6 +1015,20 @@ function setupModalBackdropClose() {
         { id: 'addWorkerModal', closeFunc: hideAddWorkerModal },
         { id: 'selectForemanModal', closeFunc: hideSelectForemanModal },
         { id: 'selectSiteModal', closeFunc: hideSelectSiteModal },
+        { id: 'confirmSendModal', closeFunc: hideConfirmSendModal },
+        { id: 'dayMentionModal', closeFunc: hideDayMentionModal }
+    ];
+    
+    modals.forEach(function(modal) {
+        var modalElement = document.getElementById(modal.id);
+        if (modalElement) {
+            modalElement.addEventListener('click', function(e) {
+                // Fermer uniquement si on clique sur le fond, pas sur le contenu
+                if (e.target === modalElement) {
+                    modal.closeFunc();
+                }
+            });
+        }
     });
     
     // Support de la touche Escape pour fermer les modals
@@ -1760,33 +1935,11 @@ function showDayMentionModal(workerId, siteIndex, day) {
     }
 }
 
-function updatePrevisionnelModeUI() {
-    const watermark = document.getElementById('previsionnelWatermark');
-    const btn = document.getElementById('previsionnelBtn');
-    const icon = document.getElementById('previsionnelIcon');
-
-    if (state.isPrevisionnel) {
-        if (watermark) watermark.classList.add('active');
-        if (btn) {
-            btn.classList.remove('bg-gray-300', 'text-gray-700');
-            btn.classList.add('bg-green-600', 'text-white');
-        }
-        if (icon) icon.setAttribute('data-lucide', 'check');
-    } else {
-        if (watermark) watermark.classList.remove('active');
-        if (btn) {
-            btn.classList.remove('bg-green-600', 'text-white');
-            btn.classList.add('bg-gray-300', 'text-gray-700');
-        }
-        if (icon) icon.setAttribute('data-lucide', 'x');
-    }
-    lucide.createIcons();
-}
-
 // Fonction pour mettre à jour une mention
 function updateDayMention(workerId, siteIndex, day, mention) {
     if (!state.data[workerId]) {
-        state.data[workerId] = { sites: [], observation: '', isInterim: true, panierMode: 'panier', panierCustom: createEmptyPanierCustom(), dayMentions: createEmptyDayMentions() };
+        // Par défaut, un ouvrier est considéré comme permanent (non intérimaire)
+        state.data[workerId] = { sites: [], observation: '', isInterim: false, panierMode: 'panier', panierCustom: createEmptyPanierCustom(), dayMentions: createEmptyDayMentions() };
     }
     if (!state.data[workerId].dayMentions) {
         state.data[workerId].dayMentions = createEmptyDayMentions();
