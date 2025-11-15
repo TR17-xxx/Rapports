@@ -698,6 +698,24 @@ function updateWeekDisplay() {
     if (!weekValue) return;
     
     const [year, week] = weekValue.split('-W');
+    const previousWeekNumber = state.weekNumber;
+    
+    // Si la semaine a changé, réinitialiser les données
+    if (previousWeekNumber && previousWeekNumber !== weekValue) {
+        console.log(`Changement de semaine détecté: ${previousWeekNumber} -> ${weekValue}`);
+        // Réinitialiser toutes les données de saisie pour la nouvelle semaine
+        state.data = {};
+        state.drivers = {
+            monday: null,
+            tuesday: null,
+            wednesday: null,
+            thursday: null,
+            friday: null
+        };
+        state.vehicleUsage = createEmptyVehicleUsage();
+        console.log('Données réinitialisées pour la nouvelle semaine');
+    }
+    
     state.weekNumber = weekValue;
     
     // Calculer le lundi et vendredi de la semaine
@@ -714,6 +732,12 @@ function updateWeekDisplay() {
     
     document.getElementById('weekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
     document.getElementById('printWeekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
+    
+    // Re-render l'interface si la semaine a changé
+    if (previousWeekNumber && previousWeekNumber !== weekValue) {
+        renderAll();
+        setTimeout(() => lucide.createIcons(), 0);
+    }
     
     // Sauvegarder l'état
     saveState();

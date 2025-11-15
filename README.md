@@ -512,12 +512,127 @@ Le système d'impression a été optimisé pour fonctionner de manière fluide s
 - Android 8+ : Support complet
 - Versions antérieures : Fonctionnel avec délai légèrement plus long
 
+## 🔄 Problèmes de Cache et Mises à Jour
+
+### Pourquoi certains utilisateurs ne voient pas les mises à jour ?
+
+Les navigateurs mettent en cache les fichiers pour accélérer le chargement. Cela peut empêcher de voir les dernières modifications.
+
+### ✅ Solutions pour les utilisateurs
+
+#### Méthode 1 : Rafraîchissement forcé (Recommandé)
+
+**Sur ordinateur :**
+- **Windows/Linux** : `Ctrl + Shift + R` ou `Ctrl + F5`
+- **Mac** : `Cmd + Shift + R`
+
+**Sur mobile :**
+- **iOS Safari** : 
+  1. Paramètres > Safari > Avancé > Données de sites web
+  2. Supprimer les données du site
+  3. Recharger la page
+- **Android Chrome** :
+  1. Menu (3 points) > Paramètres > Confidentialité
+  2. Effacer les données de navigation > Images et fichiers en cache
+  3. Recharger la page
+
+#### Méthode 2 : Mode navigation privée
+
+Ouvrir le lien dans une fenêtre de navigation privée/incognito pour tester sans cache.
+
+#### Méthode 3 : Vider le cache complet
+
+**Chrome/Edge :**
+1. `Ctrl + Shift + Suppr` (Windows) ou `Cmd + Shift + Suppr` (Mac)
+2. Sélectionner "Images et fichiers en cache"
+3. Cliquer sur "Effacer les données"
+
+**Firefox :**
+1. `Ctrl + Shift + Suppr` (Windows) ou `Cmd + Shift + Suppr` (Mac)
+2. Sélectionner "Cache"
+3. Cliquer sur "Effacer maintenant"
+
+### 🔗 Partage du lien
+
+#### Problème : Lien non cliquable
+
+Si les utilisateurs doivent copier-coller le lien manuellement, c'est probablement dû au format de l'email.
+
+**✅ Solution : Format HTML dans les emails**
+
+Assurez-vous que l'email contient un lien HTML cliquable :
+
+```html
+<a href="https://votre-site.netlify.app/index.html?token=votre_token">Accéder au rapport</a>
+```
+
+Plutôt qu'un simple texte :
+```
+https://votre-site.netlify.app/index.html?token=votre_token
+```
+
+#### Bonnes pratiques de partage
+
+1. **Utiliser un raccourcisseur d'URL** (optionnel) :
+   - [bit.ly](https://bit.ly)
+   - [tinyurl.com](https://tinyurl.com)
+   - Attention : Le token doit rester dans l'URL finale
+
+2. **Envoyer par email avec lien cliquable** :
+   - Gmail, Outlook : Le lien devient automatiquement cliquable
+   - WhatsApp, SMS : Copier-coller l'URL complète
+
+3. **Tester le lien avant de le partager** :
+   - Ouvrir en navigation privée
+   - Vérifier que le token fonctionne
+
+### 🔧 Pour les administrateurs
+
+#### Configuration anti-cache appliquée
+
+Le projet est configuré pour minimiser les problèmes de cache :
+
+1. **Meta tags HTML** :
+   ```html
+   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+   <meta http-equiv="Pragma" content="no-cache">
+   <meta http-equiv="Expires" content="0">
+   ```
+
+2. **Headers Netlify** (dans `netlify.toml`) :
+   - HTML : Pas de cache
+   - JavaScript : Cache de 60 secondes maximum
+   - CSS : Cache de 5 minutes
+
+3. **Fichier `_headers`** (prioritaire) :
+   - Configuration spécifique par type de fichier
+   - Headers de sécurité
+
+#### Après un déploiement
+
+1. **Tester immédiatement** en navigation privée
+2. **Prévenir les utilisateurs** qu'une mise à jour est disponible
+3. **Leur demander de rafraîchir** avec `Ctrl + Shift + R`
+
+#### Versioning (optionnel)
+
+Pour forcer le rechargement, vous pouvez ajouter un paramètre de version :
+
+```html
+<script src="app.js?v=2.1.0"></script>
+```
+
+Incrémenter `v=` à chaque mise à jour importante.
+
+---
+
 ## Remarques importantes
 
 - ⚠️ **Pas de sauvegarde automatique** : Les données sont perdues si vous fermez la page. Pensez à imprimer ou exporter en PDF avant de fermer.
 - 💡 **Navigateur moderne requis** : Fonctionne avec Chrome, Firefox, Edge, Safari (versions récentes)
 - 📱 **Responsive** : Fonctionne sur ordinateur, tablette et mobile (iOS 9+, Android 4.4+)
 - 🚀 **Optimisé mobile** : Zoom automatique désactivé, zones tactiles optimisées, performance améliorée
+- 🔄 **Cache optimisé** : Configuration anti-cache pour garantir les mises à jour
 
 ## Support
 

@@ -42,16 +42,26 @@
   # Headers de sécurité et cache pour tous les fichiers
   for = "/*"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
 
 [[headers]]
-  # Headers spécifiques pour les fichiers statiques (cache court pour permettre les mises à jour)
+  # Headers spécifiques pour les fichiers HTML (pas de cache)
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  # Headers spécifiques pour les fichiers JS (cache très court)
   for = "/*.js"
   [headers.values]
-    Cache-Control = "public, max-age=300, must-revalidate"
+    Cache-Control = "public, max-age=60, must-revalidate"
 
 [[headers]]
   # Headers spécifiques pour les fichiers CSS
