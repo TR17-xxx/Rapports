@@ -1030,25 +1030,25 @@
                     </div>
                 </div>
                 <div class="flex space-x-2 no-print">
-                    <button onclick="openHelp()" class="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                    <button onclick="openHelp()" class="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition" title="Ouvrir l'aide">
                         <i data-lucide="help-circle" style="width: 20px; height: 20px;"></i>
                         <span>Aide</span>
                     </button>
-                    <button onclick="clearCache()" class="flex items-center space-x-2 bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 transition" title="Vider le cache et rafraîchir la page">
-                        <i data-lucide="refresh-cw" style="width: 20px; height: 20px;"></i>
-                        <span>Vider le cache</span>
+                    <button id="clearStateBtn" class="flex items-center justify-center space-x-2 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition shadow-sm" title="Effacer les données de la semaine actuelle">
+                        <i data-lucide="eraser" style="width: 20px; height: 20px;"></i>
+                        <span>Effacer Semaine</span>
                     </button>
-                    <button onclick="clearState()" class="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition" title="Effacer les données sauvegardées">
-                        <i data-lucide="trash-2" style="width: 20px; height: 20px;"></i>
-                        <span>Données</span>
+                    <button id="clearAllDataBtn" class="flex items-center justify-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition shadow-sm" title="Effacer toutes les données de l'application">
+                        <i data-lucide="trash-2"></i>
+                        <span>Tout Effacer</span>
                     </button>
-                    <button onclick="printReport()" class="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                    <button id="sendReportBtn" class="flex items-center justify-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition shadow-sm">
                         <i data-lucide="printer" style="width: 20px; height: 20px;"></i>
                         <span>Imprimer / PDF</span>
                     </button>
                     <button onclick="showConfirmSendModal()" class="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition">
                         <i data-lucide="mail" style="width: 20px; height: 20px;"></i>
-                        <span>Envoyer à Mickaël et Virginie</span>
+                        <span>Envoyer</span>
                     </button>
                 </div>
             </div>
