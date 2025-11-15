@@ -132,7 +132,7 @@ let state = {
 // Clé pour le localStorage
 const STORAGE_KEY = 'rapport_hebdomadaire_state';
 const STORAGE_EXPIRY_DAYS = 8;
-const EMAIL_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const EMAIL_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
 
 // Sauvegarder l'état dans le localStorage
 function saveState() {
@@ -3140,6 +3140,9 @@ async function sendReportByEmail(event) {
         const reportData = {
             workers: state.activeWorkers.map(worker => {
                 const workerData = state.data[worker.id];
+
+                // S'assurer que les mentions de jour existent
+                const dayMentions = workerData.dayMentions || createEmptyDayMentions();
                 
                 // Préparer les informations de conducteur pour chaque jour
                 const drivers = {
@@ -3171,7 +3174,8 @@ async function sendReportByEmail(event) {
                     drivers: drivers,
                     panierMode: workerData.panierMode || 'panier',
                     panierCustom: workerData.panierCustom || {},
-                    isInterim: workerData.isInterim !== false
+                    isInterim: workerData.isInterim !== false,
+                    dayMentions: dayMentions
                 };
             })
         };

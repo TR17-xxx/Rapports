@@ -194,6 +194,8 @@ exports.handler = async (event, context) => {
 async function generatePDF(reportData, weekInfo) {
     try {
         const doc = new jsPDF();
+        const isPrevisionnel = !!reportData.isPrevisionnel;
+
         reportData.workers.forEach((worker, index) => {
             if (index > 0) {
                 doc.addPage();
@@ -219,23 +221,57 @@ async function generatePDF(reportData, weekInfo) {
             // Limiter la largeur du nom pour éviter le débordement
             doc.text(worker.name || '', 170, 20, { maxWidth: 35 });
             doc.setFont(undefined, 'normal');
+
+            // Ajouter le filigrane PRÉVISIONNEL si activé
+            if (isPrevisionnel) {
+                doc.setFontSize(80);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(255, 0, 0);
+                if (doc.GState) {
+                    doc.saveGraphicsState();
+                    doc.setGState(new doc.GState({ opacity: 0.15 }));
+                }
+                doc.text('PRÉVISIONNEL', 105, 150, {
+                    align: 'center',
+                    angle: 45,
+                    baseline: 'middle'
+                });
+                if (doc.GState) {
+                    doc.restoreGraphicsState();
+                }
+                doc.setTextColor(0, 0, 0);
+            }
             
+            // Mentions par jour (Férié, CP, etc.)
+            const dayMentions = worker.dayMentions || {
+                monday: '',
+                tuesday: '',
+                wednesday: '',
+                thursday: '',
+                friday: ''
+            };
+
             // Tableau des heures avec SAMEDI
             const tableData = [];
             
-            // Ajouter les chantiers
+            // Ajouter les chantiers en tenant compte des mentions de jour
             worker.sites.forEach(site => {
-                const total = (site.hours.monday || 0) + (site.hours.tuesday || 0) + 
-                              (site.hours.wednesday || 0) + (site.hours.thursday || 0) + 
-                              (site.hours.friday || 0);
+                // Calculer le total en tenant compte des mentions (si mention, on ne compte pas les heures)
+                let total = 0;
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+                days.forEach(day => {
+                    if (!dayMentions[day]) {
+                        total += site.hours[day] || 0;
+                    }
+                });
                 
                 tableData.push([
                     site.name || '',
-                    site.hours.monday ? site.hours.monday.toString() : '',
-                    site.hours.tuesday ? site.hours.tuesday.toString() : '',
-                    site.hours.wednesday ? site.hours.wednesday.toString() : '',
-                    site.hours.thursday ? site.hours.thursday.toString() : '',
-                    site.hours.friday ? site.hours.friday.toString() : '',
+                    dayMentions.monday ? dayMentions.monday : (site.hours.monday ? site.hours.monday.toString() : ''),
+                    dayMentions.tuesday ? dayMentions.tuesday : (site.hours.tuesday ? site.hours.tuesday.toString() : ''),
+                    dayMentions.wednesday ? dayMentions.wednesday : (site.hours.wednesday ? site.hours.wednesday.toString() : ''),
+                    dayMentions.thursday ? dayMentions.thursday : (site.hours.thursday ? site.hours.thursday.toString() : ''),
+                    dayMentions.friday ? dayMentions.friday : (site.hours.friday ? site.hours.friday.toString() : ''),
                     '', // SAMEDI vide
                     total > 0 ? total.toFixed(1) : ''
                 ]);
@@ -247,14 +283,14 @@ async function generatePDF(reportData, weekInfo) {
                 tableData.push(['', '', '', '', '', '', '', '']);
             }
             
-            // Calculer les totaux des heures
+            // Calculer les totaux des heures (sans compter les jours avec mention)
             let mondayTotal = 0, tuesdayTotal = 0, wednesdayTotal = 0, thursdayTotal = 0, fridayTotal = 0;
             worker.sites.forEach(site => {
-                mondayTotal += site.hours.monday || 0;
-                tuesdayTotal += site.hours.tuesday || 0;
-                wednesdayTotal += site.hours.wednesday || 0;
-                thursdayTotal += site.hours.thursday || 0;
-                fridayTotal += site.hours.friday || 0;
+                if (!dayMentions.monday) mondayTotal += site.hours.monday || 0;
+                if (!dayMentions.tuesday) tuesdayTotal += site.hours.tuesday || 0;
+                if (!dayMentions.wednesday) wednesdayTotal += site.hours.wednesday || 0;
+                if (!dayMentions.thursday) thursdayTotal += site.hours.thursday || 0;
+                if (!dayMentions.friday) fridayTotal += site.hours.friday || 0;
             });
             const grandTotal = mondayTotal + tuesdayTotal + wednesdayTotal + thursdayTotal + fridayTotal;
             
@@ -273,8 +309,11 @@ async function generatePDF(reportData, weekInfo) {
             // Calculer PANIER, TRANSPORT, TRAJET
             const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
             
-            // Jours travaillés
+            // Jours travaillés : si une mention existe pour ce jour, il n'est pas considéré comme travaillé
             const workedDays = days.map(day => {
+                if (dayMentions[day]) {
+                    return false;
+                }
                 let totalHours = 0;
                 worker.sites.forEach(site => {
                     totalHours += site.hours[day] || 0;
@@ -283,12 +322,8 @@ async function generatePDF(reportData, weekInfo) {
             });
             
             // Jours où l'ouvrier est conducteur
-            console.log(`[DEBUG] Worker: ${worker.name}`);
-            console.log(`[DEBUG] worker.drivers:`, worker.drivers);
             const isDriverDays = days.map(day => {
-                const isDriver = worker.drivers && worker.drivers[day];
-                console.log(`[DEBUG] Day ${day}: isDriver = ${isDriver}`);
-                return isDriver;
+                return worker.drivers && worker.drivers[day];
             });
             
             // PANIER
