@@ -126,7 +126,8 @@ let state = {
     currentDayMention: null, // Pour stocker le contexte de sélection de mention de jour
     dataLoaded: false, // Indicateur de chargement des données
     lastEmailSentAt: null, // Timestamp du dernier envoi de rapport
-    isEditingMileage: false // Protection contre les re-renders pendant la saisie du kilométrage
+    isEditingMileage: false, // Protection contre les re-renders pendant la saisie du kilométrage
+    weeklyData: {} // Données par semaine : { '2024-W46': { activeWorkers, data, drivers, foremanId, isPrevisionnel, vehicleUsage }, ... }
 };
 
 // Clé pour le localStorage
@@ -137,26 +138,33 @@ const EMAIL_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
 // Sauvegarder l'état dans le localStorage
 function saveState() {
     try {
+        // Sauvegarder les données de la semaine courante dans weeklyData
+        if (state.weekNumber) {
+            state.weeklyData[state.weekNumber] = {
+                activeWorkers: state.activeWorkers,
+                data: state.data,
+                drivers: state.drivers,
+                foremanId: state.foremanId,
+                isPrevisionnel: state.isPrevisionnel,
+                vehicleUsage: state.vehicleUsage
+            };
+        }
+        
         const stateToSave = {
-            activeWorkers: state.activeWorkers,
             nextWorkerId: state.nextWorkerId,
             customWorkers: state.customWorkers, // Ouvriers ajoutés manuellement
             customSites: state.customSites, // Chantiers ajoutés manuellement
-            foremanId: state.foremanId,
             weekNumber: state.weekNumber,
             weekStart: state.weekStart ? state.weekStart.toISOString() : null,
             weekEnd: state.weekEnd ? state.weekEnd.toISOString() : null,
-            data: state.data,
-            drivers: state.drivers,
-            isPrevisionnel: state.isPrevisionnel,
-            vehicleUsage: state.vehicleUsage,
+            weeklyData: state.weeklyData, // Toutes les données par semaine
             lastEmailSentAt: state.lastEmailSentAt ? new Date(state.lastEmailSentAt).toISOString() : null,
             savedAt: new Date().toISOString(),
             expiryDate: new Date(Date.now() + (STORAGE_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString()
         };
         
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-        console.log('État sauvegardé avec succès');
+        console.log('État sauvegardé avec succès pour la semaine', state.weekNumber);
     } catch (error) {
         console.error('Erreur lors de la sauvegarde:', error);
     }
@@ -182,10 +190,7 @@ function loadState() {
             return false;
         }
         
-        // Restaurer l'état
-        if (parsedData.activeWorkers) {
-            state.activeWorkers = parsedData.activeWorkers;
-        }
+        // Restaurer l'état global (non lié à une semaine spécifique)
         if (parsedData.nextWorkerId !== undefined) {
             state.nextWorkerId = parsedData.nextWorkerId;
         }
@@ -209,9 +214,6 @@ function loadState() {
             });
             state.availableSites.sort();
         }
-        if (parsedData.foremanId !== undefined) {
-            state.foremanId = parsedData.foremanId;
-        }
         if (parsedData.weekNumber) {
             state.weekNumber = parsedData.weekNumber;
         }
@@ -221,28 +223,31 @@ function loadState() {
         if (parsedData.weekEnd) {
             state.weekEnd = new Date(parsedData.weekEnd);
         }
-        if (parsedData.data) {
-            state.data = parsedData.data;
+        if (parsedData.lastEmailSentAt) {
+            state.lastEmailSentAt = new Date(parsedData.lastEmailSentAt).getTime();
+        }
+        
+        // Charger toutes les données par semaine
+        if (parsedData.weeklyData) {
+            state.weeklyData = parsedData.weeklyData;
+        }
+        
+        // Charger les données de la semaine courante si elle existe
+        if (state.weekNumber && state.weeklyData[state.weekNumber]) {
+            const weekData = state.weeklyData[state.weekNumber];
+            state.activeWorkers = weekData.activeWorkers || [];
+            state.data = weekData.data || {};
+            state.drivers = weekData.drivers || { monday: null, tuesday: null, wednesday: null, thursday: null, friday: null };
+            state.foremanId = weekData.foremanId || null;
+            state.isPrevisionnel = weekData.isPrevisionnel || false;
+            state.vehicleUsage = weekData.vehicleUsage ? normalizeVehicleUsage(weekData.vehicleUsage) : createEmptyVehicleUsage();
+            
             // S'assurer que dayMentions existe pour chaque ouvrier
             Object.keys(state.data).forEach(workerId => {
                 if (!state.data[workerId].dayMentions) {
                     state.data[workerId].dayMentions = createEmptyDayMentions();
                 }
             });
-        }
-        if (parsedData.drivers) {
-            state.drivers = parsedData.drivers;
-        }
-        if (parsedData.isPrevisionnel !== undefined) {
-            state.isPrevisionnel = parsedData.isPrevisionnel;
-        }
-        if (parsedData.vehicleUsage) {
-            state.vehicleUsage = normalizeVehicleUsage(parsedData.vehicleUsage);
-        } else {
-            state.vehicleUsage = createEmptyVehicleUsage();
-        }
-        if (parsedData.lastEmailSentAt) {
-            state.lastEmailSentAt = new Date(parsedData.lastEmailSentAt).getTime();
         }
         
         console.log('État restauré avec succès');
@@ -321,6 +326,32 @@ function clearState() {
     } catch (error) {
         console.error('Erreur lors de l\'effacement:', error);
         alert('❌ Erreur lors de l\'effacement des données.');
+    }
+}
+
+// Vider le cache du navigateur et rafraîchir la page
+function clearCache() {
+    if (!confirm('🔄 Vider le cache et rafraîchir la page ?\n\nCela va :\n- Vider le cache du navigateur\n- Recharger la page avec la dernière version\n- Conserver vos données sauvegardées\n\nRecommandé après chaque mise à jour de l\'application.')) {
+        return;
+    }
+    
+    try {
+        // Vider le cache si l'API est disponible
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names) {
+                    caches.delete(name);
+                }
+            });
+        }
+        
+        // Forcer le rechargement sans cache
+        // L'option true force le rechargement depuis le serveur
+        window.location.reload(true);
+    } catch (error) {
+        console.error('Erreur lors du vidage du cache:', error);
+        // Fallback : rechargement normal
+        window.location.reload(true);
     }
 }
 
@@ -700,22 +731,50 @@ function updateWeekDisplay() {
     const [year, week] = weekValue.split('-W');
     const previousWeekNumber = state.weekNumber;
     
-    // Si la semaine a changé, réinitialiser les données
     if (previousWeekNumber && previousWeekNumber !== weekValue) {
-        console.log(`Changement de semaine détecté: ${previousWeekNumber} -> ${weekValue}`);
-        // Réinitialiser toutes les données de saisie pour la nouvelle semaine
-        state.data = {};
-        state.drivers = {
-            monday: null,
-            tuesday: null,
-            wednesday: null,
-            thursday: null,
-            friday: null
-        };
-        state.vehicleUsage = createEmptyVehicleUsage();
-        console.log('Données réinitialisées pour la nouvelle semaine');
+        console.log(`Changement de semaine: ${previousWeekNumber} -> ${weekValue}`);
+        
+        // Sauvegarder les données de la semaine précédente
+        if (previousWeekNumber) {
+            state.weeklyData[previousWeekNumber] = {
+                activeWorkers: state.activeWorkers,
+                data: state.data,
+                drivers: state.drivers,
+                foremanId: state.foremanId,
+                isPrevisionnel: state.isPrevisionnel,
+                vehicleUsage: state.vehicleUsage
+            };
+        }
+        
+        // Charger les données de la nouvelle semaine si elles existent
+        if (state.weeklyData[weekValue]) {
+            const weekData = state.weeklyData[weekValue];
+            state.activeWorkers = weekData.activeWorkers || [];
+            state.data = weekData.data || {};
+            state.drivers = weekData.drivers || { monday: null, tuesday: null, wednesday: null, thursday: null, friday: null };
+            state.foremanId = weekData.foremanId || null;
+            state.isPrevisionnel = weekData.isPrevisionnel || false;
+            state.vehicleUsage = weekData.vehicleUsage ? normalizeVehicleUsage(weekData.vehicleUsage) : createEmptyVehicleUsage();
+            console.log('Données de la semaine', weekValue, 'chargées');
+        } else {
+            // Nouvelle semaine : réinitialiser les données
+            state.activeWorkers = [];
+            state.data = {};
+            state.drivers = { monday: null, tuesday: null, wednesday: null, thursday: null, friday: null };
+            state.foremanId = null;
+            state.isPrevisionnel = false;
+            state.vehicleUsage = createEmptyVehicleUsage();
+            console.log('Nouvelle semaine', weekValue, ': données réinitialisées');
+        }
+        
+        // Re-render l'interface
+        renderAll();
+        updateForemanDisplay();
+        updatePrevisionnelButton();
+        setTimeout(() => lucide.createIcons(), 0);
     }
     
+    // Mettre à jour le numéro de semaine
     state.weekNumber = weekValue;
     
     // Calculer le lundi et vendredi de la semaine
@@ -733,840 +792,52 @@ function updateWeekDisplay() {
     document.getElementById('weekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
     document.getElementById('printWeekDisplay').textContent = `${mondayStr} au ${fridayStr}`;
     
-    // Re-render l'interface si la semaine a changé
-    if (previousWeekNumber && previousWeekNumber !== weekValue) {
-        renderAll();
-        setTimeout(() => lucide.createIcons(), 0);
-    }
-    
     // Sauvegarder l'état
     saveState();
 }
 
-// Obtenir la date du lundi d'une semaine ISO
-function getDateOfISOWeek(week, year) {
-    const simple = new Date(year, 0, 1 + (week - 1) * 7);
-    const dow = simple.getDay();
-    const ISOweekStart = simple;
-    if (dow <= 4)
-        ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
-    else
-        ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
-    return ISOweekStart;
-}
-
-// Initialiser les ouvriers
-function initializeWorkers() {
-    // Ne rien faire par défaut, les ouvriers seront ajoutés manuellement
-    updateForemanSelector();
-}
-
-// Créer un chantier vide avec heures pré-remplies à 7.5 (premier) ou 0 (suivants)
-function createEmptySite(isFirstSite = true) {
-    const defaultValue = isFirstSite ? 7.5 : 0;
-    return {
-        siteName: '',
-        hours: {
-            monday: defaultValue,
-            tuesday: defaultValue,
-            wednesday: defaultValue,
-            thursday: defaultValue,
-            friday: defaultValue
-        }
-    };
-}
-
-// Créer les données par défaut pour le panier personnalisé
-function createEmptyPanierCustom() {
-    return {
-        monday: '1',
-        tuesday: '1',
-        wednesday: '1',
-        thursday: '1',
-        friday: '1'
-    };
-}
-
-// Créer les mentions par défaut pour les jours
-function createEmptyDayMentions() {
-    return {
-        monday: '',
-        tuesday: '',
-        wednesday: '',
-        thursday: '',
-        friday: ''
-    };
-}
-
-// Créer la structure par défaut pour l'utilisation des véhicules
-function createEmptyVehicleUsage() {
-    return {
-        selectedVehicleId: '',
-        totalMileage: '',
-        monday: { vehicleId: '' },
-        tuesday: { vehicleId: '' },
-        wednesday: { vehicleId: '' },
-        thursday: { vehicleId: '' },
-        friday: { vehicleId: '' }
-    };
-}
-
-// Normaliser les données d'utilisation des véhicules (pour la restauration depuis le stockage)
-function normalizeVehicleUsage(usage) {
-    const normalized = createEmptyVehicleUsage();
-    if (!usage || typeof usage !== 'object') {
-        return normalized;
-    }
+// Mettre à jour l'affichage du bouton prévisionnel (sans basculer l'état)
+function updatePrevisionnelButton() {
+    const btn = document.getElementById('previsionnelBtn');
+    const icon = document.getElementById('previsionnelIcon');
+    const watermark = document.getElementById('previsionnelWatermark');
     
-    Object.keys(normalized).forEach(day => {
-        const dayUsage = usage[day] || {};
-        const vehicleId = (dayUsage && (typeof dayUsage.vehicleId === 'string' || typeof dayUsage.vehicleId === 'number'))
-            ? String(dayUsage.vehicleId)
-            : '';
-        normalized[day] = { vehicleId };
-    });
-    
-    if (usage.selectedVehicleId !== undefined && usage.selectedVehicleId !== null) {
-        normalized.selectedVehicleId = String(usage.selectedVehicleId);
-    } else if (usage.vehicleId) {
-        normalized.selectedVehicleId = String(usage.vehicleId);
-    } else {
-        // Compatibilité : essayer de déduire depuis les jours
-        const firstDayWithVehicle = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].find(day => {
-            const dayUsage = usage[day];
-            return dayUsage && dayUsage.vehicleId;
-        });
-        if (firstDayWithVehicle) {
-            normalized.selectedVehicleId = String(usage[firstDayWithVehicle].vehicleId);
-        }
-    }
-    
-    // Kilométrage total (conversion depuis l'ancien format si nécessaire)
-    if (usage && usage.totalMileage !== undefined && usage.totalMileage !== null && String(usage.totalMileage).trim() !== '') {
-        const numericMileage = parseFloat(String(usage.totalMileage).replace(',', '.'));
-        normalized.totalMileage = isNaN(numericMileage) ? '' : parseFloat(numericMileage.toFixed(1)).toString();
-    } else {
-        // Ancien format : additionner les kilométrages journaliers s'ils existent
-        let total = 0;
-        let hasValue = false;
-        ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
-            const dayUsage = usage && usage[day];
-            if (dayUsage && dayUsage.mileage !== undefined && dayUsage.mileage !== null && String(dayUsage.mileage).trim() !== '') {
-                const numericMileage = parseFloat(String(dayUsage.mileage).replace(',', '.'));
-                if (!isNaN(numericMileage) && numericMileage >= 0) {
-                    total += numericMileage;
-                    hasValue = true;
-                }
-            }
-        });
-        normalized.totalMileage = hasValue ? parseFloat(total.toFixed(1)).toString() : '';
-    }
-    
-    return normalized;
-}
-
-// Échapper les caractères spéciaux pour éviter les injections HTML
-function escapeHtml(str) {
-    if (str === undefined || str === null) {
-        return '';
-    }
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-// Configuration des écouteurs d'événements
-function setupEventListeners() {
-    document.getElementById('weekSelector').addEventListener('change', updateWeekDisplay);
-    
-    document.getElementById('addWorkerForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        addWorker();
-    });
-    
-    // Mettre à jour la fiche d'impression avant d'imprimer
-    window.addEventListener('beforeprint', function() {
-        generatePrintSheet();
-    });
-    
-    // Fermer les modals en cliquant sur le fond (backdrop)
-    setupModalBackdropClose();
-}
-
-// Configurer la fermeture des modals par clic sur le backdrop
-function setupModalBackdropClose() {
-    var modals = [
-        { id: 'addWorkerModal', closeFunc: hideAddWorkerModal },
-        { id: 'selectForemanModal', closeFunc: hideSelectForemanModal },
-        { id: 'selectSiteModal', closeFunc: hideSelectSiteModal },
-        { id: 'confirmSendModal', closeFunc: hideConfirmSendModal },
-        { id: 'dayMentionModal', closeFunc: hideDayMentionModal }
-    ];
-    
-    modals.forEach(function(modal) {
-        var modalElement = document.getElementById(modal.id);
-        if (modalElement) {
-            modalElement.addEventListener('click', function(e) {
-                // Fermer uniquement si on clique sur le fond, pas sur le contenu
-                if (e.target === modalElement) {
-                    modal.closeFunc();
-                }
-            });
-        }
-    });
-    
-    // Support de la touche Escape pour fermer les modals
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' || e.keyCode === 27) {
-            // Fermer le modal visible
-            modals.forEach(function(modal) {
-                var modalElement = document.getElementById(modal.id);
-                if (modalElement && !modalElement.classList.contains('hidden')) {
-                    modal.closeFunc();
-                }
-            });
-        }
-    });
-}
-
-// Mettre à jour le sélecteur de chef de chantier (conservé pour compatibilité)
-function updateForemanSelector() {
-    // Cette fonction est conservée pour compatibilité avec le code existant
-    // L'affichage est maintenant géré par updateForemanDisplay()
-    updateForemanDisplay();
-}
-
-// Réinitialiser les conducteurs au chef de chantier
-function resetDriversToForeman() {
-    if (state.foremanId) {
-        state.drivers = {
-            monday: state.foremanId,
-            tuesday: state.foremanId,
-            wednesday: state.foremanId,
-            thursday: state.foremanId,
-            friday: state.foremanId
-        };
-    }
-}
-
-// Mettre à jour l'affichage du chef de chantier pour l'impression
-function updatePrintForeman() {
-    const foremanDisplay = document.getElementById('printForemanDisplay');
-    if (state.foremanId) {
-        const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
-        if (foreman) {
-            foremanDisplay.textContent = `${foreman.lastName} ${foreman.firstName}`;
-        }
-    } else {
-        foremanDisplay.textContent = 'Non défini';
-    }
-}
-
-// Mettre à jour le conducteur d'un jour
-function updateDriver(day, workerId) {
-    state.drivers[day] = parseInt(workerId) || state.foremanId;
-    renderAll();
-    // Sauvegarder l'état
-    saveState();
-}
-
-// S'assurer que la structure d'utilisation véhicule existe pour un jour donné
-function ensureVehicleUsageDay(day) {
-    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
-        state.vehicleUsage = createEmptyVehicleUsage();
-    }
-    if (!state.vehicleUsage[day]) {
-        state.vehicleUsage[day] = { vehicleId: '' };
-    }
-    if (typeof state.vehicleUsage.totalMileage !== 'string') {
-        state.vehicleUsage.totalMileage = state.vehicleUsage.totalMileage ? String(state.vehicleUsage.totalMileage) : '';
-    }
-    if (state.vehicleUsage.selectedVehicleId === undefined || state.vehicleUsage.selectedVehicleId === null) {
-        state.vehicleUsage.selectedVehicleId = '';
-    }
-}
-
-// Obtenir l'intitulé à afficher pour un véhicule
-function getVehicleLabelById(vehicleId) {
-    if (!vehicleId && vehicleId !== 0) return '';
-    const idString = String(vehicleId);
-    const vehicle = (state.vehicleOptions || []).find(v => String(v.id) === idString);
-    if (!vehicle) return '';
-    
-    if (vehicle.label) {
-        return vehicle.label;
-    }
-    
-    const plate = vehicle.plate ? vehicle.plate.toUpperCase() : '';
-    const description = vehicle.description ? vehicle.description : '';
-    if (plate && description) {
-        return `${plate} - ${description}`;
-    }
-    return plate || description || '';
-}
-
-// Mettre à jour le véhicule sélectionné pour la semaine
-function updateWeeklyVehicleSelection(selectElement) {
-    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
-        state.vehicleUsage = createEmptyVehicleUsage();
-    }
-    const value = selectElement ? selectElement.value : '';
-    state.vehicleUsage.selectedVehicleId = value;
-    
-    // Mettre à jour également les anciennes structures journalières pour compatibilité
-    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
-        ensureVehicleUsageDay(day);
-        state.vehicleUsage[day].vehicleId = value;
-    });
-    
-    saveState();
-}
-
-// Marquer le début de l'édition du kilométrage
-function startEditingMileage() {
-    state.isEditingMileage = true;
-}
-
-// Mettre à jour le kilométrage total de la semaine
-function updateWeeklyMileage(inputElement) {
-    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
-        state.vehicleUsage = createEmptyVehicleUsage();
-    }
-    if (!inputElement) {
-        return;
-    }
-    
-    let rawValue = inputElement.value;
-    if (rawValue === '') {
-        state.vehicleUsage.totalMileage = '';
-        state.isEditingMileage = false;
-        saveState();
-        return;
-    }
-    
-    rawValue = String(rawValue).replace(',', '.');
-    const parsed = parseFloat(rawValue);
-    
-    if (isNaN(parsed) || parsed < 0) {
-        state.vehicleUsage.totalMileage = '';
-        inputElement.value = '';
-    } else {
-        const normalized = parseFloat(parsed.toFixed(1));
-        state.vehicleUsage.totalMileage = normalized.toString();
-        inputElement.value = normalized.toString();
-    }
-    
-    state.isEditingMileage = false;
-    saveState();
-}
-
-// Afficher le modal de sélection de véhicule
-function showSelectVehicleModal() {
-    const modal = document.getElementById('selectVehicleModal');
-    if (!modal) return;
-    
-    const container = document.getElementById('vehicleListContainer');
-    if (!container) return;
-    
-    // Vider le contenu
-    container.innerHTML = '';
-    
-    const vehicleOptions = state.vehicleOptions || [];
-    const weeklySelectedVehicleId = state.vehicleUsage && typeof state.vehicleUsage.selectedVehicleId !== 'undefined'
-        ? state.vehicleUsage.selectedVehicleId
-        : '';
-    
-    if (vehicleOptions.length === 0) {
-        container.innerHTML = `
-            <div class="px-4 py-3 border-2 border-dashed border-orange-300 rounded-lg bg-orange-50 text-orange-700 text-center">
-                Aucun véhicule configuré
-            </div>
-        `;
-        modal.classList.remove('hidden');
-        return;
-    }
-    
-    // Ajouter un bouton pour désélectionner
-    const clearButton = document.createElement('button');
-    clearButton.onclick = () => selectVehicle('');
-    clearButton.className = 'w-full px-4 py-3 bg-gray-50 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition text-left';
-    clearButton.innerHTML = `
-        <span class="font-semibold text-gray-700">Aucun véhicule</span>
-    `;
-    container.appendChild(clearButton);
-    
-    // Créer un bouton pour chaque véhicule
-    vehicleOptions.forEach(vehicle => {
-        const vehicleId = vehicle.id !== undefined ? vehicle.id : vehicle.plate || vehicle.label || vehicle.description || '';
-        const label = vehicle.label 
-            ? vehicle.label 
-            : `${vehicle.plate ? vehicle.plate.toUpperCase() : ''}${vehicle.plate && vehicle.description ? ' - ' : ''}${vehicle.description || ''}`;
-        
-        const isSelected = String(weeklySelectedVehicleId) === String(vehicleId);
-        
-        const button = document.createElement('button');
-        button.onclick = () => selectVehicle(vehicleId);
-        button.className = `w-full px-4 py-3 border-2 rounded-lg hover:bg-orange-100 transition text-left ${
-            isSelected 
-                ? 'bg-orange-100 border-orange-500' 
-                : 'bg-white border-orange-300'
-        }`;
-        button.innerHTML = `
-            <div class="flex items-center justify-between">
-                <span class="font-semibold text-orange-800">${escapeHtml(label)}</span>
-                ${isSelected ? '<span class="text-orange-600">✓</span>' : ''}
-            </div>
-        `;
-        container.appendChild(button);
-    });
-    
-    modal.classList.remove('hidden');
-}
-
-// Sélectionner un véhicule et fermer le modal
-function selectVehicle(vehicleId) {
-    if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
-        state.vehicleUsage = createEmptyVehicleUsage();
-    }
-    
-    state.vehicleUsage.selectedVehicleId = vehicleId;
-    
-    // Mettre à jour également les anciennes structures journalières pour compatibilité
-    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
-        ensureVehicleUsageDay(day);
-        state.vehicleUsage[day].vehicleId = vehicleId;
-    });
-    
-    saveState();
-    renderDriverSelection();
-    hideSelectVehicleModal();
-}
-
-// Masquer le modal de sélection de véhicule
-function hideSelectVehicleModal() {
-    const modal = document.getElementById('selectVehicleModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-}
-
-// Obtenir l'observation à afficher pour un ouvrier (avec ajout automatique du kilométrage pour le chef)
-function getWorkerObservationWithMileage(worker) {
-    const workerData = state.data[worker.id] || {};
-    let observation = workerData.observation || '';
-    const weeklyMileage = state.vehicleUsage && typeof state.vehicleUsage.totalMileage === 'string'
-        ? state.vehicleUsage.totalMileage
-        : '';
-    
-    if (weeklyMileage && weeklyMileage !== '' && state.foremanId === worker.id) {
-        const selectedVehicleId = state.vehicleUsage ? state.vehicleUsage.selectedVehicleId : null;
-        const vehicle = selectedVehicleId ? state.vehicleOptions.find(v => v.id === selectedVehicleId) : null;
-        const vehicleLabel = vehicle
-            ? [
-                vehicle.plate ? vehicle.plate : '',
-                vehicle.description ? vehicle.description : ''
-              ].filter(Boolean).join(' - ') || 'Véhicule non défini'
-            : 'Véhicule non défini';
-        const vehicleLine = `Véhicule: ${vehicleLabel}`;
-        const mileageLine = `Kilométrage total: ${weeklyMileage} km`;
-        const mileageNote = `${vehicleLine}\n${mileageLine}`;
-        if (observation && observation.trim() !== '') {
-            if (!observation.includes(vehicleLine) && !observation.includes(mileageLine)) {
-                observation = `${vehicleLine}\n${mileageLine}\n${observation}`;
-            }
+    // Mettre à jour le bouton selon l'état
+    if (btn) {
+        if (state.isPrevisionnel) {
+            // Mode activé : vert avec coche
+            btn.classList.remove('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
+            btn.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700');
         } else {
-            observation = mileageNote;
+            // Mode désactivé : gris avec croix
+            btn.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+            btn.classList.add('bg-gray-300', 'text-gray-700', 'hover:bg-gray-400');
         }
     }
     
-    return observation;
-}
-
-// Mettre à jour l'observation d'un ouvrier
-function updateWorkerObservation(workerId, observation) {
-    if (state.data[workerId]) {
-        state.data[workerId].observation = observation;
-        // Sauvegarder l'état
-        saveState();
-    }
-}
-
-// Afficher le modal d'ajout d'ouvrier
-function showAddWorkerModal() {
-    updateWorkerSelectOptions();
-    switchTab('existing'); // Par défaut sur l'onglet sélection
-    const modal = document.getElementById('addWorkerModal');
-    modal.classList.remove('hidden');
-    
-    // Scroller la modale au centre de l'écran visible
-    setTimeout(() => {
-        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 10);
-    
-    // Détecter si on est sur mobile pour éviter le focus automatique qui ouvre le clavier
-    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (!isMobile) {
-        // Focus uniquement sur desktop
-        setTimeout(function() {
-            document.getElementById('workerSelect').focus();
-        }, 100);
-    }
-    
-    // Ajouter un gestionnaire pour la sélection automatique
-    const workerSelect = document.getElementById('workerSelect');
-    workerSelect.onchange = function() {
-        if (this.value) {
-            const workerId = parseInt(this.value);
-            addWorkerToActive(workerId);
-            hideAddWorkerModal();
+    // Mettre à jour l'icône
+    if (icon) {
+        if (state.isPrevisionnel) {
+            // Coche verte
+            icon.setAttribute('data-lucide', 'check');
+            icon.style.color = 'white';
+        } else {
+            // Croix rouge
+            icon.setAttribute('data-lucide', 'x');
+            icon.style.color = '#dc2626'; // red-600
         }
-    };
-}
-
-// Changer d'onglet dans le modal
-function switchTab(tab) {
-    const tabExisting = document.getElementById('tabExisting');
-    const tabNew = document.getElementById('tabNew');
-    const existingSection = document.getElementById('existingWorkerSection');
-    const newSection = document.getElementById('newWorkerSection');
-    
-    if (tab === 'existing') {
-        // Activer l'onglet sélection
-        tabExisting.classList.add('border-blue-600', 'text-blue-600');
-        tabExisting.classList.remove('border-transparent', 'text-gray-500');
-        tabNew.classList.remove('border-blue-600', 'text-blue-600');
-        tabNew.classList.add('border-transparent', 'text-gray-500');
-        
-        existingSection.classList.remove('hidden');
-        newSection.classList.add('hidden');
-        
-        // Vider les champs de création
-        document.getElementById('newWorkerFirstName').value = '';
-        document.getElementById('newWorkerLastName').value = '';
-    } else {
-        // Activer l'onglet création
-        tabNew.classList.add('border-blue-600', 'text-blue-600');
-        tabNew.classList.remove('border-transparent', 'text-gray-500');
-        tabExisting.classList.remove('border-blue-600', 'text-blue-600');
-        tabExisting.classList.add('border-transparent', 'text-gray-500');
-        
-        newSection.classList.remove('hidden');
-        existingSection.classList.add('hidden');
-        
-        // Réinitialiser la sélection
-        document.getElementById('workerSelect').value = '';
-        
-        // Focus sur le prénom
-        setTimeout(() => document.getElementById('newWorkerFirstName').focus(), 100);
+        // Recréer l'icône Lucide
+        lucide.createIcons();
     }
-}
-
-// Mettre à jour les options du sélecteur d'ouvrier
-function updateWorkerSelectOptions() {
-    const select = document.getElementById('workerSelect');
-    select.innerHTML = '<option value="">Choisir...</option>';
     
-    // Filtrer les ouvriers qui ne sont pas déjà actifs
-    const availableToAdd = state.availableWorkers.filter(w => 
-        !state.activeWorkers.find(aw => aw.id === w.id)
-    );
-    
-    availableToAdd.forEach(worker => {
-        const option = document.createElement('option');
-        option.value = worker.id;
-        option.textContent = `${worker.lastName} ${worker.firstName}`;
-        select.appendChild(option);
-    });
-}
-
-// Masquer le modal d'ajout d'ouvrier
-function hideAddWorkerModal() {
-    document.getElementById('addWorkerModal').classList.add('hidden');
-    document.getElementById('addWorkerForm').reset();
-}
-
-// Ajouter un ouvrier au rapport
-function addWorker() {
-    const existingSection = document.getElementById('existingWorkerSection');
-    const isExistingTab = !existingSection.classList.contains('hidden');
-    
-    if (isExistingTab) {
-        // Ajouter un ouvrier existant
-        const workerId = parseInt(document.getElementById('workerSelect').value);
-        
-        if (!workerId) {
-            alert('Veuillez sélectionner un ouvrier');
-            return;
+    // Mettre à jour le filigrane
+    if (watermark) {
+        if (state.isPrevisionnel) {
+            watermark.classList.add('active');
+        } else {
+            watermark.classList.remove('active');
         }
-        
-        addWorkerToActive(workerId);
-    } else {
-        // Créer un nouvel ouvrier
-        const firstName = document.getElementById('newWorkerFirstName').value.trim();
-        const lastName = document.getElementById('newWorkerLastName').value.trim();
-        
-        if (!firstName || !lastName) {
-            alert('Veuillez remplir le prénom et le nom');
-            return;
-        }
-        
-        // Créer le nouvel ouvrier
-        const newWorker = {
-            id: state.nextWorkerId++,
-            firstName: firstName,
-            lastName: lastName
-        };
-        
-        // Ajouter à la liste des ouvriers personnalisés
-        state.customWorkers.push(newWorker);
-        
-        // Ajouter à la liste disponible
-        state.availableWorkers.push(newWorker);
-        state.availableWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
-        
-        // Mettre à jour le sélecteur de chef de chantier
-        updateForemanSelector();
-        
-        // Ajouter directement au rapport
-        addWorkerToActive(newWorker.id);
-        
-        // Sauvegarder l'état
-        saveState();
     }
-    
-    hideAddWorkerModal();
-}
-
-// Afficher le modal de sélection du chef de chantier
-function showSelectForemanModal() {
-    updateForemanSelectOptions();
-    switchForemanTab('existing');
-    const modal = document.getElementById('selectForemanModal');
-    modal.classList.remove('hidden');
-    
-    // Scroller la modale au centre de l'écran visible
-    setTimeout(() => {
-        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 10);
-    
-    // Détecter si on est sur mobile pour éviter le focus automatique
-    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (!isMobile) {
-        setTimeout(function() {
-            document.getElementById('foremanSelect').focus();
-        }, 100);
-    }
-    
-    // Ajouter un gestionnaire pour la sélection automatique
-    const foremanSelect = document.getElementById('foremanSelect');
-    foremanSelect.onchange = function() {
-        if (this.value) {
-            const workerId = parseInt(this.value);
-            selectForeman(workerId);
-        }
-    };
-}
-
-// Masquer le modal de sélection du chef de chantier
-function hideSelectForemanModal() {
-    document.getElementById('selectForemanModal').classList.add('hidden');
-    document.getElementById('selectForemanForm').reset();
-}
-
-// Changer d'onglet dans le modal chef de chantier
-function switchForemanTab(tab) {
-    const tabExisting = document.getElementById('tabExistingForeman');
-    const tabNew = document.getElementById('tabNewForeman');
-    const existingSection = document.getElementById('existingForemanSection');
-    const newSection = document.getElementById('newForemanSection');
-    
-    if (tab === 'existing') {
-        tabExisting.classList.add('border-blue-600', 'text-blue-600');
-        tabExisting.classList.remove('border-transparent', 'text-gray-500');
-        tabNew.classList.remove('border-blue-600', 'text-blue-600');
-        tabNew.classList.add('border-transparent', 'text-gray-500');
-        
-        existingSection.classList.remove('hidden');
-        newSection.classList.add('hidden');
-        
-        document.getElementById('newForemanFirstName').value = '';
-        document.getElementById('newForemanLastName').value = '';
-    } else {
-        tabNew.classList.add('border-blue-600', 'text-blue-600');
-        tabNew.classList.remove('border-transparent', 'text-gray-500');
-        tabExisting.classList.remove('border-blue-600', 'text-blue-600');
-        tabExisting.classList.add('border-transparent', 'text-gray-500');
-        
-        newSection.classList.remove('hidden');
-        existingSection.classList.add('hidden');
-        
-        document.getElementById('foremanSelect').value = '';
-        setTimeout(() => document.getElementById('newForemanFirstName').focus(), 100);
-    }
-}
-
-// Mettre à jour les options du sélecteur de chef de chantier
-function updateForemanSelectOptions() {
-    const select = document.getElementById('foremanSelect');
-    select.innerHTML = '<option value="">Choisir...</option>';
-    
-    state.availableWorkers.forEach(worker => {
-        const option = document.createElement('option');
-        option.value = worker.id;
-        option.textContent = `${worker.lastName} ${worker.firstName}`;
-        if (state.foremanId === worker.id) {
-            option.selected = true;
-        }
-        select.appendChild(option);
-    });
-}
-
-// Sélectionner un chef de chantier
-function selectForeman(workerId) {
-    state.foremanId = workerId;
-    
-    // Ajouter automatiquement le chef de chantier aux ouvriers actifs
-    if (state.foremanId) {
-        addWorkerToActive(state.foremanId);
-    }
-    
-    // Réinitialiser les conducteurs au chef de chantier
-    resetDriversToForeman();
-    updatePrintForeman();
-    updateForemanDisplay();
-    renderAll();
-    hideSelectForemanModal();
-    // Sauvegarder l'état
-    saveState();
-}
-
-// Mettre à jour l'affichage du chef de chantier
-function updateForemanDisplay() {
-    const display = document.getElementById('foremanDisplay');
-    if (state.foremanId) {
-        const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
-        if (foreman) {
-            display.textContent = `${foreman.lastName} ${foreman.firstName}`;
-        }
-    } else {
-        display.textContent = '⚠️ Sélectionner un chef de chantier';
-    }
-}
-
-// Gérer la soumission du formulaire de chef de chantier
-document.addEventListener('DOMContentLoaded', function() {
-    const selectForemanForm = document.getElementById('selectForemanForm');
-    if (selectForemanForm) {
-        selectForemanForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const existingSection = document.getElementById('existingForemanSection');
-            const isExistingTab = !existingSection.classList.contains('hidden');
-            
-            if (isExistingTab) {
-                const workerId = parseInt(document.getElementById('foremanSelect').value);
-                if (!workerId) {
-                    alert('Veuillez sélectionner un ouvrier');
-                    return;
-                }
-                selectForeman(workerId);
-            } else {
-                const firstName = document.getElementById('newForemanFirstName').value.trim();
-                const lastName = document.getElementById('newForemanLastName').value.trim();
-                
-                if (!firstName || !lastName) {
-                    alert('Veuillez remplir le prénom et le nom');
-                    return;
-                }
-                
-                // Créer le nouvel ouvrier
-                const newWorker = {
-                    id: state.nextWorkerId++,
-                    firstName: firstName,
-                    lastName: lastName
-                };
-                
-                // Ajouter à la liste des ouvriers personnalisés
-                state.customWorkers.push(newWorker);
-                
-                // Ajouter à la liste disponible
-                state.availableWorkers.push(newWorker);
-                state.availableWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
-                
-                // Sélectionner comme chef de chantier
-                selectForeman(newWorker.id);
-            }
-        });
-    }
-});
-
-// Ajouter un ouvrier à la liste active
-function addWorkerToActive(workerId) {
-    const worker = state.availableWorkers.find(w => w.id === workerId);
-    
-    if (!worker) return;
-    
-    // Vérifier si l'ouvrier n'est pas déjà actif
-    if (state.activeWorkers.find(w => w.id === workerId)) return;
-    
-    // Ajouter l'ouvrier aux actifs
-    state.activeWorkers.push(worker);
-    
-    // Initialiser ses données
-    if (!state.data[workerId]) {
-        // Tous les ouvriers sont des employés permanents par défaut (non intérimaires)
-        // L'utilisateur peut basculer manuellement en intérimaire si nécessaire
-        state.data[workerId] = {
-            sites: [createEmptySite()],
-            observation: '',
-            isInterim: false, // false par défaut = employé permanent
-            panierMode: 'panier', // 'panier', 'grand_deplacement', 'personnaliser'
-            panierCustom: createEmptyPanierCustom(),
-            dayMentions: createEmptyDayMentions()
-        };
-    }
-    
-    // Trier les ouvriers actifs par nom de famille
-    state.activeWorkers.sort((a, b) => a.lastName.localeCompare(b.lastName));
-    
-    renderAll();
-    // Sauvegarder l'état
-    saveState();
-}
-
-// Retirer un ouvrier de la liste active
-function removeWorkerFromActive(workerId) {
-    const worker = state.availableWorkers.find(w => w.id === workerId);
-    
-    if (!worker) return;
-    
-    // Demander confirmation
-    if (!confirm(`Retirer ${worker.lastName} ${worker.firstName} du rapport ?`)) {
-        return;
-    }
-    
-    // Retirer l'ouvrier des actifs
-    state.activeWorkers = state.activeWorkers.filter(w => w.id !== workerId);
-    
-    // Si c'était le chef de chantier, le désélectionner
-    if (state.foremanId === workerId) {
-        state.foremanId = null;
-        updateForemanDisplay();
-    }
-    
-    // Retirer des conducteurs
-    Object.keys(state.drivers).forEach(day => {
-        if (state.drivers[day] === workerId) {
-            state.drivers[day] = state.foremanId;
-        }
-    });
-    
-    renderAll();
-    // Sauvegarder l'état
-    saveState();
 }
 
 // Ajouter un chantier à un ouvrier
