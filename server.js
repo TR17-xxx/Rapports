@@ -214,6 +214,11 @@ app.post('/api/send-report', async (req, res) => {
             font-size: 9pt;
             margin-bottom: 4px;
         }
+        .print-footer-note {
+            text-align: center;
+            font-size: 8pt;
+            margin-top: 4px;
+        }
         @page {
             size: A4;
             margin: 10mm;

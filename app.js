@@ -3108,6 +3108,7 @@ function generatePrintSheet() {
                 </div>
             </div>
         </div>
+        <div class="print-footer-note">©TonyDevProjects</div>
         `;
     });
     

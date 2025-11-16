@@ -465,6 +465,11 @@ async function generatePDF(reportData, weekInfo) {
             doc.text('Référence: Agenda chef d\'équipe', 15, 270);
             doc.text(`Chef de chantier: ${weekInfo.foreman || 'Non défini'}`, 15, 275);
             doc.text('Visa conducteur:', 110, 270);
+
+            // Mention copyright sous le cadre, centrée
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text('©TonyDevProjects', 105, 285, { align: 'center' });
         });
         
         // Convertir en buffer
