@@ -1,646 +1,176 @@
 # Application de Rapports Hebdomadaires de Chantier
 
-Application web simple pour gérer les rapports hebdomadaires des ouvriers de chantier.
+Application web permettant de saisir, contrôler et exporter les rapports hebdomadaires des ouvriers de chantier (heures, chantiers, paniers, PDF, envoi par email).
 
 ---
 
-## 🚨 Sécurité GitHub - CRITIQUE
+## Objectif du projet
 
-### ⚠️ Repository Public = DANGER
+- **Centraliser** les rapports de la semaine pour chaque ouvrier.
+- **Automatiser** les calculs (totaux par ouvrier et par chantier).
+- **Générer** un PDF prêt à être envoyé au bureau.
+- **Faciliter** l’envoi par email aux destinataires concernés.
 
-Si votre repository GitHub est **public**, **TOUTES** les informations dans votre code sont visibles par n'importe qui, y compris :
-
-- ❌ Adresses email dans `.env`
-- ❌ Mots de passe
-- ❌ Clés API
-- ❌ Tokens d'accès
-
-### ✅ Solution : Fichiers `.env` JAMAIS dans Git
-
-**Vérification immédiate** - Exécutez cette commande :
-
-```bash
-git ls-files | grep .env
-```
-
-- **Aucun résultat** → ✅ Vous êtes en sécurité
-- **Des fichiers apparaissent** → ❌ **ILS SONT PUBLICS !** Suivez les étapes ci-dessous
-
-### 🚨 Si vous avez déjà commité des fichiers `.env`
-
-**ACTION IMMDIATE** :
-
-1. **Rendre le repository privé** (GitHub → Settings → Change visibility → Private)
-
-2. **Changer TOUS les secrets** :
-   - Générer un nouveau mot de passe d'application email
-   - Générer une nouvelle clé API Brevo
-   - Générer un nouveau token d'accès
-
-3. **Supprimer les fichiers de Git** :
-
-   ```bash
-   # Option simple : Nouveau repository
-   rm -rf .git
-   git init
-   git add .
-   git commit -m "Initial commit (sans secrets)"
-   ```
-
-### Protection pour l'avenir
-
-✅ **Vérifiez `.gitignore`** contient :
-```gitignore
-.env
-.env.local
-.env.brevo
-.env.*
-```
-
-✅ **Avant chaque commit** :
-```bash
-git status  # Vérifier qu'aucun .env n'apparaît
-```
-
-✅ **Utilisez `.env.example`** avec des valeurs factices (peut être commité)
-
-### Configuration Netlify (Production)
-
-Sur Netlify, configurez les variables d'environnement :
-
-1. Dashboard → Site configuration → **Environment Variables**
-2. Ajoutez : `ACCESS_TOKEN`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `EMAIL_RECIPIENTS`
-
-✅ Les secrets ne sont **jamais** dans le code !
-
-📖 **Guide complet** : Consultez [NETLIFY_DEPLOYMENT.md](NETLIFY_DEPLOYMENT.md)
+Ce dépôt ne doit contenir **aucune donnée sensible** (mots de passe, tokens, fichiers `.env`, listes réelles d’ouvriers ou de chantiers, etc.).
 
 ---
 
-## 🔒 Sécurité et Accès
+## Fonctionnalités principales
 
-### ⚠️ IMPORTANT : Accès Protégé par Token
-
-Cette application est **protégée par un système de token d'accès**. Seules les personnes disposant du lien avec le token valide peuvent accéder à l'application. Cette protection est nécessaire car l'application utilise l'envoi d'emails.
-
-### Comment accéder à l'application ?
-
-Vous devez utiliser une URL avec le paramètre `token` :
-
-**En local :**
-```
-http://localhost:3000/index.html?token=rapport2024secure
-```
-
-**En production :**
-```
-https://votre-domaine.com/index.html?token=rapport2024secure
-```
-
-❌ **Sans le token, vous verrez une page "Accès Restreint"**
-
-### Configuration du token (Administrateurs)
-
-#### 1. Générer un token sécurisé
-
-Pour générer un token aléatoire et sécurisé :
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Exemple de résultat :
-```
-a7f3c8e9d2b1f4a6c8e7d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4
-```
-
-#### 2. Configurer le token dans `.env`
-
-Ajoutez ou modifiez dans votre fichier `.env` :
-
-```bash
-# Token d'accès (doit correspondre au token dans index.html)
-ACCESS_TOKEN=a7f3c8e9d2b1f4a6c8e7d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4
-```
-
-#### 3. Configurer le token dans `index.html`
-
-Ouvrez `index.html` et modifiez la ligne ~488 :
-
-```javascript
-const REQUIRED_TOKEN = 'a7f3c8e9d2b1f4a6c8e7d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4c6e8d9b2f1a4';
-```
-
-⚠️ **Les deux tokens doivent être IDENTIQUES** (dans `.env` et `index.html`)
-
-#### 4. Redémarrer le serveur
-
-```bash
-npm start
-```
-
-### Partager l'accès
-
-Pour donner accès à une personne, partagez-lui l'URL complète avec le token :
-
-```
-https://votre-domaine.com/index.html?token=votre_token_ici
-```
-
-⚠️ **Bonnes pratiques :**
-- Ne partagez le lien qu'avec des personnes de confiance
-- Changez le token régulièrement (tous les 3-6 mois)
-- Utilisez HTTPS en production
-- Ne publiez jamais le token publiquement
-
-### Révoquer l'accès
-
-Pour révoquer tous les accès existants :
-
-1. Générez un nouveau token
-2. Mettez à jour `.env` et `index.html`
-3. Redémarrez le serveur
-4. Partagez le nouveau lien uniquement aux personnes autorisées
+- **Saisie des heures** du lundi au vendredi.
+- **Plusieurs chantiers** possibles par ouvrier sur la même semaine.
+- **Gestion du conducteur** de la semaine.
+- **Gestion du panier** (standard, grand déplacement, personnalisation par jour).
+- **Calcul automatique** des totaux (par ouvrier, par chantier).
+- **Impression / export PDF** du rapport.
+- **Envoi par email** du rapport (via un petit serveur Node.js).
 
 ---
 
-## Fonctionnalités
+## Pré-requis
 
-- ✅ Saisie des heures du lundi au vendredi
-- ✅ Heures pré-remplies à 7.5h par jour
-- ✅ Gestion de plusieurs chantiers par ouvrier
-- ✅ Désignation du conducteur de la semaine
-- ✅ **Gestion flexible du panier** (Panier, Grand déplacement, Personnaliser)
-- ✅ Calcul automatique des totaux par ouvrier
-- ✅ Calcul automatique des totaux par chantier
-- ✅ Impression / Export PDF
-- ✅ Ajout dynamique d'ouvriers
-- ✅ **Envoi automatique par email** avec génération PDF
+- Navigateur moderne (Chrome, Firefox, Edge, Safari).
+- Pour l’envoi d’emails :
+  - Node.js installé (version récente LTS).
+  - Un compte email ou un service SMTP (Gmail, fournisseur pro, service d’emailing…).
+
+---
 
 ## Installation
 
-### Mode Simple (sans envoi d'emails)
+### 1. Cloner le projet
 
-Aucune installation nécessaire ! Il suffit d'ouvrir le fichier `index.html` dans un navigateur web moderne (Chrome, Firefox, Edge, Safari).
+```bash
+git clone VOTRE_URL_DU_DEPOT.git
+cd Rapport
+```
 
-### Mode Complet (avec envoi d'emails)
+### 2. Mode simple (sans serveur, sans email)
 
-Pour utiliser la fonctionnalité d'envoi automatique par email :
+Dans ce mode, il suffit d’ouvrir `index.html` :
 
-1. **Installer Node.js** (version 14 ou supérieure)
-   - Télécharger depuis [nodejs.org](https://nodejs.org/)
+1. Ouvrir le dossier du projet.
+2. Double-cliquer sur `index.html` ou l’ouvrir avec votre navigateur.
 
-2. **Installer les dépendances**
+Ce mode permet :
+
+- La saisie des heures.
+- Les calculs automatiques.
+- L’impression / export PDF depuis le navigateur.
+
+### 3. Mode complet (avec serveur et envoi d’emails)
+
+1. Installer les dépendances :
+
    ```bash
    npm install
    ```
 
-3. **Configurer les variables d'environnement**
-   - Copier le fichier `.env.example` vers `.env`
-   - Éditer le fichier `.env` avec vos informations :
+2. Créer un fichier `.env` à partir de l’exemple :
+
    ```bash
-   EMAIL_HOST=smtp.gmail.com
-   EMAIL_PORT=587
-   EMAIL_SECURE=false
-   EMAIL_USER=votre.email@gmail.com
-   EMAIL_PASSWORD=votre_mot_de_passe_application
-   EMAIL_RECIPIENTS=destinataire1@example.com,destinataire2@example.com
-   PORT=3000
+   cp .env.example .env
    ```
 
-4. **Configuration Gmail (si vous utilisez Gmail)**
-   - Activer la validation en 2 étapes sur votre compte Google
-   - Générer un "Mot de passe d'application" :
-     1. Aller dans les paramètres de votre compte Google
-     2. Sécurité → Validation en 2 étapes → Mots de passe d'application
-     3. Créer un nouveau mot de passe pour "Autre (nom personnalisé)"
-     4. Utiliser ce mot de passe dans `EMAIL_PASSWORD`
+3. Éditer `.env` et renseigner **vos** paramètres (SMTP, destinataires, port…) avec des **valeurs privées**. Ne pas utiliser de mots de passe ou tokens présents dans la doc.
 
-5. **Démarrer le serveur**
+4. Démarrer le serveur :
+
    ```bash
    npm start
    ```
-   Le serveur démarre sur `http://localhost:3000`
 
-6. **Ouvrir l'application**
-   - Ouvrir `http://localhost:3000/index.html` dans votre navigateur
+5. Ouvrir l’application via :
 
-## Utilisation
-
-### 1. Configuration de la semaine
-
-1. **Sélectionner la semaine** : Utilisez le sélecteur de semaine en haut de la page
-2. **Choisir le conducteur** : Sélectionnez qui est le conducteur pour cette semaine
-3. **Ajouter des ouvriers** : Cliquez sur "Ajouter un ouvrier" si nécessaire
-
-### 2. Saisie des heures
-
-Pour chaque ouvrier :
-
-1. **Entrer le nom du chantier** dans le champ prévu
-2. **Modifier les heures** si elles diffèrent de 7.5h (pré-remplies par défaut)
-3. **Ajouter un chantier** si l'ouvrier a travaillé sur plusieurs chantiers dans la semaine
-4. **Configurer le panier** : Sélectionnez le mode de panier approprié (voir section ci-dessous)
-5. Les totaux se calculent automatiquement
-
-### 2.1. Gestion du panier
-
-Pour chaque ouvrier, vous pouvez choisir le mode de gestion du panier via le menu déroulant "Panier" :
-
-#### Option 1 : Panier (par défaut)
-- La ligne "PANIER" dans la fiche de pointage sera remplie avec **"1"** pour chaque jour travaillé
-- Utilisez cette option pour les ouvriers bénéficiant du panier standard
-
-#### Option 2 : Grand déplacement
-- La ligne "PANIER" dans la fiche de pointage sera remplie avec **"GD"** pour chaque jour travaillé
-- Utilisez cette option pour les ouvriers en grand déplacement
-
-#### Option 3 : Personnaliser
-- Une nouvelle ligne de sélection apparaît sous le menu déroulant
-- Pour chaque jour (Lun, Mar, Mer, Jeu, Ven), choisissez entre :
-  - **0** : Pas de panier ce jour
-  - **1** : Panier standard
-  - **GD** : Grand déplacement
-- Les valeurs personnalisées ne s'affichent que pour les jours où l'ouvrier a travaillé
-
-### 3. Cas d'usage courants
-
-#### Ouvrier sur un seul chantier toute la semaine
-- Entrez simplement le nom du chantier
-- Les heures sont déjà pré-remplies à 7.5h
-- Modifiez uniquement si nécessaire
-
-#### Ouvrier sur plusieurs chantiers
-- Entrez le premier chantier avec ses heures
-- Cliquez sur "+ Ajouter un chantier"
-- Entrez le deuxième chantier avec ses heures
-- Mettez à 0 les jours non travaillés sur chaque chantier
-
-#### Ouvrier absent un jour
-- Mettez 0 dans la case du jour d'absence
-
-### 4. Export et impression
-
-#### Impression / PDF Local
-1. **Imprimer** : Cliquez sur le bouton "Imprimer / PDF" en haut à droite
-2. **Enregistrer en PDF** : Dans la fenêtre d'impression, choisissez "Enregistrer au format PDF"
-3. Le rapport inclut :
-   - La période de la semaine
-   - Le conducteur désigné
-   - Le détail par ouvrier et chantier
-   - Les lignes PANIER (selon le mode choisi), TRANSPORT et TRAJET
-   - Les observations et statut intérimaire
-   - Les tableaux récapitulatifs
-
-#### Envoi par Email (nécessite le serveur)
-1. **Configurer les destinataires** : Modifier la variable `EMAIL_RECIPIENTS` dans le fichier `.env`
-2. **Démarrer le serveur** : `npm start`
-3. **Cliquer sur "Envoyer par Email"** : Le rapport sera automatiquement :
-   - Converti en PDF
-   - Envoyé aux adresses configurées
-   - Avec un nom de fichier automatique : `Rapport_S42-2024_01-05_Nov.pdf`
-
-**Avantages de l'envoi par email :**
-- ✅ Envoi simultané à plusieurs destinataires
-- ✅ PDF généré automatiquement
-- ✅ Nom de fichier standardisé
-- ✅ Email professionnel avec informations du rapport
-- ✅ Credentials email protégés par variables d'environnement
-
-## Personnalisation
-
-### Modifier la liste des ouvriers et chantiers
-
-#### 🔒 Données sensibles protégées
-
-Les listes d'ouvriers et de chantiers sont stockées dans le fichier `workers-data.js` qui est **ignoré par Git** pour protéger les informations personnelles.
-
-#### Configuration initiale
-
-1. **Copiez le fichier template** :
-   ```bash
-   cp workers-data.template.js workers-data.js
+   ```text
+   http://localhost:3000/index.html
    ```
-
-2. **Éditez `workers-data.js`** avec vos données réelles :
-
-```javascript
-// Liste des ouvriers par défaut
-const defaultWorkers = [
-    { id: 1, firstName: "Jean", lastName: "Dupont" },
-    { id: 2, firstName: "Marie", lastName: "Martin" },
-    { id: 3, firstName: "Pierre", lastName: "Durand" },
-    // Ajoutez vos ouvriers ici...
-];
-
-// Liste des chantiers par défaut (par ordre alphabétique)
-const defaultSites = [
-    "Chantier 1",
-    "Chantier 2",
-    "Chantier 3",
-    // Ajoutez vos chantiers ici...
-];
-```
-
-3. **Important** : 
-   - ✅ Le fichier `workers-data.js` ne sera **jamais** commité dans Git
-   - ✅ Vos données personnelles restent privées
-   - ✅ Le fichier `workers-data.template.js` peut être partagé (contient des exemples)
-
-#### Ajouter/modifier des ouvriers
-
-- Ajoutez des entrées dans le tableau `defaultWorkers`
-- Incrémentez les IDs de manière unique
-- Format : `{ id: X, firstName: "Prénom", lastName: "Nom" }`
-
-#### Ajouter/modifier des chantiers
-
-- Ajoutez des entrées dans le tableau `defaultSites`
-- Triez par ordre alphabétique pour faciliter la recherche
-
-### Modifier les heures par défaut
-
-Dans le fichier `app.js`, trouvez la fonction `createEmptySite()` et modifiez les valeurs :
-
-```javascript
-function createEmptySite() {
-    return {
-        siteName: '',
-        hours: {
-            monday: 7.5,    // Modifiez ici
-            tuesday: 7.5,   // Modifiez ici
-            wednesday: 7.5, // Modifiez ici
-            thursday: 7.5,  // Modifiez ici
-            friday: 7.5     // Modifiez ici
-        }
-    };
-}
-```
-
-## Compatibilité Mobile
-
-### Systèmes supportés
-
-#### iOS
-- ✅ **iOS 9.0+** : Support complet
-- ✅ **iOS 10.0+** : Support optimal
-- ✅ **Safari Mobile** : Toutes versions récentes
-- ✅ **Chrome iOS** : Toutes versions récentes
-
-#### Android
-- ✅ **Android 4.4 (KitKat)+** : Support complet avec polyfills
-- ✅ **Android 5.0 (Lollipop)+** : Support optimal
-- ✅ **Chrome Android** : Toutes versions récentes
-- ✅ **Firefox Android** : Toutes versions récentes
-- ✅ **Samsung Internet** : Versions 4.0+
-
-### Fonctionnalités mobiles optimisées
-
-✅ **Interface responsive** adaptée aux petits écrans
-✅ **Prévention du zoom automatique** sur iOS lors de la saisie
-✅ **Zones tactiles optimisées** (minimum 44px selon recommandations Apple/Google)
-✅ **Support des gestes tactiles** (scroll, tap, swipe)
-✅ **Modals adaptés** pour mobile avec fermeture par backdrop
-✅ **Impression mobile** compatible iOS et Android
-✅ **Performance optimisée** pour les anciens appareils
-✅ **Polyfills inclus** pour les anciennes versions de navigateurs
-
-### Utilisation sur smartphone/tablette
-
-1. **Ouvrir l'application** :
-   - iOS : Safari ou Chrome
-   - Android : Chrome, Firefox ou Samsung Internet
-
-2. **Navigation** :
-   - L'interface s'adapte automatiquement à la taille de l'écran
-   - Les boutons sont optimisés pour le tactile
-   - Pas de zoom intempestif lors de la saisie
-
-3. **Impression mobile** :
-   - **iOS** : Bouton "Imprimer / PDF" → "Partager" → "Imprimer" ou "Enregistrer en PDF"
-   - **Android** : Bouton "Imprimer / PDF" → "Enregistrer en PDF" ou sélectionner une imprimante
-
-4. **Conseils** :
-   - Fonctionne en mode portrait et paysage
-   - Cliquer en dehors d'un modal pour le fermer
-   - Le clavier virtuel ne déclenche plus de zoom automatique
-
-### Améliorations techniques mobiles
-
-#### CSS
-- Inputs avec `font-size: 16px` minimum (évite le zoom iOS)
-- Propriétés `-webkit-` pour compatibilité Safari/iOS
-- `touch-action: manipulation` pour réactivité tactile
-- `-webkit-overflow-scrolling: touch` pour scroll fluide
-- Zones tactiles ≥ 44px (standard Apple/Google)
-
-#### JavaScript
-- Polyfills : `Array.find()`, `Object.values()`, `Object.entries()`
-- Détection mobile pour adapter le comportement
-- Gestion spécifique impression iOS
-- Passive event listeners pour performances
-- Prévention dynamique du zoom au focus
-
-#### Meta tags
-- Viewport optimisé avec `maximum-scale=5.0`
-- Support mode web app iOS
-- Désactivation détection auto des numéros de téléphone
-
-### Problèmes connus
-
-**iOS < 9.0**
-- Fonctionnalités JavaScript limitées
-- Recommandation : Mettre à jour iOS
-
-**Android < 4.4**
-- Support CSS moderne limité
-- Performance réduite
-- Recommandation : Utiliser Chrome récent
-
-**Impression mobile**
-- iOS Safari nécessite une étape supplémentaire (Partager > Imprimer)
-- Certains navigateurs Android ont des options différentes
-
-### Optimisations d'impression (Version 2.2.0)
-
-#### Approche simplifiée et universelle
-
-Le système d'impression a été optimisé pour fonctionner de manière fluide sur **toutes les versions** de navigateurs, des plus anciennes aux plus récentes.
-
-**Caractéristiques :**
-
-1. **Délais optimisés**
-   - Desktop : 100ms (quasi-instantané)
-   - Mobile : 250ms (pour compatibilité)
-   - Pas de délai excessif qui ralentit l'expérience
-
-2. **CSS simplifié**
-   - Positionnement hors écran (`left: -9999px`) au lieu de `display: none`
-   - Règles d'impression minimales et non-intrusives
-   - Pas de surcharge avec des `!important` excessifs
-
-3. **JavaScript épuré**
-   - Appel direct à `window.print()` (supporté par tous les navigateurs modernes)
-   - Gestion d'erreur simple et claire
-   - Pas de détection complexe de versions anciennes
-
-4. **Vérifications essentielles**
-   - Vérification que le contenu est généré avant l'impression
-   - Messages d'erreur clairs en cas de problème
-   - Nettoyage automatique après impression
-
-#### Utilisation
-
-1. Cliquez sur "Imprimer / PDF"
-2. La fenêtre d'impression s'ouvre automatiquement
-3. Choisissez "Enregistrer en PDF" ou sélectionnez une imprimante
-
-**En cas de problème :**
-- Utilisez `Ctrl+P` (Windows/Linux) ou `Cmd+P` (Mac)
-- Sur mobile : Menu du navigateur > Imprimer
-
-#### Compatibilité
-
-✅ **Tous les navigateurs modernes**
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 14+
-- Opera 76+
-
-✅ **Mobile**
-- iOS 12+ : Support complet
-- Android 8+ : Support complet
-- Versions antérieures : Fonctionnel avec délai légèrement plus long
-
-## 🔄 Problèmes de Cache et Mises à Jour
-
-### Pourquoi certains utilisateurs ne voient pas les mises à jour ?
-
-Les navigateurs mettent en cache les fichiers pour accélérer le chargement. Cela peut empêcher de voir les dernières modifications.
-
-### ✅ Solutions pour les utilisateurs
-
-#### Méthode 1 : Rafraîchissement forcé (Recommandé)
-
-**Sur ordinateur :**
-- **Windows/Linux** : `Ctrl + Shift + R` ou `Ctrl + F5`
-- **Mac** : `Cmd + Shift + R`
-
-**Sur mobile :**
-- **iOS Safari** : 
-  1. Paramètres > Safari > Avancé > Données de sites web
-  2. Supprimer les données du site
-  3. Recharger la page
-- **Android Chrome** :
-  1. Menu (3 points) > Paramètres > Confidentialité
-  2. Effacer les données de navigation > Images et fichiers en cache
-  3. Recharger la page
-
-#### Méthode 2 : Mode navigation privée
-
-Ouvrir le lien dans une fenêtre de navigation privée/incognito pour tester sans cache.
-
-#### Méthode 3 : Vider le cache complet
-
-**Chrome/Edge :**
-1. `Ctrl + Shift + Suppr` (Windows) ou `Cmd + Shift + Suppr` (Mac)
-2. Sélectionner "Images et fichiers en cache"
-3. Cliquer sur "Effacer les données"
-
-**Firefox :**
-1. `Ctrl + Shift + Suppr` (Windows) ou `Cmd + Shift + Suppr` (Mac)
-2. Sélectionner "Cache"
-3. Cliquer sur "Effacer maintenant"
-
-### 🔗 Partage du lien
-
-#### Problème : Lien non cliquable
-
-Si les utilisateurs doivent copier-coller le lien manuellement, c'est probablement dû au format de l'email.
-
-**✅ Solution : Format HTML dans les emails**
-
-Assurez-vous que l'email contient un lien HTML cliquable :
-
-```html
-<a href="https://votre-site.netlify.app/index.html?token=votre_token">Accéder au rapport</a>
-```
-
-Plutôt qu'un simple texte :
-```
-https://votre-site.netlify.app/index.html?token=votre_token
-```
-
-#### Bonnes pratiques de partage
-
-1. **Utiliser un raccourcisseur d'URL** (optionnel) :
-   - [bit.ly](https://bit.ly)
-   - [tinyurl.com](https://tinyurl.com)
-   - Attention : Le token doit rester dans l'URL finale
-
-2. **Envoyer par email avec lien cliquable** :
-   - Gmail, Outlook : Le lien devient automatiquement cliquable
-   - WhatsApp, SMS : Copier-coller l'URL complète
-
-3. **Tester le lien avant de le partager** :
-   - Ouvrir en navigation privée
-   - Vérifier que le token fonctionne
-
-### 🔧 Pour les administrateurs
-
-#### Configuration anti-cache appliquée
-
-Le projet est configuré pour minimiser les problèmes de cache :
-
-1. **Meta tags HTML** :
-   ```html
-   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-   <meta http-equiv="Pragma" content="no-cache">
-   <meta http-equiv="Expires" content="0">
-   ```
-
-2. **Headers Netlify** (dans `netlify.toml`) :
-   - HTML : Pas de cache
-   - JavaScript : Cache de 60 secondes maximum
-   - CSS : Cache de 5 minutes
-
-3. **Fichier `_headers`** (prioritaire) :
-   - Configuration spécifique par type de fichier
-   - Headers de sécurité
-
-#### Après un déploiement
-
-1. **Tester immédiatement** en navigation privée
-2. **Prévenir les utilisateurs** qu'une mise à jour est disponible
-3. **Leur demander de rafraîchir** avec `Ctrl + Shift + R`
-
-#### Versioning (optionnel)
-
-Pour forcer le rechargement, vous pouvez ajouter un paramètre de version :
-
-```html
-<script src="app.js?v=2.1.0"></script>
-```
-
-Incrémenter `v=` à chaque mise à jour importante.
 
 ---
 
-## Remarques importantes
+## Utilisation (vue générale)
 
-- ⚠️ **Pas de sauvegarde automatique** : Les données sont perdues si vous fermez la page. Pensez à imprimer ou exporter en PDF avant de fermer.
-- 💡 **Navigateur moderne requis** : Fonctionne avec Chrome, Firefox, Edge, Safari (versions récentes)
-- 📱 **Responsive** : Fonctionne sur ordinateur, tablette et mobile (iOS 9+, Android 4.4+)
-- 🚀 **Optimisé mobile** : Zoom automatique désactivé, zones tactiles optimisées, performance améliorée
-- 🔄 **Cache optimisé** : Configuration anti-cache pour garantir les mises à jour
+### 1. Paramétrage de la semaine
 
-## Support
+- **Sélectionner la semaine** via le sélecteur en haut de l’écran.
+- **Choisir le conducteur** de la semaine.
+- **Ajouter les ouvriers** nécessaires.
 
-Pour toute question ou problème, vérifiez que :
-- Vous utilisez un navigateur moderne et à jour
-- JavaScript est activé dans votre navigateur
-- Vous avez une connexion internet (pour charger TailwindCSS et Lucide icons)
+### 2. Saisie des heures et des chantiers
+
+Pour chaque ouvrier :
+
+- Renseigner le ou les chantiers.
+- Adapter les heures par jour si nécessaire.
+- Gérer le **panier** (standard, grand déplacement ou valeurs personnalisées par jour).
+- Vérifier les **totaux automatiques**.
+
+### 3. Export / impression
+
+- Cliquer sur le bouton dédié à l’**impression / PDF**.
+- Dans la boîte de dialogue du navigateur, choisir "Imprimer" ou "Enregistrer en PDF".
+
+### 4. Envoi par email
+
+- Configurer les variables d’environnement liées à l’email dans `.env` (voir `.env.example`).
+- Démarrer le serveur (`npm start`).
+- Utiliser le bouton d’envoi par email dans l’interface.
+
+Les paramètres exacts (adresse d’expéditeur, destinataires, serveur SMTP…) sont **propres à votre organisation** et ne doivent jamais être commit dans le dépôt.
+
+---
+
+## Personnalisation des données
+
+### Ouvriers et chantiers
+
+- Les données réelles (noms, chantiers) doivent être stockées dans un fichier **non versionné**, par exemple `workers-data.js`, ignoré par Git.
+- Un fichier modèle (par exemple `workers-data.template.js`) peut fournir une structure avec des **noms fictifs**.
+
+Principe recommandé :
+
+- Commiter uniquement le **template** avec des exemples génériques.
+- Ajouter le fichier réel (`workers-data.js`) dans `.gitignore` pour éviter toute fuite de données personnelles.
+
+### Paramètres métiers
+
+- Heures par défaut, règles de calcul, libellés… peuvent être adaptés dans les fichiers JavaScript de l’application (`app.js`, etc.).
+
+---
+
+## Sécurité et bonnes pratiques
+
+- **Ne jamais commiter** :
+  - Fichiers `.env`.
+  - Mots de passe, tokens, clés API.
+  - Données personnelles réelles (noms d’ouvriers, chantiers sensibles…).
+
+- Utiliser toujours :
+  - Un fichier `.env.example` avec des **valeurs factices**.
+  - Un `.gitignore` qui exclut `.env`, fichiers de données réelles, etc.
+
+- Si vous devez protéger l’accès à la page (paramètre `token` dans l’URL, etc.) :
+  - Conservez la **valeur réelle** du token dans vos variables d’environnement ou votre configuration interne.
+  - Ne mettez dans le code et dans le README que des **placeholders** du type `VOTRE_TOKEN_ICI`.
+
+En cas de doute, considérez que **tout ce qui est dans ce dépôt est public** et ne doit contenir aucune information sensible.
+
+---
+
+## Dépannage rapide
+
+- La page ne se charge pas correctement :
+  - Vérifier que votre navigateur est à jour.
+  - Vérifier que JavaScript est activé.
+
+- L’envoi d’email ne fonctionne pas :
+  - Vérifier la configuration de `.env` (sans la partager publiquement).
+  - Vérifier les logs du serveur Node.js.
+  - Tester les identifiants SMTP en dehors de l’application si nécessaire.
+
+---
 
 ## Licence
 
-Libre d'utilisation pour un usage personnel ou professionnel.
+Ce projet peut être utilisé et adapté pour un usage personnel ou professionnel. Vérifiez les conditions internes de votre entreprise avant une utilisation en production.
+
