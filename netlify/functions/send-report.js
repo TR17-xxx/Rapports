@@ -456,7 +456,9 @@ async function generatePDF(reportData, weekInfo) {
                 doc.setFontSize(9);
                 doc.setFont(undefined, 'italic');
                 const lines = doc.splitTextToSize(worker.observation, boxWidth - 8);
-                doc.text(lines, boxX + 4, finalY + 7);
+                // Centrer le texte des observations comme dans la version native
+                const textX = boxX + (boxWidth / 2);
+                doc.text(lines, textX, finalY + 7, { align: 'center' });
             }
             
             // Pied de page

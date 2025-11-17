@@ -1991,14 +1991,27 @@ function hideDayMentionModal() {
 }
 
 // Calculer le total d'un chantier
-function calculateSiteTotal(site) {
-    return Object.values(site.hours).reduce((sum, h) => sum + h, 0);
+function calculateSiteTotal(site, dayMentions = null) {
+    if (!dayMentions) {
+        return Object.values(site.hours).reduce((sum, h) => sum + h, 0);
+    }
+    
+    // Si des mentions de jours existent, ne pas compter les heures des jours avec mention
+    let total = 0;
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    days.forEach(day => {
+        if (!dayMentions[day]) {
+            total += site.hours[day] || 0;
+        }
+    });
+    return total;
 }
 
 // Calculer le total d'un ouvrier
 function calculateWorkerTotal(workerId) {
     if (!state.data[workerId]) return 0;
-    return state.data[workerId].sites.reduce((sum, site) => sum + calculateSiteTotal(site), 0);
+    const dayMentions = state.data[workerId].dayMentions || createEmptyDayMentions();
+    return state.data[workerId].sites.reduce((sum, site) => sum + calculateSiteTotal(site, dayMentions), 0);
 }
 
 // Calculer le total général
@@ -2012,12 +2025,13 @@ function calculateSiteTotals() {
     
     state.activeWorkers.forEach(worker => {
         if (state.data[worker.id]) {
+            const dayMentions = state.data[worker.id].dayMentions || createEmptyDayMentions();
             state.data[worker.id].sites.forEach(site => {
                 if (site.siteName.trim()) {
                     if (!siteTotals[site.siteName]) {
                         siteTotals[site.siteName] = 0;
                     }
-                    siteTotals[site.siteName] += calculateSiteTotal(site);
+                    siteTotals[site.siteName] += calculateSiteTotal(site, dayMentions);
                 }
             });
         }
@@ -2216,6 +2230,7 @@ function createWorkerCard(worker) {
     const isInterim = workerData.isInterim !== false; // Par défaut true
     const panierMode = workerData.panierMode || 'panier';
     const panierCustom = workerData.panierCustom || createEmptyPanierCustom();
+    const dayMentions = workerData.dayMentions || createEmptyDayMentions();
     
     const card = document.createElement('div');
     card.className = 'bg-white rounded-lg shadow-md p-6';
@@ -2244,7 +2259,7 @@ function createWorkerCard(worker) {
     
     // Afficher chaque chantier
     workerData.sites.forEach((site, siteIndex) => {
-        const siteTotal = calculateSiteTotal(site);
+        const siteTotal = calculateSiteTotal(site, dayMentions);
         
         html += `
             <div class="mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200 site-card">
@@ -2942,7 +2957,7 @@ function generatePrintSheet() {
         
         // Ajouter les chantiers de l'ouvrier
         workerData.sites.forEach(site => {
-            const siteTotal = calculateSiteTotal(site);
+            const siteTotal = calculateSiteTotal(site, dayMentions);
             const siteName = site.siteName || '';
             
             html += `
@@ -3152,8 +3167,9 @@ function showConfirmSendModal() {
     state.activeWorkers.forEach(worker => {
         const workerData = state.data[worker.id];
         if (workerData && workerData.sites) {
+            const dayMentions = workerData.dayMentions || createEmptyDayMentions();
             workerData.sites.forEach(site => {
-                totalHours += calculateSiteTotal(site);
+                totalHours += calculateSiteTotal(site, dayMentions);
             });
         }
     });
