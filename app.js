@@ -127,7 +127,9 @@ let state = {
     dataLoaded: false, // Indicateur de chargement des données
     lastEmailSentAt: null, // Timestamp du dernier envoi de rapport
     isEditingMileage: false, // Protection contre les re-renders pendant la saisie du kilométrage
-    seasonMode: 'summer' // Mode 'summer' (7.5h) ou 'winter' (7h)
+    seasonMode: 'summer', // Mode 'summer' (7.5h) ou 'winter' (7h)
+    expandedWorkers: [], // Liste des IDs des ouvriers dont la carte est dépliée
+    driverSectionExpanded: false // État déplié/replié de la section conducteur
 };
 
 // Clé pour le localStorage
@@ -176,8 +178,11 @@ function saveState() {
                 activeWorkers: state.activeWorkers,
                 data: state.data,
                 drivers: state.drivers,
+                foremanId: state.foremanId,
                 isPrevisionnel: state.isPrevisionnel,
                 vehicleUsage: state.vehicleUsage,
+                expandedWorkers: state.expandedWorkers,
+                driverSectionExpanded: state.driverSectionExpanded,
                 savedAt: now.toISOString(),
                 expiryDate: expiry.toISOString()
             };
@@ -330,6 +335,14 @@ function loadWeekState(weekNumber) {
             };
         }
 
+        // Charger le chef de chantier spécifique à la semaine
+        if (parsedData.foremanId !== undefined) {
+            state.foremanId = parsedData.foremanId;
+        } else {
+            // Si pas de chef défini pour cette semaine, on réinitialise
+            state.foremanId = null;
+        }
+
         if (parsedData.isPrevisionnel !== undefined) {
             state.isPrevisionnel = parsedData.isPrevisionnel;
         } else {
@@ -340,6 +353,18 @@ function loadWeekState(weekNumber) {
             state.vehicleUsage = normalizeVehicleUsage(parsedData.vehicleUsage);
         } else {
             state.vehicleUsage = createEmptyVehicleUsage();
+        }
+
+        if (parsedData.expandedWorkers) {
+            state.expandedWorkers = parsedData.expandedWorkers;
+        } else {
+            state.expandedWorkers = [];
+        }
+
+        if (parsedData.driverSectionExpanded !== undefined) {
+            state.driverSectionExpanded = parsedData.driverSectionExpanded;
+        } else {
+            state.driverSectionExpanded = false;
         }
 
         if (parsedData.weekStart) {
@@ -2093,7 +2118,9 @@ function calculateSiteTotals() {
 
 // Rendre tout
 function renderAll() {
+    updateForemanDisplay();
     renderDriverSelection();
+    updateDriverSectionUI();
     renderWorkerCards();
     calculateAndRenderTotals();
 }
@@ -2274,6 +2301,39 @@ function renderWorkerCards() {
     setTimeout(() => lucide.createIcons(), 0);
 }
 
+// Basculer l'affichage de la carte d'un ouvrier
+function toggleWorkerCard(workerId) {
+    const content = document.getElementById(`worker-content-${workerId}`);
+    const chevron = document.getElementById(`chevron-${workerId}`);
+    const header = document.getElementById(`worker-header-${workerId}`);
+    
+    if (content && chevron) {
+        const isHidden = content.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Ouvrir
+            content.classList.remove('hidden');
+            chevron.classList.add('rotate-90');
+            if (header) header.classList.add('bg-gray-50', 'border-gray-200');
+            
+            // Ajouter à la liste des ouverts
+            if (!state.expandedWorkers.includes(workerId)) {
+                state.expandedWorkers.push(workerId);
+            }
+        } else {
+            // Fermer
+            content.classList.add('hidden');
+            chevron.classList.remove('rotate-90');
+            if (header) header.classList.remove('bg-gray-50', 'border-gray-200');
+            
+            // Retirer de la liste des ouverts
+            state.expandedWorkers = state.expandedWorkers.filter(id => id !== workerId);
+        }
+        
+        saveState();
+    }
+}
+
 // Créer une carte d'ouvrier
 function createWorkerCard(worker) {
     const workerData = state.data[worker.id] || { sites: [createEmptySite()], observation: '', isInterim: true, panierMode: 'panier', panierCustom: createEmptyPanierCustom(), dayMentions: createEmptyDayMentions() };
@@ -2283,22 +2343,33 @@ function createWorkerCard(worker) {
     const panierCustom = workerData.panierCustom || createEmptyPanierCustom();
     const dayMentions = workerData.dayMentions || createEmptyDayMentions();
     
-    const card = document.createElement('div');
-    card.className = 'bg-white rounded-lg shadow-md p-6';
+    // Vérifier si la carte doit être ouverte
+    const isExpanded = state.expandedWorkers && state.expandedWorkers.includes(worker.id);
     
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-lg shadow-md overflow-hidden transition-all duration-200';
+    
+    // En-tête (Barre visible et cliquable)
     let html = `
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-bold text-gray-800 flex items-center space-x-2">
-                <span>${worker.lastName} ${worker.firstName}</span>
-                ${isForeman ? '<span class="ml-2 px-3 py-1 bg-green-600 text-white text-sm rounded-full">Chef de chantier</span>' : ''}
-                ${isInterim ? '<span class="ml-2 px-3 py-1 bg-orange-500 text-white text-sm rounded-full">Intérimaire</span>' : ''}
-            </h3>
+        <div 
+            id="worker-header-${worker.id}"
+            onclick="toggleWorkerCard(${worker.id})" 
+            class="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 border-b border-transparent transition-colors duration-200 ${isExpanded ? 'bg-gray-50 border-gray-200' : ''}"
+        >
+            <div class="flex items-center space-x-3">
+                <i id="chevron-${worker.id}" data-lucide="chevron-right" class="text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}" style="width: 24px; height: 24px;"></i>
+                <h3 class="text-xl font-bold text-gray-800 flex items-center space-x-2">
+                    <span>${worker.lastName} ${worker.firstName}</span>
+                    ${isForeman ? '<span class="ml-2 px-3 py-1 bg-green-600 text-white text-sm rounded-full">Chef de chantier</span>' : ''}
+                    ${isInterim ? '<span class="ml-2 px-3 py-1 bg-orange-500 text-white text-sm rounded-full">Intérimaire</span>' : ''}
+                </h3>
+            </div>
             <div class="flex items-center space-x-3">
                 <div class="text-lg font-semibold text-blue-600">
                     Total: <span id="workerTotal-${worker.id}">${calculateWorkerTotal(worker.id).toFixed(1)}h</span>
                 </div>
                 <button 
-                    onclick="removeWorkerFromActive(${worker.id})"
+                    onclick="event.stopPropagation(); removeWorkerFromActive(${worker.id})"
                     class="no-print p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                     title="Retirer cet ouvrier du rapport"
                 >
@@ -2306,6 +2377,9 @@ function createWorkerCard(worker) {
                 </button>
             </div>
         </div>
+        
+        <!-- Contenu détaillé (Repliable) -->
+        <div id="worker-content-${worker.id}" class="${isExpanded ? '' : 'hidden'} p-6 pt-2 border-t border-gray-100">
     `;
     
     // Afficher chaque chantier
@@ -2469,6 +2543,8 @@ function createWorkerCard(worker) {
             >${workerData.observation || ''}</textarea>
         </div>
     `;
+    
+    html += '</div>'; // Fermeture du contenu repliable
     
     card.innerHTML = html;
     return card;
@@ -3516,5 +3592,28 @@ function updateSeasonModeUI() {
     } else {
         winterBtn.classList.add(...activeClasses);
         summerBtn.classList.add(...inactiveClasses);
+    }
+}
+
+// Basculer l'affichage de la section conducteur
+function toggleDriverSection() {
+    state.driverSectionExpanded = !state.driverSectionExpanded;
+    updateDriverSectionUI();
+    saveState();
+}
+
+// Mettre à jour l'UI de la section conducteur selon l'état
+function updateDriverSectionUI() {
+    const content = document.getElementById('driverSelectionContent');
+    const chevron = document.getElementById('driverChevron');
+    
+    if (!content || !chevron) return;
+    
+    if (state.driverSectionExpanded) {
+        content.classList.remove('hidden');
+        chevron.classList.add('rotate-90');
+    } else {
+        content.classList.add('hidden');
+        chevron.classList.remove('rotate-90');
     }
 }

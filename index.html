@@ -1096,14 +1096,16 @@
                     <button id="winterTimeBtn" onclick="setSeasonMode('winter')" class="px-3 py-1.5 rounded-md text-sm font-medium transition hover:bg-white hover:shadow-sm" title="Heure d'hiver : Journées initialisées à 7h">
                         ❄️ Hiver (7h)
                     </button>
-                </div>
             </div>
-            <div class="mt-4">
-                <button onclick="showAddWorkerModal()" class="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
-                    <i data-lucide="user-plus" style="width: 20px; height: 20px;"></i>
-                    <span>Ajouter un ouvrier</span>
-                </button>
-            </div>
+        </div>
+
+        <!-- Bouton Ajouter un ouvrier (Sticky) -->
+        <div class="mb-6 sticky top-2 z-40 no-print pointer-events-none">
+            <!-- pointer-events-auto sur le bouton pour qu'il soit cliquable, mais que le container laisse passer les clics ailleurs si besoin -->
+            <button onclick="showAddWorkerModal()" class="pointer-events-auto flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-lg ring-2 ring-white/50 backdrop-blur-sm">
+                <i data-lucide="user-plus" style="width: 20px; height: 20px;"></i>
+                <span>Ajouter un ouvrier</span>
+            </button>
         </div>
 
         <!-- Informations pour l'impression -->
@@ -1116,13 +1118,18 @@
         </div>
 
         <!-- Sélection du conducteur par jour -->
-        <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg shadow-lg p-6 mb-6 border-2 border-orange-300">
-            <h2 class="text-xl font-bold text-orange-800 mb-4 flex items-center space-x-2">
-                <i data-lucide="car" class="text-orange-600" style="width: 24px; height: 24px;"></i>
-                <span>Conducteur de la semaine</span>
-            </h2>
-            <div id="driverSelectionRow" class="grid grid-cols-5 gap-4">
-                <!-- Les sélecteurs de conducteur seront générés ici -->
+        <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg shadow-lg mb-6 border-2 border-orange-300 overflow-hidden">
+            <div onclick="toggleDriverSection()" class="p-6 flex items-center justify-between cursor-pointer hover:bg-orange-100/50 transition select-none">
+                <h2 class="text-xl font-bold text-orange-800 flex items-center space-x-2">
+                    <i data-lucide="car" class="text-orange-600" style="width: 24px; height: 24px;"></i>
+                    <span>Conducteur de la semaine</span>
+                </h2>
+                <i id="driverChevron" data-lucide="chevron-right" class="text-orange-800 transition-transform duration-300" style="width: 24px; height: 24px;"></i>
+            </div>
+            <div id="driverSelectionContent" class="hidden px-6 pb-6 border-t border-orange-200/50">
+                <div id="driverSelectionRow" class="grid grid-cols-5 gap-4 mt-4">
+                    <!-- Les sélecteurs de conducteur seront générés ici -->
+                </div>
             </div>
         </div>
 
