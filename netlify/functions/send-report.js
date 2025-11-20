@@ -190,6 +190,14 @@ exports.handler = async (event, context) => {
     }
 };
 
+// Fonction utilitaire pour parser les heures (gère les virgules et les strings)
+function parseHour(value) {
+    if (value === null || value === undefined || value === '') return 0;
+    const stringValue = String(value).replace(',', '.');
+    const numberValue = parseFloat(stringValue);
+    return isNaN(numberValue) ? 0 : numberValue;
+}
+
 // Fonction pour générer le PDF avec jsPDF
 async function generatePDF(reportData, weekInfo) {
     try {
@@ -222,25 +230,8 @@ async function generatePDF(reportData, weekInfo) {
             doc.text(worker.name || '', 170, 20, { maxWidth: 35 });
             doc.setFont(undefined, 'normal');
 
-            // Ajouter le filigrane PRÉVISIONNEL si activé
-            if (isPrevisionnel) {
-                doc.setFontSize(80);
-                doc.setFont(undefined, 'bold');
-                doc.setTextColor(255, 0, 0);
-                if (doc.GState) {
-                    doc.saveGraphicsState();
-                    doc.setGState(new doc.GState({ opacity: 0.15 }));
-                }
-                doc.text('PRÉVISIONNEL', 105, 150, {
-                    align: 'center',
-                    angle: 45,
-                    baseline: 'middle'
-                });
-                if (doc.GState) {
-                    doc.restoreGraphicsState();
-                }
-                doc.setTextColor(0, 0, 0);
-            }
+            // Ajouter le filigrane PRÉVISIONNEL si activé (DÉPLACÉ APRÈS LE TABLEAU)
+
             
             // Mentions par jour (Férié, CP, etc.)
             const dayMentions = worker.dayMentions || {
@@ -255,13 +246,18 @@ async function generatePDF(reportData, weekInfo) {
             const tableData = [];
             
             // Ajouter les chantiers en tenant compte des mentions de jour
-            worker.sites.forEach(site => {
+            const validSites = (worker.sites || []).filter(site => site.name && site.name.trim() !== '');
+
+            validSites.forEach(site => {
+                // Sécuriser l'objet hours
+                site.hours = site.hours || {};
+
                 // Calculer le total en tenant compte des mentions (si mention, on ne compte pas les heures)
                 let total = 0;
                 const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
                 days.forEach(day => {
                     if (!dayMentions[day]) {
-                        total += site.hours[day] || 0;
+                        total += parseHour(site.hours[day]);
                     }
                 });
                 
@@ -278,19 +274,20 @@ async function generatePDF(reportData, weekInfo) {
             });
             
             // Lignes vides pour remplir (minimum 5 lignes de chantiers)
-            const emptyRows = Math.max(0, 5 - worker.sites.length);
+            const emptyRows = Math.max(0, 5 - validSites.length);
             for (let i = 0; i < emptyRows; i++) {
                 tableData.push(['', '', '', '', '', '', '', '']);
             }
             
             // Calculer les totaux des heures (sans compter les jours avec mention)
             let mondayTotal = 0, tuesdayTotal = 0, wednesdayTotal = 0, thursdayTotal = 0, fridayTotal = 0;
-            worker.sites.forEach(site => {
-                if (!dayMentions.monday) mondayTotal += site.hours.monday || 0;
-                if (!dayMentions.tuesday) tuesdayTotal += site.hours.tuesday || 0;
-                if (!dayMentions.wednesday) wednesdayTotal += site.hours.wednesday || 0;
-                if (!dayMentions.thursday) thursdayTotal += site.hours.thursday || 0;
-                if (!dayMentions.friday) fridayTotal += site.hours.friday || 0;
+            validSites.forEach(site => {
+                site.hours = site.hours || {};
+                if (!dayMentions.monday) mondayTotal += parseHour(site.hours.monday);
+                if (!dayMentions.tuesday) tuesdayTotal += parseHour(site.hours.tuesday);
+                if (!dayMentions.wednesday) wednesdayTotal += parseHour(site.hours.wednesday);
+                if (!dayMentions.thursday) thursdayTotal += parseHour(site.hours.thursday);
+                if (!dayMentions.friday) fridayTotal += parseHour(site.hours.friday);
             });
             const grandTotal = mondayTotal + tuesdayTotal + wednesdayTotal + thursdayTotal + fridayTotal;
             
@@ -315,8 +312,9 @@ async function generatePDF(reportData, weekInfo) {
                     return false;
                 }
                 let totalHours = 0;
-                worker.sites.forEach(site => {
-                    totalHours += site.hours[day] || 0;
+                validSites.forEach(site => {
+                    site.hours = site.hours || {};
+                    totalHours += parseHour(site.hours[day]);
                 });
                 return totalHours > 0;
             });
@@ -423,6 +421,26 @@ async function generatePDF(reportData, weekInfo) {
                 }
             });
             
+            // Ajouter le filigrane PRÉVISIONNEL si activé (placé APRÈS le tableau pour être au-dessus)
+            if (isPrevisionnel) {
+                doc.setFontSize(80);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(255, 0, 0);
+                if (doc.GState) {
+                    doc.saveGraphicsState();
+                    doc.setGState(new doc.GState({ opacity: 0.15 }));
+                }
+                doc.text('PRÉVISIONNEL', 105, 150, {
+                    align: 'center',
+                    angle: 45,
+                    baseline: 'middle'
+                });
+                if (doc.GState) {
+                    doc.restoreGraphicsState();
+                }
+                doc.setTextColor(0, 0, 0);
+            }
+
             // Observations
             const finalY = doc.lastAutoTable.finalY + 10;
             

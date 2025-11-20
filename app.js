@@ -126,7 +126,8 @@ let state = {
     currentDayMention: null, // Pour stocker le contexte de sélection de mention de jour
     dataLoaded: false, // Indicateur de chargement des données
     lastEmailSentAt: null, // Timestamp du dernier envoi de rapport
-    isEditingMileage: false // Protection contre les re-renders pendant la saisie du kilométrage
+    isEditingMileage: false, // Protection contre les re-renders pendant la saisie du kilométrage
+    seasonMode: 'summer' // Mode 'summer' (7.5h) ou 'winter' (7h)
 };
 
 // Clé pour le localStorage
@@ -134,6 +135,9 @@ const STORAGE_KEY = 'rapport_hebdomadaire_state';
 const WEEKLY_STORAGE_KEY_PREFIX = 'rapport_hebdomadaire_weekly_state_';
 const STORAGE_EXPIRY_DAYS = 8;
 const EMAIL_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
+
+// VERSION DE L'APPLICATION
+const APP_VERSION = '1.1.0';
 
 // Obtenir la clé de stockage pour une semaine donnée
 function getWeeklyStorageKey(weekNumber) {
@@ -149,12 +153,14 @@ function saveState() {
 
         // État global (ouvr iers / chantiers perso, chef, compteur IDs, dernier envoi)
         const globalStateToSave = {
+            version: APP_VERSION,
             nextWorkerId: state.nextWorkerId,
             customWorkers: state.customWorkers,
             customSites: state.customSites,
             foremanId: state.foremanId,
             lastEmailSentAt: state.lastEmailSentAt ? new Date(state.lastEmailSentAt).toISOString() : null,
             lastWeekNumber: state.weekNumber || null,
+            seasonMode: state.seasonMode,
             savedAt: now.toISOString(),
             expiryDate: expiry.toISOString()
         };
@@ -198,6 +204,16 @@ function loadState() {
 
         const parsedData = JSON.parse(savedData);
 
+        // GESTION DE LA MIGRATION DE VERSION
+        const savedVersion = parsedData.version || '1.0.0';
+        if (savedVersion !== APP_VERSION) {
+            console.log(`Migration de version : ${savedVersion} -> ${APP_VERSION}`);
+            // Initialiser seasonMode si manquant (migration vers 1.1.0)
+            if (!parsedData.seasonMode) {
+                state.seasonMode = 'summer';
+            }
+        }
+
         // Vérifier l'expiration du global
         const expiryDate = new Date(parsedData.expiryDate);
         const now = new Date();
@@ -236,6 +252,10 @@ function loadState() {
         }
         if (parsedData.lastEmailSentAt) {
             state.lastEmailSentAt = new Date(parsedData.lastEmailSentAt).getTime();
+        }
+        
+        if (parsedData.seasonMode) {
+            state.seasonMode = parsedData.seasonMode;
         }
 
         // Si une dernière semaine utilisée est connue, la charger
@@ -641,6 +661,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             icon.style.color = '#dc2626'; // red-600
             lucide.createIcons();
         }
+    }
+
+    // Initialiser l'interface du mode saisonnier
+    updateSeasonModeUI();
+
+    // Afficher la version de l'application
+    const versionDisplay = document.getElementById('appVersionDisplay');
+    if (versionDisplay) {
+        versionDisplay.textContent = `v${APP_VERSION}`;
     }
     
     // Finaliser l'animation de frappe du texte sous le logo
@@ -1915,6 +1944,15 @@ function updateHours(workerId, siteIndex, day, hours) {
             setTimeout(() => lucide.createIcons(), 0);
         }
         
+        // Mettre à jour l'affichage du total du chantier spécifique
+        const siteTotalElement = document.getElementById(`siteTotal-${workerId}-${siteIndex}`);
+        if (siteTotalElement) {
+            const site = state.data[workerId].sites[siteIndex];
+            const dayMentions = state.data[workerId].dayMentions;
+            const newTotal = calculateSiteTotal(site, dayMentions);
+            siteTotalElement.textContent = `${newTotal.toFixed(1)}h`;
+        }
+        
         calculateAndRenderTotals();
         // Sauvegarder l'état
         saveState();
@@ -1953,6 +1991,9 @@ function updateDayMention(workerId, siteIndex, day, mention) {
     }
     
     renderAll();
+    // Pas besoin de mise à jour manuelle du total ici car renderAll() re-crée tout le DOM
+    // y compris les totaux corrects calculés dans createWorkerCard
+    
     setTimeout(() => lucide.createIcons(), 0);
     saveState();
 }
@@ -1961,6 +2002,16 @@ function updateDayMention(workerId, siteIndex, day, mention) {
 function clearDayMention(workerId, siteIndex, day) {
     if (state.data[workerId] && state.data[workerId].dayMentions) {
         state.data[workerId].dayMentions[day] = '';
+        
+        // Si on retire une mention, on remet l'heure par défaut selon la saison
+        // Sauf si c'était un chantier secondaire (souvent à 0)
+        // Pour l'instant on laisse à 0 ou on pourrait remettre la valeur par défaut ?
+        // Comportement actuel : l'utilisateur devra remettre l'heure manuellement si besoin.
+        // Ou alors on peut remettre la valeur par défaut si c'est le premier chantier :
+        if (siteIndex === 0 && state.data[workerId].sites[siteIndex].hours[day] === 0) {
+             state.data[workerId].sites[siteIndex].hours[day] = state.seasonMode === 'winter' ? 7 : 7.5;
+        }
+
         renderAll();
         setTimeout(() => lucide.createIcons(), 0);
         saveState();
@@ -2337,7 +2388,7 @@ function createWorkerCard(worker) {
                     }).join('')}
                 </div>
                 <div class="no-print text-right text-sm font-semibold text-gray-700 mt-1">
-                    Total chantier: ${siteTotal.toFixed(1)}h
+                    Total chantier: <span id="siteTotal-${worker.id}-${siteIndex}">${siteTotal.toFixed(1)}h</span>
                 </div>
             </div>
         `;
@@ -3397,5 +3448,73 @@ async function sendReportByEmail(event) {
         } else {
             alert(`❌ Erreur lors de l'envoi du rapport: ${error.message}`);
         }
+    }
+}
+
+// Gérer le changement de mode saisonnier (été/hiver)
+function setSeasonMode(mode) {
+    if (mode !== 'summer' && mode !== 'winter') return;
+    
+    const previousMode = state.seasonMode;
+    if (previousMode === mode) return; // Pas de changement réel
+    
+    state.seasonMode = mode;
+    updateSeasonModeUI();
+    
+    // Mettre à jour les heures existantes dans les chantiers
+    // Hiver -> Été : 7 -> 7.5
+    // Été -> Hiver : 7.5 -> 7
+    const targetValue = mode === 'summer' ? 7.5 : 7;
+    const valueToReplace = mode === 'summer' ? 7 : 7.5;
+    
+    let changesCount = 0;
+    
+    state.activeWorkers.forEach(worker => {
+        if (state.data[worker.id] && state.data[worker.id].sites) {
+            state.data[worker.id].sites.forEach(site => {
+                ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+                    // On ne remplace que si la valeur correspond exactement à l'ancien standard
+                    if (site.hours[day] === valueToReplace) {
+                        site.hours[day] = targetValue;
+                        changesCount++;
+                    }
+                });
+            });
+        }
+    });
+    
+    if (changesCount > 0) {
+        renderAll();
+        console.log(`Mise à jour de ${changesCount} entrées vers ${targetValue}h`);
+    }
+    
+    saveState();
+    
+    // Notification optionnelle
+    console.log(`Mode saisonnier changé pour: ${mode === 'summer' ? 'Été (7.5h)' : 'Hiver (7h)'}`);
+}
+
+// Mettre à jour l'interface des boutons de mode saisonnier
+function updateSeasonModeUI() {
+    const summerBtn = document.getElementById('summerTimeBtn');
+    const winterBtn = document.getElementById('winterTimeBtn');
+    
+    if (!summerBtn || !winterBtn) return;
+    
+    // Classes pour le mode actif
+    const activeClasses = ['bg-white', 'shadow-sm', 'text-gray-800'];
+    // Classes pour le mode inactif
+    const inactiveClasses = ['text-gray-500', 'hover:text-gray-700'];
+    
+    // Reset des classes
+    summerBtn.classList.remove('bg-white', 'shadow-sm', 'text-gray-800', 'text-gray-500', 'hover:text-gray-700');
+    winterBtn.classList.remove('bg-white', 'shadow-sm', 'text-gray-800', 'text-gray-500', 'hover:text-gray-700');
+    
+    if (state.seasonMode === 'summer') {
+        summerBtn.classList.add(...activeClasses);
+        winterBtn.classList.add(...inactiveClasses);
+    } else {
+        winterBtn.classList.add(...activeClasses);
+        summerBtn.classList.add(...inactiveClasses);
     }
 }
