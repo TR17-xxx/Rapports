@@ -1402,6 +1402,28 @@
         </div>
     </div>
 
+    <!-- Modal Succès Envoi -->
+    <div id="successModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                <i data-lucide="check" class="h-6 w-6 text-green-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Rapport envoyé !</h3>
+            <p class="text-gray-600 mb-6">Le rapport a été envoyé avec succès aux destinataires.</p>
+            
+            <div class="space-y-3">
+                <button onclick="downloadPdfDirectly(); hideSuccessModal();" class="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center space-x-2">
+                    <i data-lucide="download" style="width: 20px; height: 20px;"></i>
+                    <span>Télécharger le PDF</span>
+                </button>
+                
+                <button onclick="hideSuccessModal()" class="w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-lg hover:bg-gray-300 transition">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Sélection de mention pour un jour -->
     <div id="dayMentionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
         <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">

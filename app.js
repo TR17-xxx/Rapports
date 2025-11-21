@@ -3336,6 +3336,23 @@ function hideConfirmSendModal() {
     document.getElementById('confirmSendModal').classList.add('hidden');
 }
 
+// Afficher la modal de succès
+function showSuccessModal() {
+    const modal = document.getElementById('successModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        lucide.createIcons();
+    }
+}
+
+// Masquer la modal de succès
+function hideSuccessModal() {
+    const modal = document.getElementById('successModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
 // Confirmer et envoyer le rapport
 async function confirmAndSendReport() {
     // Avertir l'utilisateur si le mode prévisionnel est activé
@@ -3490,20 +3507,9 @@ async function sendReportByEmail(event) {
             state.lastEmailSentAt = Date.now();
             saveState();
 
-            // Proposer le téléchargement du PDF
-            const downloadPdf = confirm(`✅ Rapport envoyé avec succès!\n\nLe rapport a été envoyé aux destinataires configurés.\n\nSouhaitez-vous télécharger le PDF maintenant ?`);
-            
-            console.log('[DEBUG] downloadPdf:', downloadPdf);
-            
-            if (downloadPdf) {
-                console.log('[DEBUG] Appel de downloadPdfDirectly()');
-                // Déclencher le téléchargement direct du PDF
-                try {
-                    await downloadPdfDirectly();
-                } catch (error) {
-                    console.error('[DEBUG] Erreur dans downloadPdfDirectly:', error);
-                }
-            }
+            // Afficher la modal de succès pour proposer le téléchargement
+            showSuccessModal();
+
         } else {
             alert(`❌ Erreur lors de l'envoi: ${result.message}`);
         }
