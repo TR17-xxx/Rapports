@@ -2,71 +2,1754 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Site en Maintenance - Rapports Hebdomadaires</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Meta tags pour forcer le rafraîchissement et éviter le cache -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <title>Rapports Hebdomadaires - Gestion de Chantier</title>
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HYKPSDSJVQ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-HYKPSDSJVQ');
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <style>
-        @keyframes pulse-slow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        /* Styles de base pour l'impression */
+        #printSheet {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 100%;
+            background: white;
         }
-        .animate-pulse-slow {
-            animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        
+        @media print {
+            /* Masquer tout le contenu normal */
+            .no-print,
+            #workersContainer,
+            .bg-white.rounded-lg.shadow-md,
+            .grid.grid-cols-1.lg\:grid-cols-2,
+            #observationsContainer,
+            .bg-gradient-to-r.from-orange-50.to-amber-50 {
+                display: none !important;
+            }
+            
+            /* Afficher uniquement la fiche de pointage */
+            #printSheet {
+                display: block !important;
+                position: static !important;
+                left: auto !important;
+            }
+            
+            body {
+                background: white;
+                margin: 0;
+                padding: 0;
+            }
+            
+            @page {
+                size: A4 portrait;
+                margin: 5mm;
+            }
+            
+            .container {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+            
+            /* Masquer le filigrane HTML lors de l'impression pour éviter le doublon */
+            #previsionnelWatermark,
+            #previsionnelWatermark.active {
+                display: none !important;
+            }
+            
+            /* Style de la fiche de pointage */
+            .print-sheet {
+                width: 100%;
+                border: 2px solid black;
+            }
+            
+            .print-header {
+                display: grid;
+                grid-template-columns: 1fr 2fr 1fr;
+                border-bottom: 2px solid black;
+            }
+            
+            .print-header > div {
+                padding: 8px;
+                border-right: 2px solid black;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+            }
+            
+            .print-header > div:last-child {
+                border-right: none;
+            }
+            
+            .print-header .semaine {
+                font-weight: bold;
+                font-size: 10pt;
+            }
+            
+            .print-header .title {
+                font-weight: bold;
+                font-size: 12pt;
+            }
+            
+            .print-header .dates {
+                font-size: 9pt;
+            }
+            
+            .print-header .nom-label {
+                font-size: 9pt;
+            }
+            
+            .print-header .nom-value {
+                font-weight: bold;
+                font-size: 11pt;
+            }
+            
+            /* Tableau principal */
+            .print-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            
+            .print-table th,
+            .print-table td {
+                border: 1px solid black;
+                padding: 4px 2px;
+                text-align: center;
+                font-size: 9pt;
+            }
+            
+            .print-table th {
+                font-weight: bold;
+                background-color: white;
+            }
+            
+            .print-table .chantier-col {
+                text-align: left;
+                width: 100px;
+                font-size: 8pt;
+            }
+            
+            .print-table .day-col {
+                width: 50px;
+                font-size: 8pt;
+            }
+            
+            .print-table .total-col {
+                width: 50px;
+                font-weight: bold;
+                font-size: 9pt;
+            }
+            
+            .print-table .section-header {
+                background-color: #f0f0f0;
+                font-weight: bold;
+                text-align: left;
+                padding: 4px 8px;
+            }
+            
+            .print-table .total-row {
+                font-weight: bold;
+            }
+            
+            .print-table .total-row .total-value {
+                color: red;
+            }
+            
+            .print-table .empty-row {
+                height: 30px;
+            }
+            
+            /* Section observations */
+            .print-observations {
+                border-top: 2px solid black;
+                padding: 8px;
+                min-height: 100px;
+            }
+            
+            .print-observations-title {
+                font-weight: bold;
+                margin-bottom: 8px;
+                font-size: 10pt;
+            }
+            
+            .print-observations-content {
+                white-space: pre-wrap;
+                font-size: 10pt;
+                font-style: italic;
+                text-align: center;
+            }
+            
+            /* Section signatures */
+            .print-footer {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                border-top: 2px solid black;
+            }
+            
+            .print-footer > div {
+                padding: 8px;
+                border-right: 2px solid black;
+                min-height: 60px;
+            }
+            
+            .print-footer > div:last-child {
+                border-right: none;
+            }
+            
+            .print-footer-label {
+                font-weight: bold;
+                font-size: 9pt;
+                margin-bottom: 4px;
+            }
+            .print-footer-note {
+                text-align: center;
+                font-size: 8pt;
+                margin-top: 4px;
+            }
+            
+            /* Saut de page */
+            .print-break {
+                page-break-before: always;
+            }
+        }
+        
+        /* Style pour l'aperçu dans la modal de confirmation */
+        #confirmPreview .print-sheet {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 3px dashed #d1d5db;
+        }
+        
+        #confirmPreview .print-sheet:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        #confirmPreview .print-break {
+            display: none;
+        }
+        
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            opacity: 1;
+        }
+        
+        #previsionnelWatermark {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 100px;
+            font-weight: bold;
+            color: rgba(255, 0, 0, 0.15);
+            pointer-events: none;
+            z-index: 9999;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 20px;
+        }
+        
+        /* Écran de chargement */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 1;
+            transition: opacity 1s ease-out;
+        }
+        
+        .loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-screen.hidden {
+            display: none;
+        }
+        
+        .loading-content {
+            text-align: center;
+        }
+        
+        @keyframes rapportReveal {
+            from {
+                opacity: 0;
+                transform-origin: top center;
+                transform: perspective(1200px) rotateX(-18deg) translateY(-80px) scaleY(0.85);
+            }
+            to {
+                opacity: 1;
+                transform-origin: top center;
+                transform: perspective(1200px) rotateX(0deg) translateY(0) scaleY(1);
+            }
+        }
+        
+        .rapport-slide-in {
+            transform-origin: top center;
+            animation: rapportReveal 2s cubic-bezier(0.25, 0.85, 0.25, 1) forwards;
+        }
+        
+        .logo-typing {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            font-family: 'Copperplate', 'Copperplate Gothic Light', 'Times New Roman', serif;
+            font-size: 24px;
+            font-weight: 600;
+            color: #4b5563;
+            margin-top: 10px;
+            min-height: 32px;
+        }
+        
+        .typing-text {
+            display: inline-block;
+            overflow: hidden;
+            white-space: nowrap;
+            border-right: 3px solid #6366f1;
+            padding-right: 6px;
+            letter-spacing: 1px;
+            width: 0;
+            animation: typing 2s steps(22, end) forwards, blink 0.7s step-end infinite;
+        }
+        
+        .typing-text.typing-finished {
+            overflow: visible;
+            border-right: none;
+            width: auto;
+            padding-right: 0;
+            animation: none;
+        }
+        
+        @keyframes typing {
+            from {
+                width: 0;
+            }
+            to {
+                width: 22ch;
+            }
+        }
+        
+        @keyframes blink {
+            0%, 100% {
+                border-color: transparent;
+            }
+            50% {
+                border-color: #6366f1;
+            }
+        }
+        
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .loading-logo {
+            max-width: 400px;
+            max-height: 300px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+        
+        .logo-fallback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .logo-letters {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            font-size: 120px;
+            font-weight: bold;
+            color: #20B2AA;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .letter-h,
+        .letter-c {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo-slash {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            width: 4px;
+            height: 180px;
+            background: #20B2AA;
+            z-index: 2;
+        }
+        
+        .logo-box {
+            background: #20B2AA;
+            padding: 12px 30px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        
+        .logo-text {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .logo-subtitle {
+            color: #20B2AA;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            margin-top: 10px;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        /* Animation pour mobile */
+        @media (max-width: 768px) {
+            .logo-letters {
+                font-size: 80px;
+            }
+            
+            .logo-slash {
+                height: 120px;
+            }
+            
+            .logo-text {
+                font-size: 18px;
+            }
+            
+            .logo-subtitle {
+                font-size: 12px;
+            }
+        }
+        
+        /* Optimisation pour smartphone */
+        @media (max-width: 768px) {
+            /* Forcer le rendu matériel pour les éléments animés et scrollables */
+            .bg-white.rounded-lg,
+            button,
+            input,
+            select,
+            textarea,
+            .overflow-x-auto,
+            .overflow-y-auto,
+            #workersContainer > *,
+            .modal-content {
+                -webkit-transform: translateZ(0);
+                -moz-transform: translateZ(0);
+                -ms-transform: translateZ(0);
+                -o-transform: translateZ(0);
+                transform: translateZ(0);
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
+            }
+            
+            body {
+                font-size: 14px;
+                -webkit-text-size-adjust: 100%;
+                -ms-text-size-adjust: 100%;
+                text-size-adjust: 100%;
+            }
+            
+            .container {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+                padding-top: 0.5rem !important;
+                padding-bottom: 0.5rem !important;
+            }
+            
+            /* En-tête plus compact */
+            h1 {
+                font-size: 1.5rem !important;
+            }
+            
+            h2 {
+                font-size: 1.125rem !important;
+            }
+            
+            /* Boutons en-tête empilés */
+            #desktopActions {
+                display: none !important;
+            }
+
+            .flex.items-center.justify-between {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+            
+            .flex.space-x-2 {
+                width: 100%;
+                margin-top: 1rem;
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .flex.space-x-2 button {
+                flex: 1 1 calc(50% - 0.25rem);
+                min-width: calc(50% - 0.25rem);
+                max-width: calc(50% - 0.25rem);
+                justify-content: center;
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                box-sizing: border-box;
+            }
+            
+            /* S'assurer que le bouton prévisionnel est toujours visible */
+            #previsionnelBtn {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                flex: 1 1 calc(50% - 0.25rem) !important;
+                min-width: calc(50% - 0.25rem) !important;
+                max-width: calc(50% - 0.25rem) !important;
+                box-sizing: border-box;
+            }
+            
+            /* Règle spécifique pour l'orientation portrait */
+            @media (max-width: 768px) and (orientation: portrait) {
+                .flex.items-center.justify-between {
+                    width: 100% !important;
+                }
+                
+                .flex.space-x-2 {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    flex-wrap: wrap !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin-left: 0 !important;
+                    margin-right: 0 !important;
+                    padding-left: 0 !important;
+                    padding-right: 0 !important;
+                    gap: 0.5rem !important;
+                }
+                
+                .flex.space-x-2 button {
+                    display: flex !important;
+                    visibility: visible !important;
+                    flex: 1 1 calc(50% - 0.25rem) !important;
+                    min-width: calc(50% - 0.25rem) !important;
+                    max-width: calc(50% - 0.25rem) !important;
+                    width: auto !important;
+                    margin-left: 0 !important;
+                    margin-right: 0 !important;
+                    box-sizing: border-box;
+                }
+                
+                #previsionnelBtn {
+                    display: flex !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    flex: 1 1 calc(50% - 0.25rem) !important;
+                    min-width: calc(50% - 0.25rem) !important;
+                    max-width: calc(50% - 0.25rem) !important;
+                    width: auto !important;
+                    box-sizing: border-box;
+                }
+            }
+            
+            /* Grille configuration semaine en colonne */
+            .grid.grid-cols-1.md\:grid-cols-3 {
+                grid-template-columns: 1fr !important;
+            }
+            
+            /* Cartes ouvriers */
+            .bg-white.rounded-lg {
+                padding: 0.75rem !important;
+                margin-bottom: 0.75rem !important;
+            }
+            
+            /* Nom et rôle de l'ouvrier */
+            .flex.items-center.justify-between.mb-4 {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 0.5rem;
+            }
+            
+            /* Chantiers - Layout optimisé pour mobile */
+            .site-card {
+                padding: 0.5rem !important;
+            }
+            
+            .site-header-wrapper {
+                flex-direction: row !important;
+                align-items: center !important;
+                margin-bottom: 0.5rem !important;
+            }
+            
+            .site-name {
+                flex: 1 !important;
+                padding-top: 0 !important;
+                margin-bottom: 0 !important;
+            }
+            
+            .site-delete-btn {
+                margin-top: 0 !important;
+                flex-shrink: 0;
+            }
+            
+            .site-days-grid {
+                width: 100% !important;
+            }
+            
+            /* Grille des jours plus compacte */
+            .grid.grid-cols-5 {
+                gap: 0.25rem !important;
+            }
+            
+            .grid.grid-cols-5 input {
+                font-size: 0.875rem !important;
+                padding: 0.375rem 0.25rem !important;
+            }
+            
+            .grid.grid-cols-5 label {
+                font-size: 0.75rem !important;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            /* Tous les labels doivent avoir une taille minimum pour éviter le zoom */
+            label {
+                font-size: 14px !important;
+            }
+            
+            /* Inputs et selects plus grands pour mobile */
+            input, select, textarea {
+                font-size: 16px !important; /* Évite le zoom automatique sur iOS */
+                padding: 0.5rem !important;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                border-radius: 0.5rem;
+            }
+            
+            input[type="number"] {
+                font-size: 16px !important; /* Important pour iOS */
+                padding: 0.375rem 0.25rem !important;
+            }
+            
+            /* Améliorer le support tactile */
+            input, select, textarea, button {
+                -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+                tap-highlight-color: rgba(0, 0, 0, 0.1);
+                touch-action: manipulation;
+                -ms-touch-action: manipulation;
+                cursor: pointer;
+            }
+            
+            /* Éviter le délai de 300ms sur les clics (anciens navigateurs) */
+            a, button, input[type="button"], input[type="submit"] {
+                -ms-touch-action: manipulation;
+                touch-action: manipulation;
+            }
+            
+            /* Boutons plus grands et tactiles */
+            button {
+                min-height: 44px; /* Taille minimale recommandée pour le tactile */
+                min-width: 44px; /* Largeur minimale pour zone tactile */
+                padding: 0.625rem 1rem !important;
+                -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+                tap-highlight-color: rgba(0, 0, 0, 0.1);
+                cursor: pointer;
+                /* Améliorer la réactivité sur anciens appareils */
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+            
+            /* Optimiser les zones tactiles */
+            a, button, input, select, textarea {
+                -webkit-touch-callout: none;
+            }
+            
+            /* Icônes légèrement plus grandes */
+            i[data-lucide] {
+                width: 20px !important;
+                height: 20px !important;
+            }
+            
+            /* Tableaux responsive */
+            .overflow-x-auto {
+                -webkit-overflow-scrolling: touch;
+                overflow-x: auto;
+                overflow-y: visible;
+                -ms-overflow-style: -ms-autohiding-scrollbar;
+            }
+            
+            table {
+                font-size: 0.75rem !important;
+                min-width: 100%;
+                width: 100%;
+            }
+            
+            th, td {
+                padding: 0.5rem 0.25rem !important;
+                white-space: nowrap;
+            }
+            
+            /* Permettre le retour à la ligne pour les cellules longues si nécessaire */
+            .overflow-x-auto table th:first-child,
+            .overflow-x-auto table td:first-child {
+                white-space: normal;
+                min-width: 120px;
+            }
+            
+            /* Conducteur de la semaine */
+            #driverSelectionRow {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                -ms-overflow-style: -ms-autohiding-scrollbar;
+            }
+            
+            .grid.grid-cols-6 {
+                min-width: 100%;
+            }
+            
+            /* Modal centré sur mobile et desktop - toujours sur le viewport visible */
+            #addWorkerModal:not(.hidden),
+            #selectForemanModal:not(.hidden),
+            #selectSiteModal:not(.hidden),
+            #confirmSendModal:not(.hidden) {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                display: flex !important;
+                align-items: flex-start !important;
+                justify-content: center !important;
+                padding: 1rem !important;
+                padding-top: 2rem !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                z-index: 9999 !important;
+                overscroll-behavior: contain;
+            }
+            
+            #addWorkerModal > div,
+            #selectForemanModal > div,
+            #selectSiteModal > div,
+            #confirmSendModal > div {
+                max-width: 95% !important;
+                width: 100% !important;
+                margin: auto !important;
+                max-height: calc(90vh - 2rem) !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+                transform: translateZ(0);
+                will-change: scroll-position;
+            }
+            
+            /* Améliorer le fond des modals pour mobile */
+            .fixed.inset-0 {
+                -webkit-backdrop-filter: blur(2px);
+                backdrop-filter: blur(2px);
+            }
+            
+            /* Tabs du modal */
+            .flex.border-b button {
+                flex: 1;
+                font-size: 0.875rem !important;
+            }
+            
+            /* Espacements réduits */
+            .space-y-6 > * + * {
+                margin-top: 0.75rem !important;
+            }
+            
+            .mb-6 {
+                margin-bottom: 0.75rem !important;
+            }
+            
+            .p-6 {
+                padding: 0.75rem !important;
+            }
+            
+            /* Scroll horizontal pour les grilles de jours si nécessaire */
+            .flex-1.grid.grid-cols-5 {
+                min-width: 280px;
+            }
+            
+            /* Améliorer le scroll sur mobile */
+            * {
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Éviter les problèmes de scroll sur iOS */
+            body {
+                -webkit-text-size-adjust: 100%;
+                -ms-text-size-adjust: 100%;
+            }
+            
+            /* Badge rôle */
+            .rounded-full {
+                font-size: 0.75rem !important;
+                padding: 0.25rem 0.625rem !important;
+            }
+            
+            /* Améliorer la lisibilité des totaux */
+            .text-right.text-sm {
+                font-size: 0.875rem !important;
+                font-weight: 600 !important;
+            }
+        }
+        
+        /* Très petits écrans (< 375px) */
+        @media (max-width: 374px) {
+            h1 {
+                font-size: 1.25rem !important;
+            }
+            
+            .grid.grid-cols-5 {
+                grid-template-columns: repeat(5, minmax(50px, 1fr)) !important;
+            }
+            
+            .grid.grid-cols-5 input {
+                font-size: 0.75rem !important;
+                padding: 0.25rem 0.125rem !important;
+            }
+            
+            .grid.grid-cols-5 label {
+                font-size: 0.625rem !important;
+            }
         }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
-    <div class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
-        <div class="bg-orange-500 h-2 w-full"></div>
-        <div class="p-8 md:p-12 text-center">
-            <div class="mb-8 flex justify-center">
-                <div class="bg-orange-100 p-4 rounded-full animate-pulse-slow">
-                    <i data-lucide="hard-hat" class="w-16 h-16 text-orange-600"></i>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Script de vérification d'accès -->
+    <script>
+        (function() {
+            // Token d'accès requis
+            const REQUIRED_TOKEN = 'rapport2024secure';
+            
+            // Récupérer le token depuis l'URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const providedToken = urlParams.get('token');
+            
+            // Vérifier si le token est valide
+            if (providedToken !== REQUIRED_TOKEN) {
+                // Bloquer complètement l'accès et afficher la page de restriction
+                document.documentElement.innerHTML = `
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Accès Restreint - Rapports Hebdomadaires</title>
+                    <style>
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            min-height: 100vh;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            padding: 20px;
+                        }
+                        .container {
+                            background: white;
+                            padding: 48px 40px;
+                            border-radius: 16px;
+                            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                            text-align: center;
+                            max-width: 500px;
+                            width: 100%;
+                            animation: fadeIn 0.5s ease-in;
+                        }
+                        @keyframes fadeIn {
+                            from { opacity: 0; transform: translateY(-20px); }
+                            to { opacity: 1; transform: translateY(0); }
+                        }
+                        .icon {
+                            font-size: 72px;
+                            margin-bottom: 24px;
+                            animation: pulse 2s infinite;
+                        }
+                        @keyframes pulse {
+                            0%, 100% { transform: scale(1); }
+                            50% { transform: scale(1.05); }
+                        }
+                        h1 {
+                            color: #1f2937;
+                            margin-bottom: 16px;
+                            font-size: 32px;
+                            font-weight: 700;
+                        }
+                        .message {
+                            color: #6b7280;
+                            margin-bottom: 32px;
+                            line-height: 1.6;
+                            font-size: 16px;
+                        }
+                        .info-box {
+                            background: #f3f4f6;
+                            padding: 20px;
+                            border-radius: 8px;
+                            border-left: 4px solid #667eea;
+                            text-align: left;
+                        }
+                        .info-box strong {
+                            color: #374151;
+                            display: block;
+                            margin-bottom: 8px;
+                            font-size: 14px;
+                        }
+                        .info-box p {
+                            color: #6b7280;
+                            font-size: 14px;
+                            line-height: 1.5;
+                        }
+                        .footer {
+                            margin-top: 32px;
+                            padding-top: 24px;
+                            border-top: 1px solid #e5e7eb;
+                            color: #9ca3af;
+                            font-size: 13px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="icon">🔒</div>
+                        <h1>Accès Restreint</h1>
+                        <p class="message">
+                            Cette application est protégée par un système d'authentification.<br>
+                            Vous devez disposer d'un lien d'accès valide pour continuer.
+                        </p>
+                        <div class="info-box">
+                            <strong>📧 Comment obtenir l'accès ?</strong>
+                            <p>
+                                Contactez votre administrateur système pour recevoir le lien d'accès sécurisé.
+                                L'accès nécessite un token d'authentification valide dans l'URL.
+                            </p>
+                        </div>
+                        <div class="footer">
+                            Application de Gestion des Rapports Hebdomadaires<br>
+                            &copy; 2024 - Tous droits réservés
+                        </div>
+                    </div>
+                </body>
+                </html>
+                `;
+                // Empêcher toute exécution de script supplémentaire
+                throw new Error('Accès non autorisé');
+            }
+            
+            // Stocker le token pour les requêtes API
+            window.ACCESS_TOKEN = providedToken;
+        })();
+    </script>
+    
+    <!-- 
+        COMPATIBILITÉ MOBILE OPTIMISÉE
+        - iOS 9.0+ et Android 4.4+ supportés
+        - Prévention du zoom automatique sur iOS
+        - Zones tactiles optimisées (44px minimum)
+        - Polyfills pour anciennes versions de navigateurs
+        - Performance optimisée pour appareils mobiles
+    -->
+    
+    <!-- Écran de chargement avec logo -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="logo-container">
+                <img src="HC.png" alt="HORY-CHAUVELIN" class="loading-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" onload="this.nextElementSibling.style.display='none';">
+                <div class="logo-fallback" style="display: none;">
+                    <div class="logo-letters">
+                        <div class="letter-h">H</div>
+                        <div class="logo-slash"></div>
+                        <div class="letter-c">C</div>
+                    </div>
+                    <div class="logo-box">
+                        <span class="logo-text">HORY-CHAUVELIN</span>
+                    </div>
+                    <div class="logo-subtitle">
+                        MAÇONNERIE - TAILLE DE PIERRE - GROS OEUVRE
+                    </div>
+                </div>
+                <div class="logo-typing">
+                    <span class="typing-text">Rapports hebdomadaires</span>
                 </div>
             </div>
-            
-            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
-                Site en Maintenance
-            </h1>
-            
-            <p class="text-lg text-slate-600 mb-8 leading-relaxed">
-                Tony effectue actuellement des mises à jour importantes sur la plateforme de Rapports Hebdomadaires pour améliorer votre expérience.
-            </p>
-            
-            <div class="flex flex-col items-center justify-center space-y-2 mb-8">
-                <div class="flex items-center space-x-2 text-slate-500">
-                    <i data-lucide="clock" class="w-5 h-5"></i>
-                    <span>Retour estimé bientôt (petite heure) </span>
+        </div>
+    </div>
+    
+    <!-- Filigrane Prévisionnel -->
+    <div id="previsionnelWatermark">PRÉVISIONNEL</div>
+    
+    <div class="container mx-auto px-4 py-8 max-w-7xl" id="mainContent" style="display: none;">
+        <!-- Menu Burger Sticky (Comme le bouton Ajouter ouvrier) -->
+        <div class="md:hidden sticky top-2 z-[60] mb-4 pointer-events-none flex justify-start no-print">
+            <button id="mobileStickyBtn" onclick="openMobileMenu()" class="pointer-events-auto p-3 bg-slate-900 text-white rounded-full shadow-xl ring-2 ring-white/50 flex items-center justify-center hover:bg-slate-800 transition-transform active:scale-95">
+                <i data-lucide="menu" style="width: 24px; height: 24px;"></i>
+            </button>
+        </div>
+
+        <!-- En-tête -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center space-x-3">
+                    <i data-lucide="clipboard-list" class="text-blue-600" style="width: 32px; height: 32px;"></i>
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">Rapports Hebdomadaires</h1>
+                        <p class="text-gray-600">Gestion des heures de chantier <span id="appVersionDisplay" class="text-xs bg-gray-200 px-2 py-0.5 rounded-full ml-2"></span></p>
+                    </div>
+                </div>
+                <div id="desktopActions" class="flex space-x-2 no-print">
+                    <button onclick="openHelp()" class="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                        <i data-lucide="help-circle" style="width: 20px; height: 20px;"></i>
+                        <span>Aide</span>
+                    </button>
+                    <button onclick="clearState()" class="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition" title="Effacer les données sauvegardées pour la semaine actuelle">
+                        <i data-lucide="trash-2" style="width: 20px; height: 20px;"></i>
+                        <span>Données</span>
+                    </button>
+                    <button onclick="clearUserCache()" class="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition" title="Vider tout le cache local de l'application (toutes les semaines)">
+                        <i data-lucide="trash" style="width: 20px; height: 20px;"></i>
+                        <span>Cache</span>
+                    </button>
+                    <button onclick="printReport()" class="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i data-lucide="printer" style="width: 20px; height: 20px;"></i>
+                        <span>Imprimer / PDF</span>
+                    </button>
+                    <button onclick="showConfirmSendModal()" class="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition">
+                        <i data-lucide="mail" style="width: 20px; height: 20px;"></i>
+                        <span>Envoyer à Mickaël et Virginie</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration de la semaine -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6 no-print">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                <i data-lucide="calendar" style="width: 24px; height: 24px;"></i>
+                <span>Configuration de la semaine</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Semaine</label>
+                    <input type="week" id="weekSelector" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Période</label>
+                    <div id="weekDisplay" class="px-4 py-2 bg-gray-100 rounded-lg text-gray-700 font-medium h-[42px] flex items-center">-</div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Chef de chantier</label>
+                    <button onclick="showSelectForemanModal()" class="w-full px-4 py-2 border-2 border-orange-300 bg-orange-50 rounded-lg hover:bg-orange-100 focus:ring-2 focus:ring-orange-500 font-semibold text-left text-orange-800 transition">
+                        <span id="foremanDisplay">⚠️ Sélectionner un chef de chantier</span>
+                    </button>
+                </div>
+            </div>
+            <!-- Mode prévisionnel -->
+            <div class="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-4 items-center">
+                <button id="previsionnelBtn" onclick="togglePrevisionnel()" class="flex items-center space-x-2 px-4 py-2 rounded-lg transition font-medium text-sm">
+                    <i id="previsionnelIcon" data-lucide="x" style="width: 18px; height: 18px;"></i>
+                    <span>Mode prévisionnel</span>
+                </button>
+
+                <!-- Sélecteur Heure Été/Hiver -->
+                <div class="flex items-center space-x-1 bg-gray-100 rounded-lg p-1 border border-gray-200">
+                    <button id="summerTimeBtn" onclick="setSeasonMode('summer')" class="px-3 py-1.5 rounded-md text-sm font-medium transition hover:bg-white hover:shadow-sm" title="Heure d'été : Journées initialisées à 7.5h">
+                        ☀️ Été (7.5h)
+                    </button>
+                    <button id="winterTimeBtn" onclick="setSeasonMode('winter')" class="px-3 py-1.5 rounded-md text-sm font-medium transition hover:bg-white hover:shadow-sm" title="Heure d'hiver : Journées initialisées à 7h">
+                        ❄️ Hiver (7h)
+                    </button>
+            </div>
+        </div>
+
+        <!-- Bouton Ajouter un ouvrier (Sticky) -->
+        <div class="mb-6 sticky top-2 z-40 no-print pointer-events-none">
+            <!-- pointer-events-auto sur le bouton pour qu'il soit cliquable, mais que le container laisse passer les clics ailleurs si besoin -->
+            <button onclick="showAddWorkerModal()" class="pointer-events-auto flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-lg ring-2 ring-white/50 backdrop-blur-sm">
+                <i data-lucide="user-plus" style="width: 20px; height: 20px;"></i>
+                <span>Ajouter un ouvrier</span>
+            </button>
+        </div>
+
+        <!-- Informations pour l'impression -->
+        <div class="hidden print:block bg-white p-6 mb-6">
+            <div class="text-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Rapport Hebdomadaire</h2>
+                <p class="text-gray-600 mt-2">Période : <span id="printWeekDisplay"></span></p>
+                <p class="text-gray-600">Chef de chantier : <span id="printForemanDisplay"></span></p>
+            </div>
+        </div>
+
+        <!-- Sélection du conducteur par jour -->
+        <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg shadow-lg mb-6 border-2 border-orange-300 overflow-hidden">
+            <div onclick="toggleDriverSection()" class="p-6 flex items-center justify-between cursor-pointer hover:bg-orange-100/50 transition select-none">
+                <h2 class="text-xl font-bold text-orange-800 flex items-center space-x-2">
+                    <i data-lucide="car" class="text-orange-600" style="width: 24px; height: 24px;"></i>
+                    <span>Conducteur de la semaine</span>
+                </h2>
+                <i id="driverChevron" data-lucide="chevron-right" class="text-orange-800 transition-transform duration-300" style="width: 24px; height: 24px;"></i>
+            </div>
+            <div id="driverSelectionContent" class="hidden px-6 pb-6 border-t border-orange-200/50">
+                <div id="driverSelectionRow" class="grid grid-cols-5 gap-4 mt-4">
+                    <!-- Les sélecteurs de conducteur seront générés ici -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Saisie par ouvrier -->
+        <div id="workersContainer" class="space-y-6 mb-6">
+            <!-- Les cartes des ouvriers seront générées ici -->
+        </div>
+
+        <!-- Récapitulatifs -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Total par ouvrier -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                    <i data-lucide="users" style="width: 24px; height: 24px;"></i>
+                    <span>Total par ouvrier</span>
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-100 border-b-2 border-gray-300">
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ouvrier</th>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total heures</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workerTotalTable">
+                            <tr>
+                                <td colspan="2" class="px-4 py-4 text-center text-gray-500">Aucune donnée</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-blue-50 border-t-2 border-blue-300 font-bold">
+                                <td class="px-4 py-3 text-left">TOTAL GÉNÉRAL</td>
+                                <td class="px-4 py-3 text-right" id="grandTotal">0h</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
 
-            <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
-                <h3 class="font-semibold text-slate-700 mb-2">Qu'est ce que je fais ?</h3>
-                <ul class="text-left text-slate-600 space-y-2 mx-auto max-w-md">
-                    <li class="flex items-start">
-                        <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
-                        <span>Amélioration des performances</span>
-                    </li>
-                    <li class="flex items-start">
-                        <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
-                        <span>Mise à jour des fonctionnalités de rapport</span>
-                    </li>
-                    <li class="flex items-start">
-                        <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
-                        <span>Optimisation de l'interface mobile</span>
-                    </li>
-                </ul>
+            <!-- Total par chantier -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                    <i data-lucide="building-2" style="width: 24px; height: 24px;"></i>
+                    <span>Total par chantier</span>
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-100 border-b-2 border-gray-300">
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Chantier</th>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total heures</th>
+                            </tr>
+                        </thead>
+                        <tbody id="siteTotalTable">
+                            <tr>
+                                <td colspan="2" class="px-4 py-4 text-center text-gray-500">Aucune donnée</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="bg-blue-50 border-t-2 border-blue-300 font-bold">
+                                <td class="px-4 py-3 text-left">TOTAL GÉNÉRAL</td>
+                                <td class="px-4 py-3 text-right" id="grandTotalSites">0h</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
         </div>
-        <div class="bg-slate-50 p-4 text-center text-slate-400 text-sm border-t border-slate-100">
-            &copy; 2025 Gestion de Chantier. Tous droits réservés.
+
+    </div>
+
+    <!-- Fiche de pointage pour l'impression -->
+    <div id="printSheet">
+        <!-- Le contenu sera généré dynamiquement par JavaScript -->
+    </div>
+
+    <!-- Modal Ajouter un ouvrier -->
+    <div id="addWorkerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Ajouter un ouvrier au rapport</h3>
+            
+            <!-- Onglets -->
+            <div class="flex mb-4 border-b border-gray-200">
+                <button type="button" id="tabExisting" onclick="switchTab('existing')" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-blue-600 text-blue-600">
+                    Sélectionner
+                </button>
+                <button type="button" id="tabNew" onclick="switchTab('new')" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    Créer nouveau
+                </button>
+            </div>
+            
+            <form id="addWorkerForm" class="space-y-4">
+                <!-- Sélection d'un ouvrier existant -->
+                <div id="existingWorkerSection">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Sélectionner un ouvrier *</label>
+                        <select id="workerSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Choisir...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Création d'un nouvel ouvrier -->
+                <div id="newWorkerSection" class="hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Prénom *</label>
+                        <input type="text" id="newWorkerFirstName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+                        <input type="text" id="newWorkerLastName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        Ajouter
+                    </button>
+                    <button type="button" onclick="hideAddWorkerModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
+                        Annuler
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
+    <!-- Modal Sélectionner chef de chantier -->
+    <div id="selectForemanModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Sélectionner le chef de chantier</h3>
+            
+            <!-- Onglets -->
+            <div class="flex mb-4 border-b border-gray-200">
+                <button type="button" id="tabExistingForeman" onclick="switchForemanTab('existing')" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-blue-600 text-blue-600">
+                    Sélectionner
+                </button>
+                <button type="button" id="tabNewForeman" onclick="switchForemanTab('new')" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    Créer nouveau
+                </button>
+            </div>
+            
+            <form id="selectForemanForm" class="space-y-4">
+                <!-- Sélection d'un chef existant -->
+                <div id="existingForemanSection">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Sélectionner un ouvrier *</label>
+                        <select id="foremanSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Choisir...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Création d'un nouveau chef -->
+                <div id="newForemanSection" class="hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Prénom *</label>
+                        <input type="text" id="newForemanFirstName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+                        <input type="text" id="newForemanLastName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        Sélectionner
+                    </button>
+                    <button type="button" onclick="hideSelectForemanModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Confirmation d'envoi -->
+    <div id="confirmSendModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                <i data-lucide="mail-check" style="width: 24px; height: 24px;" class="text-orange-600"></i>
+                <span>Confirmer l'envoi du rapport</span>
+            </h3>
+            
+            <div class="mb-6 p-4 bg-orange-50 border-l-4 border-orange-500 rounded">
+                <p class="text-orange-800 font-medium">
+                    📧 Le rapport sera envoyé à <strong>Mickaël et Virginie</strong>
+                </p>
+            </div>
+            
+            <!-- Alerte mode prévisionnel -->
+            <div id="previsionnelAlert" class="hidden mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded">
+                <div class="flex items-start">
+                    <i data-lucide="alert-triangle" class="text-red-600 mr-3 mt-0.5" style="width: 20px; height: 20px;"></i>
+                    <div>
+                        <p class="text-red-800 font-semibold">⚠️ Mode PRÉVISIONNEL activé</p>
+                        <p class="text-red-700 text-sm mt-1">Le rapport sera envoyé avec le filigrane "PRÉVISIONNEL". Assurez-vous que c'est bien ce que vous souhaitez.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Récapitulatif du rapport -->
+            <div class="mb-6">
+                <h4 class="font-bold text-gray-700 mb-3 flex items-center space-x-2">
+                    <i data-lucide="clipboard-list" style="width: 20px; height: 20px;"></i>
+                    <span>Récapitulatif du rapport</span>
+                </h4>
+                
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-3 rounded">
+                            <p class="text-sm text-gray-600">Semaine</p>
+                            <p class="font-semibold" id="confirmWeekDisplay">-</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded">
+                            <p class="text-sm text-gray-600">Chef de chantier</p>
+                            <p class="font-semibold" id="confirmForemanDisplay">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-3 rounded">
+                        <p class="text-sm text-gray-600 mb-2">Ouvriers présents</p>
+                        <div id="confirmWorkersList" class="text-sm">-</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                            <p class="text-sm text-blue-600">Total heures</p>
+                            <p class="font-bold text-xl text-blue-700" id="confirmTotalHours">0h</p>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded border border-green-200">
+                            <p class="text-sm text-green-600">Nombre d'ouvriers</p>
+                            <p class="font-bold text-xl text-green-700" id="confirmWorkerCount">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Aperçu du rapport (style impression) -->
+            <div class="mb-6">
+                <h4 class="font-bold text-gray-700 mb-3 flex items-center space-x-2">
+                    <i data-lucide="eye" style="width: 20px; height: 20px;"></i>
+                    <span>Aperçu du rapport</span>
+                </h4>
+                <div id="confirmPreview" class="border-2 border-gray-300 rounded p-4 bg-white max-h-96 overflow-y-auto" style="font-size: 0.875rem;">
+                    <!-- Le contenu sera généré dynamiquement -->
+                </div>
+            </div>
+            
+            <div class="flex space-x-2">
+                <button onclick="confirmAndSendReport()" class="flex-1 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition flex items-center justify-center space-x-2">
+                    <i data-lucide="send" style="width: 20px; height: 20px;"></i>
+                    <span>Confirmer et envoyer</span>
+                </button>
+                <button type="button" onclick="hideConfirmSendModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
+                    Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Succès Envoi -->
+    <div id="successModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                <i data-lucide="check" class="h-6 w-6 text-green-600"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Rapport envoyé !</h3>
+            <p class="text-gray-600 mb-6">Le rapport a été envoyé avec succès aux destinataires.</p>
+            
+            <div class="space-y-3">
+                <button onclick="downloadPdfDirectly(); hideSuccessModal();" class="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center space-x-2">
+                    <i data-lucide="download" style="width: 20px; height: 20px;"></i>
+                    <span>Télécharger le PDF</span>
+                </button>
+                
+                <button onclick="hideSuccessModal()" class="w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-lg hover:bg-gray-300 transition">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sélection de mention pour un jour -->
+    <div id="dayMentionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Ajouter une mention</h3>
+            
+            <div class="space-y-3 mb-4">
+                <button 
+                    onclick="selectDayMention('Férié')"
+                    class="w-full px-4 py-3 bg-red-50 border-2 border-red-300 rounded-lg hover:bg-red-100 transition text-left"
+                >
+                    <span class="font-semibold text-red-700">Férié</span>
+                </button>
+                
+                <button 
+                    onclick="selectDayMention('Vacances')"
+                    class="w-full px-4 py-3 bg-blue-50 border-2 border-blue-300 rounded-lg hover:bg-blue-100 transition text-left"
+                >
+                    <span class="font-semibold text-blue-700">Vacances</span>
+                </button>
+                
+                <div class="pt-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Mention personnalisée</label>
+                    <div class="flex space-x-2">
+                        <input 
+                            type="text" 
+                            id="customDayMention"
+                            placeholder="Ex: Formation, Congé, etc."
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            onkeypress="if(event.key === 'Enter') { selectDayMention(document.getElementById('customDayMention').value); }"
+                        >
+                        <button 
+                            onclick="selectDayMention(document.getElementById('customDayMention').value)"
+                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                        >
+                            Valider
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex space-x-2">
+                <button 
+                    onclick="hideDayMentionModal()"
+                    class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
+                >
+                    Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sélectionner un chantier -->
+    <div id="selectSiteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Sélectionner un chantier</h3>
+            
+            <!-- Onglets -->
+            <div class="flex mb-4 border-b border-gray-200">
+                <button type="button" id="tabExistingSite" onclick="switchSiteTab('existing')" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-blue-600 text-blue-600">
+                    Sélectionner
+                </button>
+                <button type="button" id="tabNewSite" onclick="switchSiteTab('new')" class="flex-1 py-2 px-4 text-center font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    Créer nouveau
+                </button>
+            </div>
+            
+            <form id="selectSiteForm" class="space-y-4">
+                <!-- Sélection d'un chantier existant -->
+                <div id="existingSiteSection">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Sélectionner un chantier *</label>
+                        <select id="siteSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Choisir...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Création d'un nouveau chantier -->
+                <div id="newSiteSection" class="hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nom du chantier *</label>
+                        <input type="text" id="newSiteName" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Nom du nouveau chantier">
+                    </div>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        Sélectionner
+                    </button>
+                    <button type="button" onclick="hideSelectSiteModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Sélection de véhicule -->
+    <div id="selectVehicleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Sélectionner un véhicule</h3>
+            
+            <div id="vehicleListContainer" class="space-y-3 mb-4">
+                <!-- Les boutons de véhicules seront générés ici -->
+            </div>
+            
+            <div class="flex space-x-2">
+                <button 
+                    onclick="hideSelectVehicleModal()"
+                    class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
+                >
+                    Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charger workers-data.js uniquement en développement local -->
+    <script>
+        const isLocalEnv = ['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.protocol === 'file:';
+        
+        if (isLocalEnv) {
+            // Chargement des données ouvriers uniquement en local
+            const script = document.createElement('script');
+            script.src = 'workers-data.js';
+            script.onerror = function() {
+                console.log('workers-data.js non disponible, chargement depuis l\'API...');
+            };
+            document.head.appendChild(script);
+            
+            // Chargement de la liste des véhicules (fichier non versionné)
+            const vehiclesScript = document.createElement('script');
+            vehiclesScript.src = 'vehicles-data.js';
+            vehiclesScript.onerror = function() {
+                console.log('vehicles-data.js non disponible, utilisation des valeurs locales par défaut.');
+            };
+            vehiclesScript.onload = function() {
+                if (window.__onVehicleDataLoaded) {
+                    window.__onVehicleDataLoaded();
+                }
+            };
+            document.head.appendChild(vehiclesScript);
+        } else {
+            console.info('Production: chargement des ouvriers via API et des véhicules via la liste interne.');
+        }
+    </script>
+
+    <!-- Menu Mobile (Sidebar) -->
+    <div id="mobileMenuOverlay" class="fixed inset-0 bg-black/50 z-[9999] hidden md:hidden transition-opacity duration-300 opacity-0" onclick="closeMobileMenu()"></div>
+    
+    <div id="mobileMenuSidebar" class="fixed left-0 w-[85vw] max-w-[300px] bg-white text-gray-800 shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out z-[10000] md:hidden flex flex-col rounded-br-2xl rounded-tr-2xl" style="background-color: white !important; color: #1f2937 !important; position: fixed !important; left: 0 !important; top: 0 !important; overflow-y: auto !important;">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50" style="background-color: #f9fafb !important; border-bottom-color: #f3f4f6 !important; flex-shrink: 0;">
+            <div class="flex items-center space-x-2">
+                 <i data-lucide="menu" class="text-gray-700" style="color: #374151 !important;"></i>
+                 <span class="font-bold text-lg text-gray-800" style="color: #1f2937 !important;">Menu</span>
+            </div>
+            <button onclick="closeMobileMenu()" class="p-2 text-gray-500 hover:bg-gray-200 rounded-full transition" style="color: #6b7280 !important;">
+                <i data-lucide="x" style="width: 24px; height: 24px;"></i>
+            </button>
+        </div>
+        
+        <div class="p-4 space-y-4 bg-white" style="background-color: white !important; flex-shrink: 0;">
+            <div class="flex flex-col space-y-3">
+                <button onclick="openHelp(); closeMobileMenu();" class="w-full flex items-center space-x-3 bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition shadow-sm" style="background-color: #16a34a !important; color: white !important;">
+                    <i data-lucide="help-circle" style="width: 24px; height: 24px;"></i>
+                    <span class="font-medium text-lg">Aide</span>
+                </button>
+                
+                <button onclick="clearState(); closeMobileMenu();" class="w-full flex items-center space-x-3 bg-purple-600 text-white px-4 py-3 rounded-xl hover:bg-purple-700 transition shadow-sm" style="background-color: #9333ea !important; color: white !important;">
+                    <i data-lucide="trash-2" style="width: 24px; height: 24px;"></i>
+                    <div class="flex flex-col items-start text-left">
+                        <span class="font-medium text-lg">Données</span>
+                        <span class="text-xs opacity-80 font-normal">Semaine actuelle</span>
+                    </div>
+                </button>
+                
+                <button onclick="clearUserCache(); closeMobileMenu();" class="w-full flex items-center space-x-3 bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition shadow-sm" style="background-color: #dc2626 !important; color: white !important;">
+                    <i data-lucide="trash" style="width: 24px; height: 24px;"></i>
+                    <div class="flex flex-col items-start text-left">
+                        <span class="font-medium text-lg">Cache</span>
+                        <span class="text-xs opacity-80 font-normal">Tout effacer</span>
+                    </div>
+                </button>
+                
+                <div class="h-px bg-gray-100 my-2" style="background-color: #f3f4f6 !important;"></div>
+                
+                <button onclick="printReport(); closeMobileMenu();" class="w-full flex items-center space-x-3 bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition shadow-sm" style="background-color: #2563eb !important; color: white !important;">
+                    <i data-lucide="printer" style="width: 24px; height: 24px;"></i>
+                    <span class="font-medium text-lg">Imprimer / PDF</span>
+                </button>
+                
+                <button onclick="showConfirmSendModal(); closeMobileMenu();" class="w-full flex items-center space-x-3 bg-orange-600 text-white px-4 py-3 rounded-xl hover:bg-orange-700 transition shadow-sm" style="background-color: #ea580c !important; color: white !important;">
+                    <i data-lucide="mail" style="width: 24px; height: 24px;"></i>
+                    <span class="font-medium text-lg">Envoyer le rapport</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-4 bg-gray-50 border-t border-gray-100" style="background-color: #f9fafb !important; border-top-color: #f3f4f6 !important;">
+            <div class="text-center">
+                 <span class="text-xs font-bold text-gray-400 block" style="color: #9ca3af !important;">HORY-CHAUVELIN</span>
+                 <span class="text-[10px] text-gray-400" style="color: #9ca3af !important;">Rapports Hebdomadaires</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mobileMenuPositionHandler = null;
+
+        function updateMobileMenuPosition() {
+            const sidebar = document.getElementById('mobileMenuSidebar');
+            
+            if (!sidebar || sidebar.classList.contains('hidden')) {
+                return;
+            }
+
+            // Utiliser le viewport visible actuel (important sur mobile)
+            const viewport = window.visualViewport;
+            const viewportHeight = viewport ? viewport.height : (window.innerHeight || document.documentElement.clientHeight || 0);
+            const viewportOffsetTop = viewport ? viewport.offsetTop : 0;
+            
+            const margin = 12;
+            const minVisibleHeight = 320;
+
+            // Réinitialiser les contraintes pour mesurer la hauteur naturelle
+            sidebar.style.maxHeight = 'none';
+            sidebar.style.height = 'auto';
+
+            const naturalHeight = sidebar.offsetHeight || minVisibleHeight;
+            const usableHeight = Math.max(minVisibleHeight, viewportHeight - margin * 2);
+            const finalHeight = Math.min(naturalHeight, usableHeight);
+
+            if (finalHeight < naturalHeight) {
+                sidebar.style.maxHeight = `${finalHeight}px`;
+                sidebar.style.height = `${finalHeight}px`;
+                sidebar.style.overflowY = 'auto';
+            } else {
+                sidebar.style.maxHeight = '';
+                sidebar.style.height = 'auto';
+            }
+
+            // Centrer le menu sur le viewport visible
+            // Pour position:fixed, les coordonnées sont relatives au viewport, donc pas besoin d'ajouter viewportOffsetTop
+            const centeredTop = Math.max(0, (viewportHeight - finalHeight) / 2);
+            const desiredTop = Math.max(margin, Math.min(centeredTop, viewportHeight - margin - finalHeight));
+
+            sidebar.style.top = `${desiredTop}px`;
+        }
+
+        function openMobileMenu() {
+            const sidebar = document.getElementById('mobileMenuSidebar');
+            const overlay = document.getElementById('mobileMenuOverlay');
+            
+            if (!sidebar || !overlay) {
+                return;
+            }
+
+            overlay.classList.remove('hidden');
+            sidebar.classList.remove('hidden');
+            sidebar.style.visibility = 'hidden';
+
+            updateMobileMenuPosition();
+
+            sidebar.style.visibility = '';
+            
+            // Forcer un reflow avant l'animation
+            sidebar.offsetHeight;
+            
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('opacity-0');
+            
+            // Bloquer le scroll du body mais pas du menu
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+
+            if (!mobileMenuPositionHandler) {
+                mobileMenuPositionHandler = () => updateMobileMenuPosition();
+                window.addEventListener('scroll', mobileMenuPositionHandler, { passive: true });
+                window.addEventListener('resize', mobileMenuPositionHandler);
+                if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', mobileMenuPositionHandler);
+                    window.visualViewport.addEventListener('scroll', mobileMenuPositionHandler);
+                }
+            }
+            
+            // Mise à jour immédiate et continue
+            requestAnimationFrame(updateMobileMenuPosition);
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('mobileMenuSidebar');
+            const overlay = document.getElementById('mobileMenuOverlay');
+            
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('opacity-0');
+            
+            setTimeout(() => {
+                sidebar.classList.add('hidden');
+                overlay.classList.add('hidden');
+                sidebar.style.top = '0px';
+                sidebar.style.maxHeight = '';
+                sidebar.style.height = '';
+                sidebar.style.visibility = '';
+                
+                // Restaurer le scroll du body
+                document.body.style.overflow = '';
+                document.body.style.position = '';
+                document.body.style.width = '';
+                
+                // Nettoyer les event listeners
+                if (mobileMenuPositionHandler) {
+                    window.removeEventListener('scroll', mobileMenuPositionHandler);
+                    window.removeEventListener('resize', mobileMenuPositionHandler);
+                    if (window.visualViewport) {
+                        window.visualViewport.removeEventListener('resize', mobileMenuPositionHandler);
+                        window.visualViewport.removeEventListener('scroll', mobileMenuPositionHandler);
+                    }
+                    mobileMenuPositionHandler = null;
+                }
+            }, 300);
+        }
+    </script>
+    <script src="app.js"></script>
     <script>
         lucide.createIcons();
     </script>
 </body>
 </html>
-
