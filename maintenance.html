@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site en Maintenance - Rapports Hebdomadaires</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+        <div class="bg-orange-500 h-2 w-full"></div>
+        <div class="p-8 md:p-12 text-center">
+            <div class="mb-8 flex justify-center">
+                <div class="bg-orange-100 p-4 rounded-full animate-pulse-slow">
+                    <i data-lucide="hard-hat" class="w-16 h-16 text-orange-600"></i>
+                </div>
+            </div>
+            
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 mb-4">
+                Site en Maintenance
+            </h1>
+            
+            <p class="text-lg text-slate-600 mb-8 leading-relaxed">
+                Tony effectue actuellement des mises à jour importantes sur la plateforme de Rapports Hebdomadaires pour améliorer votre expérience.
+            </p>
+            
+            <div class="flex flex-col items-center justify-center space-y-2 mb-8">
+                <div class="flex items-center space-x-2 text-slate-500">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                    <span>Retour estimé bientôt (petite heure) </span>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                <h3 class="font-semibold text-slate-700 mb-2">Qu'est ce que je fais ?</h3>
+                <ul class="text-left text-slate-600 space-y-2 mx-auto max-w-md">
+                    <li class="flex items-start">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
+                        <span>Amélioration des performances</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
+                        <span>Mise à jour des fonctionnalités de rapport</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0"></i>
+                        <span>Optimisation de l'interface mobile</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="bg-slate-50 p-4 text-center text-slate-400 text-sm border-t border-slate-100">
+            &copy; 2025 Gestion de Chantier. Tous droits réservés.
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
+
