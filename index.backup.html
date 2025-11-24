@@ -1541,60 +1541,6 @@
         </div>
     </div>
 
-    <!-- Modal Nouveautés -->
-    <div id="whatsNewModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10001] no-print overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle">
-        <div class="relative bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl my-auto">
-            <button type="button" onclick="closeWhatsNewModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 rounded-full p-1" aria-label="Fermer la fenêtre des nouveautés">
-                <i data-lucide="x" class="h-5 w-5"></i>
-            </button>
-            <div class="flex items-center justify-center mb-4">
-                <div class="bg-green-100 p-3 rounded-full">
-                    <i data-lucide="sparkles" class="text-green-600" style="width: 32px; height: 32px;"></i>
-                </div>
-            </div>
-            <h3 id="whatsNewTitle" class="text-2xl font-bold text-gray-800 mb-4 text-center">Nouvelle fonctionnalité !</h3>
-            
-            <div class="space-y-4 mb-6">
-                <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
-                    <h4 class="font-bold text-orange-800 mb-2 flex items-center">
-                        <i data-lucide="car" class="mr-2" style="width: 20px; height: 20px;"></i>
-                        Conducteurs multiples
-                    </h4>
-                    <p class="text-gray-700 text-sm">
-                        Vous pouvez maintenant ajouter <strong>plusieurs conducteurs par jour</strong> ! 
-                        Idéal quand vos équipes partent dans plusieurs véhicules sur le chantier.
-                    </p>
-                </div>
-                
-                <div class="bg-blue-50 p-4 rounded border border-blue-200">
-                    <h5 class="font-semibold text-blue-800 mb-2">Comment ça marche ?</h5>
-                    <ul class="text-sm text-gray-700 space-y-2">
-                        <li class="flex items-start">
-                            <span class="text-green-600 mr-2">✓</span>
-                            <span>Rendez-vous dans la section <strong>"Conducteur de la semaine"</strong></span>
-                        </li>
-                        <li class="flex items-start">
-                            <span class="text-green-600 mr-2">✓</span>
-                            <span>Cliquez sur le bouton <strong>"+"</strong> pour ajouter un conducteur</span>
-                        </li>
-                        <li class="flex items-start">
-                            <span class="text-green-600 mr-2">✓</span>
-                            <span>Chaque conducteur aura <strong>"1"</strong> dans sa ligne Transport</span>
-                        </li>
-                        <li class="flex items-start">
-                            <span class="text-green-600 mr-2">✓</span>
-                            <span>Une personne ne peut être conducteur qu'<strong>une seule fois</strong> par jour</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            
-            <button onclick="closeWhatsNewModal()" class="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition font-semibold">
-                J'ai compris !
-            </button>
-        </div>
-    </div>
-
     <!-- Charger workers-data.js uniquement en développement local -->
     <script>
         const isLocalEnv = ['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.protocol === 'file:';

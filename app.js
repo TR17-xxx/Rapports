@@ -114,12 +114,12 @@ let state = {
     weekStart: null,
     weekEnd: null,
     data: {}, // { workerId: { sites: [{ siteName, hours: { monday, tuesday, ... } }], observation: '', isInterim: true, panierMode: 'panier', panierCustom: { monday, tuesday, ... }, dayMentions: { monday: '', tuesday: '', ... } } }
-    drivers: { // Qui conduit chaque jour (par défaut le chef de chantier)
-        monday: null,
-        tuesday: null,
-        wednesday: null,
-        thursday: null,
-        friday: null
+    drivers: { // Qui conduit chaque jour (plusieurs conducteurs possibles)
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: []
     },
     isPrevisionnel: false, // Mode prévisionnel activé/désactivé
     currentSiteSelection: null, // Pour stocker le contexte de sélection de chantier
@@ -138,8 +138,9 @@ const WEEKLY_STORAGE_KEY_PREFIX = 'rapport_hebdomadaire_weekly_state_';
 const STORAGE_EXPIRY_DAYS = 8;
 const EMAIL_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
 
-// VERSION DE L'APPLICATION
-const APP_VERSION = '1.1.0';
+// VERSION DE L'APPLICATION (pour afficher les nouvelles fonctionnalités)
+const APP_VERSION = '1.2.0'; // Conducteurs multiples
+let whatsNewModalCleanup = null;
 
 // Obtenir la clé de stockage pour une semaine donnée
 function getWeeklyStorageKey(weekNumber) {
@@ -186,6 +187,8 @@ function saveState() {
                 savedAt: now.toISOString(),
                 expiryDate: expiry.toISOString()
             };
+            
+            console.log('Sauvegarde des conducteurs:', state.drivers);
 
             const weeklyKey = getWeeklyStorageKey(state.weekNumber);
             if (weeklyKey) {
@@ -324,14 +327,29 @@ function loadWeekState(weekNumber) {
         }
 
         if (parsedData.drivers) {
-            state.drivers = parsedData.drivers;
+            // Migration automatique de l'ancien format vers le nouveau
+            state.drivers = {};
+            ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+                if (parsedData.drivers[day]) {
+                    // Si c'est déjà un tableau, on le garde tel quel
+                    if (Array.isArray(parsedData.drivers[day])) {
+                        state.drivers[day] = parsedData.drivers[day];
+                    } else {
+                        // Sinon, on convertit la valeur simple en tableau
+                        state.drivers[day] = [parsedData.drivers[day]];
+                    }
+                } else {
+                    state.drivers[day] = [];
+                }
+            });
+            console.log('Conducteurs chargés depuis le cache:', state.drivers);
         } else {
             state.drivers = {
-                monday: null,
-                tuesday: null,
-                wednesday: null,
-                thursday: null,
-                friday: null
+                monday: [],
+                tuesday: [],
+                wednesday: [],
+                thursday: [],
+                friday: []
             };
         }
 
@@ -404,11 +422,11 @@ function clearState() {
         state.activeWorkers = [];
         state.data = {};
         state.drivers = {
-            monday: null,
-            tuesday: null,
-            wednesday: null,
-            thursday: null,
-            friday: null
+            monday: [],
+            tuesday: [],
+            wednesday: [],
+            thursday: [],
+            friday: []
         };
         state.isPrevisionnel = false;
         state.vehicleUsage = createEmptyVehicleUsage();
@@ -651,7 +669,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         }
         updateForemanDisplay();
-        resetDriversToForeman();
+        
+        // Ne réinitialiser les conducteurs que si aucun n'a été chargé depuis le cache
+        const hasDriversFromCache = Object.values(state.drivers).some(dayDrivers => 
+            Array.isArray(dayDrivers) && dayDrivers.length > 0
+        );
+        
+        if (!hasDriversFromCache) {
+            resetDriversToForeman();
+        }
+        
         renderDriverSelection();
         renderAll();
     }
@@ -705,6 +732,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
     }
+    
+    // Vérifier et afficher la modal des nouveautés si nécessaire
+    checkAndShowWhatsNew();
     
     // Prévenir le zoom sur iOS lors du focus sur les inputs
     preventIOSZoom();
@@ -790,6 +820,71 @@ function preventIOSZoom() {
     }
 }
 
+// Vérifier et afficher la modal des nouveautés
+function checkAndShowWhatsNew() {
+    const LAST_SEEN_VERSION_KEY = 'rapport_last_seen_version';
+    const lastSeenVersion = localStorage.getItem(LAST_SEEN_VERSION_KEY);
+    
+    // Si l'utilisateur n'a jamais vu cette version, afficher la modal
+    if (lastSeenVersion !== APP_VERSION) {
+        // Attendre que l'écran de chargement soit complètement disparu (3.6 secondes)
+        setTimeout(() => {
+            const modal = document.getElementById('whatsNewModal');
+            if (modal) {
+                // Afficher la modal (elle est déjà en position fixed donc toujours visible)
+                modal.classList.remove('hidden');
+                
+                const closeOnBackdrop = (event) => {
+                    if (event.target === modal) {
+                        closeWhatsNewModal();
+                    }
+                };
+                
+                const closeOnEsc = (event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeWhatsNewModal();
+                    }
+                };
+                
+                modal.addEventListener('click', closeOnBackdrop);
+                document.addEventListener('keydown', closeOnEsc);
+                
+                whatsNewModalCleanup = () => {
+                    modal.removeEventListener('click', closeOnBackdrop);
+                    document.removeEventListener('keydown', closeOnEsc);
+                    whatsNewModalCleanup = null;
+                };
+                
+                // Initialiser les icônes dans la modal
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        }, 3600); // Après l'écran de chargement (2.5s) + fade-out (1s) + petit délai (0.1s)
+    }
+}
+
+// Fermer la modal des nouveautés
+function closeWhatsNewModal() {
+    const LAST_SEEN_VERSION_KEY = 'rapport_last_seen_version';
+    const modal = document.getElementById('whatsNewModal');
+    
+    if (typeof whatsNewModalCleanup === 'function') {
+        whatsNewModalCleanup();
+    }
+    
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    
+    // Restaurer le scroll du body
+    document.body.style.overflow = '';
+    
+    // Sauvegarder que l'utilisateur a vu cette version
+    localStorage.setItem(LAST_SEEN_VERSION_KEY, APP_VERSION);
+}
+
 // Optimiser les performances sur mobile
 function optimizeMobilePerformance() {
     // Utiliser passive listeners pour améliorer le scroll
@@ -870,11 +965,11 @@ function updateWeekDisplay() {
             state.activeWorkers = [];
             state.data = {};
             state.drivers = {
-                monday: null,
-                tuesday: null,
-                wednesday: null,
-                thursday: null,
-                friday: null
+                monday: [],
+                tuesday: [],
+                wednesday: [],
+                thursday: [],
+                friday: []
             };
             state.vehicleUsage = createEmptyVehicleUsage();
             state.foremanId = null;
@@ -1110,12 +1205,14 @@ function updateForemanSelector() {
 function resetDriversToForeman() {
     if (state.foremanId) {
         state.drivers = {
-            monday: state.foremanId,
-            tuesday: state.foremanId,
-            wednesday: state.foremanId,
-            thursday: state.foremanId,
-            friday: state.foremanId
+            monday: [state.foremanId],
+            tuesday: [state.foremanId],
+            wednesday: [state.foremanId],
+            thursday: [state.foremanId],
+            friday: [state.foremanId]
         };
+        renderDriverSelection();
+        saveState();
     }
 }
 
@@ -1132,12 +1229,56 @@ function updatePrintForeman() {
     }
 }
 
-// Mettre à jour le conducteur d'un jour
-function updateDriver(day, workerId) {
-    state.drivers[day] = parseInt(workerId) || state.foremanId;
+// Mettre à jour un conducteur spécifique pour un jour
+function updateDriver(day, index, workerId) {
+    if (!state.drivers[day]) {
+        state.drivers[day] = [];
+    }
+    
+    const newWorkerId = parseInt(workerId);
+    
+    // Vérifier que ce conducteur n'est pas déjà sélectionné pour ce jour (sauf à la même position)
+    const isDuplicate = state.drivers[day].some((id, idx) => idx !== index && id === newWorkerId);
+    
+    if (isDuplicate) {
+        alert('Cette personne est déjà conducteur pour ce jour.');
+        renderDriverSelection();
+        return;
+    }
+    
+    state.drivers[day][index] = newWorkerId;
     renderAll();
-    // Sauvegarder l'état
     saveState();
+}
+
+// Ajouter un conducteur pour un jour
+function addDriverForDay(day) {
+    if (!state.drivers[day]) {
+        state.drivers[day] = [];
+    }
+    
+    // Trouver un ouvrier qui n'est pas déjà conducteur pour ce jour
+    const availableWorkers = state.activeWorkers.filter(worker => 
+        !state.drivers[day].includes(worker.id)
+    );
+    
+    if (availableWorkers.length > 0) {
+        // Ajouter le premier ouvrier disponible (qui n'est pas déjà conducteur)
+        state.drivers[day].push(availableWorkers[0].id);
+        renderDriverSelection();
+        saveState();
+    } else {
+        alert('Tous les ouvriers sont déjà conducteurs pour ce jour.');
+    }
+}
+
+// Supprimer un conducteur pour un jour
+function removeDriverForDay(day, index) {
+    if (state.drivers[day] && state.drivers[day].length > 1) {
+        state.drivers[day].splice(index, 1);
+        renderDriverSelection();
+        saveState();
+    }
 }
 
 // S'assurer que la structure d'utilisation véhicule existe pour un jour donné
@@ -1726,8 +1867,16 @@ function removeWorkerFromActive(workerId) {
     
     // Retirer des conducteurs
     Object.keys(state.drivers).forEach(day => {
-        if (state.drivers[day] === workerId) {
-            state.drivers[day] = state.foremanId;
+        if (Array.isArray(state.drivers[day])) {
+            // Nouveau format (tableau)
+            state.drivers[day] = state.drivers[day].filter(id => id !== workerId);
+            // S'assurer qu'il reste au moins un conducteur
+            if (state.drivers[day].length === 0 && state.foremanId && state.foremanId !== workerId) {
+                state.drivers[day] = [state.foremanId];
+            }
+        } else if (state.drivers[day] === workerId) {
+            // Ancien format (simple valeur) - rétrocompatibilité
+            state.drivers[day] = state.foremanId && state.foremanId !== workerId ? [state.foremanId] : [];
         }
     });
     
@@ -2155,7 +2304,19 @@ function renderDriverSelection() {
     
     ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach((day, index) => {
         const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
-        const currentDriver = state.drivers[day] || state.foremanId;
+        
+        // S'assurer que drivers[day] est un tableau
+        if (!Array.isArray(state.drivers[day])) {
+            // Migration de l'ancien format (simple ID) vers le nouveau (tableau)
+            const oldDriver = state.drivers[day];
+            state.drivers[day] = oldDriver ? [oldDriver] : (state.foremanId ? [state.foremanId] : []);
+        }
+        
+        // S'assurer qu'il y a au moins un conducteur
+        if (state.drivers[day].length === 0 && state.foremanId) {
+            state.drivers[day] = [state.foremanId];
+        }
+        
         ensureVehicleUsageDay(day);
         
         const dayDiv = document.createElement('div');
@@ -2167,32 +2328,120 @@ function renderDriverSelection() {
             dayDiv.style.flexDirection = 'column';
             dayDiv.style.justifyContent = 'space-between';
             dayDiv.style.width = '100%';
+            
+            // Générer un select pour chaque conducteur
+            const driverSelects = state.drivers[day].map((driverId, driverIndex) => {
+                const showDeleteBtn = state.drivers[day].length > 1;
+                // Filtrer les ouvriers : exclure ceux déjà conducteurs (sauf celui-ci)
+                const availableWorkers = state.activeWorkers.filter(w => 
+                    w.id === driverId || !state.drivers[day].includes(w.id)
+                );
+                return `
+                    <div class="w-full mb-2 relative">
+                        <select 
+                            onchange="updateDriver('${day}', ${driverIndex}, this.value)"
+                            class="block w-full px-2 py-2 ${showDeleteBtn ? 'pr-8' : ''} border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm font-semibold text-gray-800 text-center transition"
+                        >
+                            ${availableWorkers.map(w => {
+                                const selected = driverId === w.id ? 'selected' : '';
+                                return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)}</option>`;
+                            }).join('')}
+                        </select>
+                        ${showDeleteBtn ? `
+                            <button 
+                                onclick="removeDriverForDay('${day}', ${driverIndex})"
+                                class="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-red-600 hover:bg-red-50 rounded transition"
+                                title="Retirer ce conducteur"
+                            >
+                                <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            // Vérifier s'il reste des ouvriers disponibles
+            const availableWorkersCount = state.activeWorkers.filter(w => 
+                !state.drivers[day].includes(w.id)
+            ).length;
+            
+            const addButton = availableWorkersCount > 0 
+                ? `<button 
+                        onclick="addDriverForDay('${day}')"
+                        class="w-full mt-2 px-2 py-1.5 bg-green-100 text-green-700 border border-green-300 rounded-lg hover:bg-green-200 transition text-xs font-medium flex items-center justify-center space-x-1"
+                        title="Ajouter un conducteur"
+                    >
+                        <i data-lucide="plus" style="width: 12px; height: 12px;"></i>
+                        <span>+</span>
+                    </button>`
+                : '';
+            
             dayDiv.innerHTML = `
                 <span class="text-sm font-semibold uppercase tracking-wide text-orange-800 mb-2">${dayNames[index]}</span>
-                <select 
-                    onchange="updateDriver('${day}', this.value)"
-                    class="block w-full px-3 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base font-semibold text-gray-800 text-center transition"
-                >
-                    ${state.activeWorkers.map(w => {
-                        const selected = currentDriver === w.id ? 'selected' : '';
-                        return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)} ${escapeHtml(w.firstName)}</option>`;
-                    }).join('')}
-                </select>
+                <div class="w-full">
+                    ${driverSelects}
+                    ${addButton}
+                </div>
             `;
         } else {
             dayDiv.className = 'space-y-3 bg-white rounded-xl p-4 border border-orange-100 shadow-sm';
+            
+            // Générer un select pour chaque conducteur
+            const driverSelects = state.drivers[day].map((driverId, driverIndex) => {
+                const showDeleteBtn = state.drivers[day].length > 1;
+                const conducteurLabel = driverIndex === 0 ? 'Conducteur' : `Conducteur ${driverIndex + 1}`;
+                // Filtrer les ouvriers : exclure ceux déjà conducteurs (sauf celui-ci)
+                const availableWorkers = state.activeWorkers.filter(w => 
+                    w.id === driverId || !state.drivers[day].includes(w.id)
+                );
+                return `
+                    <div class="mb-3 relative">
+                        <label class="block text-xs font-medium text-orange-700 mb-1">${conducteurLabel}</label>
+                        <div class="flex items-center space-x-2">
+                            <select 
+                                onchange="updateDriver('${day}', ${driverIndex}, this.value)"
+                                class="flex-1 px-3 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-medium text-gray-800 shadow-sm"
+                            >
+                                ${availableWorkers.map(w => {
+                                    const selected = driverId === w.id ? 'selected' : '';
+                                    return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)}</option>`;
+                                }).join('')}
+                            </select>
+                            ${showDeleteBtn ? `
+                                <button 
+                                    onclick="removeDriverForDay('${day}', ${driverIndex})"
+                                    class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition flex-shrink-0"
+                                    title="Retirer ce conducteur"
+                                >
+                                    <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Vérifier s'il reste des ouvriers disponibles
+            const availableWorkersCount = state.activeWorkers.filter(w => 
+                !state.drivers[day].includes(w.id)
+            ).length;
+            
+            const addButton = availableWorkersCount > 0 
+                ? `<button 
+                        onclick="addDriverForDay('${day}')"
+                        class="w-full mt-2 px-3 py-2 bg-green-50 text-green-700 border border-green-300 rounded-lg hover:bg-green-100 transition text-sm font-medium flex items-center justify-center space-x-2"
+                        title="Ajouter un autre conducteur pour ce jour"
+                    >
+                        <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+                        <span>Ajouter un conducteur</span>
+                    </button>`
+                : '';
+            
             dayDiv.innerHTML = `
                 <div>
                     <label class="block text-sm font-bold text-orange-800 mb-2">${dayNames[index]}</label>
-                    <select 
-                        onchange="updateDriver('${day}', this.value)"
-                        class="w-full px-4 py-2 border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-medium text-gray-800 shadow-sm"
-                    >
-                        ${state.activeWorkers.map(w => {
-                            const selected = currentDriver === w.id ? 'selected' : '';
-                            return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)} ${escapeHtml(w.firstName)}</option>`;
-                        }).join('')}
-                    </select>
+                    ${driverSelects}
+                    ${addButton}
                 </div>
             `;
         }
@@ -2286,6 +2535,9 @@ function renderDriverSelection() {
             </div>
         `;
     container.appendChild(weeklyDiv);
+    
+    // Réinitialiser les icônes Lucide
+    setTimeout(() => lucide.createIcons(), 0);
 }
 
 // Rendre les cartes des ouvriers
@@ -2772,7 +3024,13 @@ async function downloadPdfDirectly() {
                 return totalHours > 0;
             });
             
-            const isDriverDays = days.map(day => state.drivers[day] === worker.id);
+            // Vérifier si l'ouvrier est conducteur (compatible ancien/nouveau format)
+            const isDriverDays = days.map(day => {
+                if (Array.isArray(state.drivers[day])) {
+                    return state.drivers[day].includes(worker.id);
+                }
+                return state.drivers[day] === worker.id;
+            });
             
             // PANIER
             const panierMode = workerData.panierMode || 'panier';
@@ -3149,8 +3407,13 @@ function generatePrintSheet() {
             return totalHours > 0;
         });
         
-        // Pour chaque jour, vérifier si l'ouvrier est conducteur
-        const isDriverDays = days.map(day => state.drivers[day] === worker.id);
+        // Pour chaque jour, vérifier si l'ouvrier est conducteur (compatible ancien/nouveau format)
+        const isDriverDays = days.map(day => {
+            if (Array.isArray(state.drivers[day])) {
+                return state.drivers[day].includes(worker.id);
+            }
+            return state.drivers[day] === worker.id;
+        });
         
         // PANIER : selon le mode sélectionné
         const panierMode = workerData.panierMode || 'panier';
