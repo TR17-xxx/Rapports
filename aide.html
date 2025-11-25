@@ -162,10 +162,10 @@
                 <li><a href="#remarques" class="text-blue-600 hover:text-blue-800 hover:underline">→ Remarques importantes</a></li>
             </ul>
             <p class="text-sm text-gray-600 mt-4">
-                <strong class="text-blue-700">Nouveautés (v1.1.0) :</strong>
-                Affichage <span class="font-semibold">compact repliable</span> pour les ouvriers et conducteurs,
-                Sélection du chef de chantier <span class="font-semibold">par semaine</span>,
-                Gestion du mode <span class="font-semibold">été/hiver</span>.
+                <strong class="text-blue-700">Nouveautés (v1.2.0) :</strong>
+                <span class="font-semibold">Conducteurs multiples</span> par jour,
+                Mode saisonnier <span class="font-semibold">automatique</span> à l'ajout d'ouvriers,
+                Interface mobile <span class="font-semibold">améliorée</span>.
             </p>
         </div>
 
@@ -186,7 +186,7 @@
                 </div>
                 <div class="flex items-start space-x-2">
                     <span class="text-green-600 font-bold">✅</span>
-                    <span>Heures pré-remplies (7.5h Été / 7h Hiver)</span>
+                    <span>Heures pré-remplies automatiquement selon le mode saisonnier (7.5h Été / 7h Hiver)</span>
                 </div>
                 <div class="flex items-start space-x-2">
                     <span class="text-green-600 font-bold">✅</span>
@@ -198,7 +198,7 @@
                 </div>
                 <div class="flex items-start space-x-2">
                     <span class="text-green-600 font-bold">✅</span>
-                    <span>Sélection du conducteur pour chaque jour</span>
+                    <span>Sélection de plusieurs conducteurs par jour</span>
                 </div>
                 <div class="flex items-start space-x-2">
                     <span class="text-green-600 font-bold">✅</span>
@@ -292,6 +292,41 @@
                     </li>
                     <li>L'état ouvert/fermé de chaque fiche est <strong>automatiquement sauvegardé</strong>. Vous retrouverez votre affichage tel quel au prochain rechargement de la page.</li>
                 </ul>
+            </div>
+
+            <!-- Conducteurs multiples -->
+            <div class="mb-6 bg-orange-50 p-4 rounded-lg border-2 border-orange-300">
+                <h3 class="text-xl font-semibold text-orange-800 mb-3 flex items-center space-x-2">
+                    <span class="bg-orange-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">🚗</span>
+                    <span>Conducteurs multiples par jour</span>
+                </h3>
+                <p class="text-gray-700 mb-2">Vous pouvez désigner <strong>plusieurs conducteurs</strong> pour un même jour si vos équipes partent dans plusieurs véhicules :</p>
+                <ul class="list-disc list-inside space-y-2 ml-4 text-gray-700">
+                    <li>Ouvrez la section <strong>"Conducteur de la semaine"</strong></li>
+                    <li>Chaque jour affiche les conducteurs sous forme de <strong>badges</strong> avec leurs initiales</li>
+                    <li>Cliquez sur le bouton <strong class="text-green-600">+</strong> pour ajouter un conducteur supplémentaire</li>
+                    <li>Cliquez sur la <strong class="text-red-600">✕</strong> d'un badge pour retirer un conducteur (si plusieurs)</li>
+                    <li>Chaque conducteur aura automatiquement <strong>"1"</strong> dans sa ligne TRANSPORT sur le rapport</li>
+                    <li><em class="text-sm text-gray-600">Note : Une même personne ne peut être conducteur qu'une seule fois par jour</em></li>
+                </ul>
+            </div>
+
+            <!-- Mode saisonnier automatique -->
+            <div class="mb-6 bg-green-50 p-4 rounded-lg border-2 border-green-300">
+                <h3 class="text-xl font-semibold text-green-800 mb-3 flex items-center space-x-2">
+                    <span class="bg-green-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">☀️</span>
+                    <span>Mode saisonnier automatique</span>
+                </h3>
+                <p class="text-gray-700 mb-2">Les heures par défaut s'adaptent <strong>automatiquement</strong> au mode saisonnier sélectionné :</p>
+                <ul class="list-disc list-inside space-y-2 ml-4 text-gray-700">
+                    <li><strong>Mode Été ☀️</strong> : Les nouveaux ouvriers sont créés avec <strong>7.5h</strong> par jour</li>
+                    <li><strong>Mode Hiver ❄️</strong> : Les nouveaux ouvriers sont créés avec <strong>7h</strong> par jour</li>
+                    <li>Changez de mode via les boutons <strong>"Été (7.5h)"</strong> / <strong>"Hiver (7h)"</strong> en haut de page</li>
+                    <li>Le changement de mode met également à jour les heures existantes (7 ↔ 7.5)</li>
+                </ul>
+                <div class="mt-3 p-2 bg-white rounded border border-green-200">
+                    <p class="text-sm text-green-700"><strong>💡 Astuce :</strong> Sélectionnez le bon mode saisonnier <em>avant</em> d'ajouter vos ouvriers pour gagner du temps !</p>
+                </div>
             </div>
 
             <!-- 3. Saisie des heures -->

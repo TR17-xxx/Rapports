@@ -1367,9 +1367,18 @@ function selectMobileDriver(workerId) {
         if (!state.drivers[mobileDriverSelectorDay]) {
             state.drivers[mobileDriverSelectorDay] = [];
         }
-        state.drivers[mobileDriverSelectorDay].push(workerId);
+        // Convertir en nombre si c'est un ID numérique (pour correspondre aux IDs des ouvriers)
+        const numericId = parseInt(workerId, 10);
+        const finalId = isNaN(numericId) ? workerId : numericId;
+        state.drivers[mobileDriverSelectorDay].push(finalId);
         renderDriverSelection();
         saveState();
+        // Recréer les icônes Lucide après le rendu
+        setTimeout(() => {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }, 10);
     }
     hideMobileDriverSelector();
 }
@@ -1535,9 +1544,9 @@ function showSelectVehicleModal() {
     
     modal.classList.remove('hidden');
     
-    // Auto-focus sur la modal
+    // Pour les modals en position fixed, scroller la page vers le haut
     setTimeout(() => {
-        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 50);
 }
 
@@ -1616,9 +1625,11 @@ function showAddWorkerModal() {
     const modal = document.getElementById('addWorkerModal');
     modal.classList.remove('hidden');
     
-    // Scroller la modale au centre de l'écran visible
+    // Pour les modals en position fixed, scroller la page vers le haut
     setTimeout(() => {
-        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const modalContent = modal.querySelector('.bg-white');
+        if (modalContent) modalContent.scrollTop = 0;
     }, 10);
     
     // Détecter si on est sur mobile pour éviter le focus automatique qui ouvre le clavier
@@ -1762,9 +1773,11 @@ function showSelectForemanModal() {
     const modal = document.getElementById('selectForemanModal');
     modal.classList.remove('hidden');
     
-    // Scroller la modale au centre de l'écran visible
+    // Pour les modals en position fixed, scroller la page vers le haut
     setTimeout(() => {
-        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const modalContent = modal.querySelector('.bg-white');
+        if (modalContent) modalContent.scrollTop = 0;
     }, 10);
     
     // Détecter si on est sur mobile pour éviter le focus automatique
@@ -2060,9 +2073,11 @@ function showSelectSiteModal(workerId, siteIndex) {
     const modal = document.getElementById('selectSiteModal');
     modal.classList.remove('hidden');
     
-    // Scroller la modale au centre de l'écran visible
+    // Pour les modals en position fixed, scroller la page vers le haut
     setTimeout(() => {
-        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const modalContent = modal.querySelector('.bg-white');
+        if (modalContent) modalContent.scrollTop = 0;
     }, 10);
     
     // Détecter si on est sur mobile pour éviter le focus automatique
@@ -2251,9 +2266,9 @@ function showDayMentionModal(workerId, siteIndex, day) {
         if (customInput) {
             customInput.value = '';
         }
-        // Auto-focus sur la modal
+        // Pour les modals en position fixed, scroller la page vers le haut
         setTimeout(() => {
-            modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }, 50);
     }
 }
@@ -3697,9 +3712,15 @@ function showConfirmSendModal() {
     const modal = document.getElementById('confirmSendModal');
     modal.classList.remove('hidden');
     
-    // Scroller la modale au centre de l'écran visible
+    // Pour les modals en position fixed, scroller la page vers le haut et le contenu interne
     setTimeout(() => {
-        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Scroller la page vers le haut
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Scroller le contenu interne de la modal vers le haut
+        const modalContent = modal.querySelector('.bg-white');
+        if (modalContent) {
+            modalContent.scrollTop = 0;
+        }
         lucide.createIcons();
     }, 10);
 }
@@ -3715,9 +3736,9 @@ function showSuccessModal() {
     if (modal) {
         modal.classList.remove('hidden');
         lucide.createIcons();
-        // Auto-focus sur la modal
+        // Pour les modals en position fixed, scroller la page vers le haut
         setTimeout(() => {
-            modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }, 50);
     }
 }
