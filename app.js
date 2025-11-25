@@ -820,6 +820,43 @@ function preventIOSZoom() {
     }
 }
 
+// Fonction utilitaire pour scroller automatiquement vers une modal sur mobile
+function scrollModalIntoView(modalElement) {
+    if (!modalElement) return;
+    
+    // Détecter si on est sur mobile
+    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobile) {
+        // Sur mobile, s'assurer que la page est scrolled pour que la modal soit visible
+        // Puis centrer le contenu de la modal dans le viewport
+        setTimeout(() => {
+            // D'abord, scroller la page vers le haut pour s'assurer que la modal est visible
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Ensuite, après un court délai, centrer le contenu de la modal
+            setTimeout(() => {
+                const modalContent = modalElement.querySelector('.bg-white');
+                if (modalContent) {
+                    // Utiliser scrollIntoView pour centrer le contenu de la modal
+                    modalContent.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center',
+                        inline: 'nearest'
+                    });
+                }
+            }, 150);
+        }, 50);
+    } else {
+        // Sur desktop, scroller vers le haut de la page
+        setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const modalContent = modalElement.querySelector('.bg-white');
+            if (modalContent) modalContent.scrollTop = 0;
+        }, 10);
+    }
+}
+
 // Vérifier et afficher la modal des nouveautés
 function checkAndShowWhatsNew() {
     const LAST_SEEN_VERSION_KEY = 'rapport_last_seen_version';
@@ -1544,10 +1581,8 @@ function showSelectVehicleModal() {
     
     modal.classList.remove('hidden');
     
-    // Pour les modals en position fixed, scroller la page vers le haut
-    setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 50);
+    // Scroller automatiquement vers la modal (centré sur mobile)
+    scrollModalIntoView(modal);
 }
 
 // Sélectionner un véhicule et fermer le modal
@@ -1625,12 +1660,8 @@ function showAddWorkerModal() {
     const modal = document.getElementById('addWorkerModal');
     modal.classList.remove('hidden');
     
-    // Pour les modals en position fixed, scroller la page vers le haut
-    setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        const modalContent = modal.querySelector('.bg-white');
-        if (modalContent) modalContent.scrollTop = 0;
-    }, 10);
+    // Scroller automatiquement vers la modal (centré sur mobile)
+    scrollModalIntoView(modal);
     
     // Détecter si on est sur mobile pour éviter le focus automatique qui ouvre le clavier
     var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1773,12 +1804,8 @@ function showSelectForemanModal() {
     const modal = document.getElementById('selectForemanModal');
     modal.classList.remove('hidden');
     
-    // Pour les modals en position fixed, scroller la page vers le haut
-    setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        const modalContent = modal.querySelector('.bg-white');
-        if (modalContent) modalContent.scrollTop = 0;
-    }, 10);
+    // Scroller automatiquement vers la modal (centré sur mobile)
+    scrollModalIntoView(modal);
     
     // Détecter si on est sur mobile pour éviter le focus automatique
     var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -2073,12 +2100,8 @@ function showSelectSiteModal(workerId, siteIndex) {
     const modal = document.getElementById('selectSiteModal');
     modal.classList.remove('hidden');
     
-    // Pour les modals en position fixed, scroller la page vers le haut
-    setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        const modalContent = modal.querySelector('.bg-white');
-        if (modalContent) modalContent.scrollTop = 0;
-    }, 10);
+    // Scroller automatiquement vers la modal (centré sur mobile)
+    scrollModalIntoView(modal);
     
     // Détecter si on est sur mobile pour éviter le focus automatique
     var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -2266,10 +2289,8 @@ function showDayMentionModal(workerId, siteIndex, day) {
         if (customInput) {
             customInput.value = '';
         }
-        // Pour les modals en position fixed, scroller la page vers le haut
-        setTimeout(() => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 50);
+        // Scroller automatiquement vers la modal (centré sur mobile)
+        scrollModalIntoView(modal);
     }
 }
 
@@ -3712,17 +3733,13 @@ function showConfirmSendModal() {
     const modal = document.getElementById('confirmSendModal');
     modal.classList.remove('hidden');
     
-    // Pour les modals en position fixed, scroller la page vers le haut et le contenu interne
+    // Scroller automatiquement vers la modal (centré sur mobile)
+    scrollModalIntoView(modal);
+    
+    // Recréer les icônes Lucide
     setTimeout(() => {
-        // Scroller la page vers le haut
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        // Scroller le contenu interne de la modal vers le haut
-        const modalContent = modal.querySelector('.bg-white');
-        if (modalContent) {
-            modalContent.scrollTop = 0;
-        }
         lucide.createIcons();
-    }, 10);
+    }, 150);
 }
 
 // Masquer la modal de confirmation
@@ -3736,10 +3753,8 @@ function showSuccessModal() {
     if (modal) {
         modal.classList.remove('hidden');
         lucide.createIcons();
-        // Pour les modals en position fixed, scroller la page vers le haut
-        setTimeout(() => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 50);
+        // Scroller automatiquement vers la modal (centré sur mobile)
+        scrollModalIntoView(modal);
     }
 }
 
