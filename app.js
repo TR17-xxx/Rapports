@@ -828,24 +828,31 @@ function scrollModalIntoView(modalElement) {
     var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
     
     if (isMobile) {
-        // Sur mobile, s'assurer que la page est scrolled pour que la modal soit visible
-        // Puis centrer le contenu de la modal dans le viewport
+        // Sur mobile, la modal est en position: fixed donc toujours visible dans le viewport
+        // On doit s'assurer que la page est scrollée vers le haut et que le contenu de la modal est au début
         setTimeout(() => {
-            // D'abord, scroller la page vers le haut pour s'assurer que la modal est visible
+            // Scroller la page vers le haut immédiatement
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
-            // Ensuite, après un court délai, centrer le contenu de la modal
+            // Attendre que le contenu soit rendu puis réinitialiser le scroll interne
             setTimeout(() => {
                 const modalContent = modalElement.querySelector('.bg-white');
                 if (modalContent) {
-                    // Utiliser scrollIntoView pour centrer le contenu de la modal
+                    // Réinitialiser le scroll interne de la modal pour montrer le début
+                    modalContent.scrollTop = 0;
+                    
+                    // Forcer un reflow pour s'assurer que le scroll est appliqué
+                    void modalContent.offsetHeight;
+                    
+                    // Essayer scrollIntoView sur le contenu de la modal pour le centrer
+                    // Cela fonctionne mieux que sur la modal elle-même en position fixed
                     modalContent.scrollIntoView({ 
                         behavior: 'smooth', 
                         block: 'center',
                         inline: 'nearest'
                     });
                 }
-            }, 150);
+            }, 300);
         }, 50);
     } else {
         // Sur desktop, scroller vers le haut de la page
@@ -3733,13 +3740,48 @@ function showConfirmSendModal() {
     const modal = document.getElementById('confirmSendModal');
     modal.classList.remove('hidden');
     
-    // Scroller automatiquement vers la modal (centré sur mobile)
-    scrollModalIntoView(modal);
-    
     // Recréer les icônes Lucide
     setTimeout(() => {
         lucide.createIcons();
-    }, 150);
+    }, 10);
+    
+    // Scroller automatiquement vers la modal (centré sur mobile)
+    // Fonction spéciale pour cette modal car elle a beaucoup de contenu dynamique
+    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    if (isMobile) {
+        // Sur mobile, scroller la page vers le haut immédiatement
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Attendre que tout le contenu soit généré (aperçu du rapport)
+        setTimeout(() => {
+            const modalContent = modal.querySelector('.bg-white');
+            if (modalContent) {
+                // Réinitialiser le scroll interne de la modal
+                modalContent.scrollTop = 0;
+                
+                // Forcer un reflow
+                void modalContent.offsetHeight;
+                
+                // Scroller la page pour centrer la modal visuellement
+                // Même si la modal est en position fixed, scroller la page peut aider
+                // à repositionner le viewport pour une meilleure expérience utilisateur
+                setTimeout(() => {
+                    // Utiliser scrollIntoView sur le contenu pour tenter de le centrer
+                    modalContent.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center',
+                        inline: 'nearest'
+                    });
+                }, 100);
+            }
+        }, 500);
+    } else {
+        // Sur desktop, utiliser la fonction standard
+        setTimeout(() => {
+            scrollModalIntoView(modal);
+        }, 200);
+    }
 }
 
 // Masquer la modal de confirmation
