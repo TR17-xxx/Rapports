@@ -753,17 +753,19 @@
             #addWorkerModal:not(.hidden),
             #selectForemanModal:not(.hidden),
             #selectSiteModal:not(.hidden),
-            #confirmSendModal:not(.hidden) {
+            #confirmSendModal:not(.hidden),
+            #dayMentionModal:not(.hidden),
+            #selectVehicleModal:not(.hidden),
+            #successModal:not(.hidden) {
                 position: fixed !important;
                 top: 0 !important;
                 left: 0 !important;
                 right: 0 !important;
                 bottom: 0 !important;
                 display: flex !important;
-                align-items: flex-start !important;
+                align-items: center !important;
                 justify-content: center !important;
                 padding: 1rem !important;
-                padding-top: 2rem !important;
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch;
                 z-index: 9999 !important;
@@ -773,16 +775,18 @@
             #addWorkerModal > div,
             #selectForemanModal > div,
             #selectSiteModal > div,
-            #confirmSendModal > div {
+            #confirmSendModal > div,
+            #dayMentionModal > div,
+            #selectVehicleModal > div,
+            #successModal > div {
                 max-width: 95% !important;
                 width: 100% !important;
-                margin: auto !important;
-                max-height: calc(90vh - 2rem) !important;
+                margin: 0 !important;
+                max-height: calc(100vh - 2rem) !important;
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch;
                 overscroll-behavior: contain;
                 transform: translateZ(0);
-                will-change: scroll-position;
             }
             
             /* Améliorer le fond des modals pour mobile */

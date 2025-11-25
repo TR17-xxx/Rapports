@@ -2463,7 +2463,7 @@ function renderDriverSelection() {
                 const showDeleteBtn = state.drivers[day].length > 1;
                 return `
                     <div class="inline-flex items-center bg-orange-100 text-orange-800 px-3 py-1.5 rounded-full text-sm font-semibold mr-2 mb-1">
-                        <span>${escapeHtml(worker.lastName.charAt(0))}${escapeHtml(worker.firstName ? worker.firstName.charAt(0) : '')}</span>
+                        <span>${escapeHtml(worker.lastName)}</span>
                         ${showDeleteBtn ? `
                             <button 
                                 onclick="removeDriverForDay('${day}', ${driverIndex}); event.stopPropagation();"
