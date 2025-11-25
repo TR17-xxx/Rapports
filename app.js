@@ -139,7 +139,7 @@ const STORAGE_EXPIRY_DAYS = 8;
 const EMAIL_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
 
 // VERSION DE L'APPLICATION (pour afficher les nouvelles fonctionnalités)
-const APP_VERSION = '1.2.0'; // Conducteurs multiples
+const APP_VERSION = '1.2.1'; // Améliorations et corrections
 let whatsNewModalCleanup = null;
 
 // Obtenir la clé de stockage pour une semaine donnée
@@ -877,6 +877,9 @@ function checkAndShowWhatsNew() {
             if (modal) {
                 // Afficher la modal (elle est déjà en position fixed donc toujours visible)
                 modal.classList.remove('hidden');
+                
+                // Scroller automatiquement vers la modal (centré sur mobile)
+                scrollModalIntoView(modal);
                 
                 const closeOnBackdrop = (event) => {
                     if (event.target === modal) {
