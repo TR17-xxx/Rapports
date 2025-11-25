@@ -855,12 +855,21 @@ function scrollModalIntoView(modalElement) {
             }, 300);
         }, 50);
     } else {
-        // Sur desktop, scroller vers le haut de la page
+        // Sur desktop, centrer la modale dans le viewport
         setTimeout(() => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
             const modalContent = modalElement.querySelector('.bg-white');
-            if (modalContent) modalContent.scrollTop = 0;
-        }, 10);
+            if (modalContent) {
+                // Réinitialiser le scroll interne de la modal
+                modalContent.scrollTop = 0;
+                
+                // Centrer la modale dans le viewport
+                modalContent.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center',
+                    inline: 'nearest'
+                });
+            }
+        }, 100);
     }
 }
 
@@ -878,28 +887,11 @@ function checkAndShowWhatsNew() {
                 // Afficher la modal (elle est déjà en position fixed donc toujours visible)
                 modal.classList.remove('hidden');
                 
-                // Scroller automatiquement vers la modal (centré sur mobile)
+                // Centrer la modale sur desktop et mobile
                 scrollModalIntoView(modal);
                 
-                const closeOnBackdrop = (event) => {
-                    if (event.target === modal) {
-                        closeWhatsNewModal();
-                    }
-                };
-                
-                const closeOnEsc = (event) => {
-                    if (event.key === 'Escape') {
-                        event.preventDefault();
-                        closeWhatsNewModal();
-                    }
-                };
-                
-                modal.addEventListener('click', closeOnBackdrop);
-                document.addEventListener('keydown', closeOnEsc);
-                
+                // Pas de fermeture par backdrop ou Escape - uniquement via le bouton "J'ai compris"
                 whatsNewModalCleanup = () => {
-                    modal.removeEventListener('click', closeOnBackdrop);
-                    document.removeEventListener('keydown', closeOnEsc);
                     whatsNewModalCleanup = null;
                 };
                 
