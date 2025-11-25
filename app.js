@@ -1023,9 +1023,11 @@ function initializeWorkers() {
     updateForemanSelector();
 }
 
-// Créer un chantier vide avec heures pré-remplies à 7.5 (premier) ou 0 (suivants)
+// Créer un chantier vide avec heures pré-remplies selon le mode saisonnier (premier) ou 0 (suivants)
 function createEmptySite(isFirstSite = true) {
-    const defaultValue = isFirstSite ? 7.5 : 0;
+    // Utiliser 7h en hiver, 7.5h en été
+    const seasonDefault = state.seasonMode === 'winter' ? 7 : 7.5;
+    const defaultValue = isFirstSite ? seasonDefault : 0;
     return {
         siteName: '',
         hours: {
@@ -1281,6 +1283,106 @@ function removeDriverForDay(day, index) {
     }
 }
 
+// Variable pour stocker le jour en cours de sélection (mobile)
+let mobileDriverSelectorDay = null;
+
+// Afficher le sélecteur de conducteur mobile (liste simple)
+function showMobileDriverSelector(day) {
+    mobileDriverSelectorDay = day;
+    
+    // Ouvriers disponibles (pas encore conducteurs pour ce jour)
+    const availableWorkers = state.activeWorkers.filter(worker => 
+        !state.drivers[day].includes(worker.id)
+    );
+    
+    if (availableWorkers.length === 0) {
+        alert('Tous les ouvriers sont déjà conducteurs pour ce jour.');
+        return;
+    }
+    
+    // Créer la modal de sélection
+    const modal = document.createElement('div');
+    modal.id = 'mobileDriverSelectorModal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-[10000]';
+    modal.onclick = (e) => {
+        if (e.target === modal) hideMobileDriverSelector();
+    };
+    
+    const dayNames = {
+        monday: 'Lundi',
+        tuesday: 'Mardi',
+        wednesday: 'Mercredi',
+        thursday: 'Jeudi',
+        friday: 'Vendredi'
+    };
+    
+    const workerButtons = availableWorkers.map(worker => `
+        <button 
+            onclick="selectMobileDriver('${escapeHtml(worker.id)}')"
+            class="w-full px-4 py-4 text-left text-lg font-medium text-gray-800 hover:bg-orange-50 active:bg-orange-100 border-b border-gray-100 transition flex items-center space-x-3"
+        >
+            <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-800 flex items-center justify-center font-bold text-sm">
+                ${escapeHtml(worker.lastName.charAt(0))}${escapeHtml(worker.firstName ? worker.firstName.charAt(0) : '')}
+            </div>
+            <span>${escapeHtml(worker.lastName)} ${escapeHtml(worker.firstName)}</span>
+        </button>
+    `).join('');
+    
+    modal.innerHTML = `
+        <div class="bg-white rounded-t-2xl w-full max-w-lg max-h-[70vh] overflow-hidden shadow-2xl animate-slide-up">
+            <div class="px-4 py-4 bg-orange-50 border-b border-orange-200 flex items-center justify-between">
+                <h3 class="text-lg font-bold text-orange-800">
+                    <i data-lucide="user-plus" class="inline-block mr-2" style="width: 20px; height: 20px;"></i>
+                    Conducteur - ${dayNames[day]}
+                </h3>
+                <button onclick="hideMobileDriverSelector()" class="p-2 text-gray-500 hover:bg-orange-100 rounded-full transition">
+                    <i data-lucide="x" style="width: 24px; height: 24px;"></i>
+                </button>
+            </div>
+            <div class="overflow-y-auto max-h-[calc(70vh-60px)]">
+                ${workerButtons}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Recréer les icônes Lucide
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
+    // Auto-focus sur la modal
+    setTimeout(() => {
+        const modalContent = modal.querySelector('.bg-white');
+        if (modalContent) {
+            modalContent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 50);
+}
+
+// Sélectionner un conducteur depuis la modal mobile
+function selectMobileDriver(workerId) {
+    if (mobileDriverSelectorDay && workerId) {
+        if (!state.drivers[mobileDriverSelectorDay]) {
+            state.drivers[mobileDriverSelectorDay] = [];
+        }
+        state.drivers[mobileDriverSelectorDay].push(workerId);
+        renderDriverSelection();
+        saveState();
+    }
+    hideMobileDriverSelector();
+}
+
+// Fermer le sélecteur de conducteur mobile
+function hideMobileDriverSelector() {
+    const modal = document.getElementById('mobileDriverSelectorModal');
+    if (modal) {
+        modal.remove();
+    }
+    mobileDriverSelectorDay = null;
+}
+
 // S'assurer que la structure d'utilisation véhicule existe pour un jour donné
 function ensureVehicleUsageDay(day) {
     if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
@@ -1432,6 +1534,11 @@ function showSelectVehicleModal() {
     });
     
     modal.classList.remove('hidden');
+    
+    // Auto-focus sur la modal
+    setTimeout(() => {
+        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
 }
 
 // Sélectionner un véhicule et fermer le modal
@@ -1890,7 +1997,7 @@ function addSiteToWorker(workerId) {
     if (!state.data[workerId]) {
         state.data[workerId] = { sites: [], observation: '', isInterim: false, panierMode: 'panier', panierCustom: createEmptyPanierCustom(), dayMentions: createEmptyDayMentions() };
     }
-    // Le premier chantier a des valeurs à 7.5, les suivants à 0
+    // Le premier chantier a des valeurs selon le mode saisonnier (7h hiver, 7.5h été), les suivants à 0
     const isFirstSite = state.data[workerId].sites.length === 0;
     state.data[workerId].sites.push(createEmptySite(isFirstSite));
     renderWorkerCards();
@@ -2144,6 +2251,10 @@ function showDayMentionModal(workerId, siteIndex, day) {
         if (customInput) {
             customInput.value = '';
         }
+        // Auto-focus sur la modal
+        setTimeout(() => {
+            modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
     }
 }
 
@@ -2289,11 +2400,16 @@ function renderDriverSelection() {
         : (typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
     
     if (isMobileLayout) {
-        container.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
-        container.style.columnGap = '12px';
+        // Layout mobile en LIGNES (pas de grille)
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '8px';
+        container.className = 'flex flex-col gap-2 mt-4';
     } else {
-        container.style.gridTemplateColumns = '';
-        container.style.columnGap = '';
+        container.style.display = '';
+        container.style.flexDirection = '';
+        container.style.gap = '';
+        container.className = 'grid grid-cols-5 gap-4 mt-4';
     }
     
     const vehicleOptions = state.vehicleOptions || [];
@@ -2322,36 +2438,22 @@ function renderDriverSelection() {
         const dayDiv = document.createElement('div');
         
         if (isMobileLayout) {
-            dayDiv.className = 'flex flex-col items-center justify-between rounded-xl border-2 border-orange-300 bg-white px-2 py-3 shadow-sm';
-            dayDiv.style.height = '100%';
-            dayDiv.style.display = 'flex';
-            dayDiv.style.flexDirection = 'column';
-            dayDiv.style.justifyContent = 'space-between';
-            dayDiv.style.width = '100%';
+            // Layout mobile en LIGNES - chaque jour sur une ligne horizontale
+            dayDiv.className = 'flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-orange-200 shadow-sm';
             
-            // Générer un select pour chaque conducteur
-            const driverSelects = state.drivers[day].map((driverId, driverIndex) => {
+            // Générer les badges des conducteurs
+            const driverBadges = state.drivers[day].map((driverId, driverIndex) => {
+                const worker = state.activeWorkers.find(w => w.id === driverId);
+                if (!worker) return '';
                 const showDeleteBtn = state.drivers[day].length > 1;
-                // Filtrer les ouvriers : exclure ceux déjà conducteurs (sauf celui-ci)
-                const availableWorkers = state.activeWorkers.filter(w => 
-                    w.id === driverId || !state.drivers[day].includes(w.id)
-                );
                 return `
-                    <div class="w-full mb-2 relative">
-                        <select 
-                            onchange="updateDriver('${day}', ${driverIndex}, this.value)"
-                            class="block w-full px-2 py-2 ${showDeleteBtn ? 'pr-8' : ''} border-2 border-orange-300 bg-white rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm font-semibold text-gray-800 text-center transition"
-                        >
-                            ${availableWorkers.map(w => {
-                                const selected = driverId === w.id ? 'selected' : '';
-                                return `<option value="${escapeHtml(w.id)}" ${selected}>${escapeHtml(w.lastName)}</option>`;
-                            }).join('')}
-                        </select>
+                    <div class="inline-flex items-center bg-orange-100 text-orange-800 px-3 py-1.5 rounded-full text-sm font-semibold mr-2 mb-1">
+                        <span>${escapeHtml(worker.lastName.charAt(0))}${escapeHtml(worker.firstName ? worker.firstName.charAt(0) : '')}</span>
                         ${showDeleteBtn ? `
                             <button 
-                                onclick="removeDriverForDay('${day}', ${driverIndex})"
-                                class="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-red-600 hover:bg-red-50 rounded transition"
-                                title="Retirer ce conducteur"
+                                onclick="removeDriverForDay('${day}', ${driverIndex}); event.stopPropagation();"
+                                class="ml-1.5 text-red-500 hover:text-red-700 transition"
+                                title="Retirer"
                             >
                                 <i data-lucide="x" style="width: 14px; height: 14px;"></i>
                             </button>
@@ -2367,21 +2469,22 @@ function renderDriverSelection() {
             
             const addButton = availableWorkersCount > 0 
                 ? `<button 
-                        onclick="addDriverForDay('${day}')"
-                        class="w-full mt-2 px-2 py-1.5 bg-green-100 text-green-700 border border-green-300 rounded-lg hover:bg-green-200 transition text-xs font-medium flex items-center justify-center space-x-1"
+                        onclick="showMobileDriverSelector('${day}')"
+                        class="inline-flex items-center justify-center w-8 h-8 bg-green-500 text-white rounded-full hover:bg-green-600 transition shadow-sm flex-shrink-0"
                         title="Ajouter un conducteur"
                     >
-                        <i data-lucide="plus" style="width: 12px; height: 12px;"></i>
-                        <span>+</span>
+                        <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
                     </button>`
                 : '';
             
             dayDiv.innerHTML = `
-                <span class="text-sm font-semibold uppercase tracking-wide text-orange-800 mb-2">${dayNames[index]}</span>
-                <div class="w-full">
-                    ${driverSelects}
-                    ${addButton}
+                <div class="flex items-center min-w-0">
+                    <span class="text-sm font-bold text-orange-800 w-16 flex-shrink-0">${dayNames[index].substring(0, 3).toUpperCase()}</span>
+                    <div class="flex flex-wrap items-center">
+                        ${driverBadges}
+                    </div>
                 </div>
+                ${addButton}
             `;
         } else {
             dayDiv.className = 'space-y-3 bg-white rounded-xl p-4 border border-orange-100 shadow-sm';
@@ -2946,22 +3049,6 @@ async function downloadPdfDirectly() {
             doc.text(`${worker.lastName} ${worker.firstName}` || '', 170, 20, { maxWidth: 35 });
             doc.setFont(undefined, 'normal');
             
-            // Ajouter le filigrane PRÉVISIONNEL si activé
-            if (state.isPrevisionnel) {
-                doc.setFontSize(80);
-                doc.setFont(undefined, 'bold');
-                doc.setTextColor(255, 0, 0);
-                doc.saveGraphicsState();
-                doc.setGState(new doc.GState({ opacity: 0.15 }));
-                doc.text('PRÉVISIONNEL', 105, 150, { 
-                    align: 'center', 
-                    angle: 45,
-                    baseline: 'middle'
-                });
-                doc.restoreGraphicsState();
-                doc.setTextColor(0, 0, 0);
-            }
-            
             // Tableau des heures
             const tableData = [];
             
@@ -3094,6 +3181,22 @@ async function downloadPdfDirectly() {
                 }
             });
             
+            // Ajouter le filigrane PRÉVISIONNEL si activé (placé APRÈS le tableau pour être au-dessus)
+            if (state.isPrevisionnel) {
+                doc.setFontSize(80);
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(255, 0, 0);
+                doc.saveGraphicsState();
+                doc.setGState(new doc.GState({ opacity: 0.15 }));
+                doc.text('PRÉVISIONNEL', 105, 150, { 
+                    align: 'center', 
+                    angle: 45,
+                    baseline: 'middle'
+                });
+                doc.restoreGraphicsState();
+                doc.setTextColor(0, 0, 0);
+            }
+            
             // Observations
             const finalY = doc.lastAutoTable.finalY + 10;
             const boxX = 15;
@@ -3122,7 +3225,9 @@ async function downloadPdfDirectly() {
                 doc.setFontSize(9);
                 doc.setFont(undefined, 'italic');
                 const lines = doc.splitTextToSize(observationText, boxWidth - 8);
-                doc.text(lines, boxX + 4, finalY + 7);
+                // Centrer le texte des observations comme dans la version native
+                const textX = boxX + (boxWidth / 2);
+                doc.text(lines, textX, finalY + 7, { align: 'center' });
             }
             
             // Pied de page
@@ -3131,6 +3236,11 @@ async function downloadPdfDirectly() {
             doc.text('Référence: Agenda chef d\'équipe', 15, 270);
             doc.text(`Chef de chantier: ${foremanName}`, 15, 275);
             doc.text('Visa conducteur:', 110, 270);
+            
+            // Copyright
+            doc.setFontSize(8);
+            doc.setFont(undefined, 'normal');
+            doc.text('©TonyDevProjects', 105, 285, { align: 'center' });
         });
         
         // Télécharger le PDF
@@ -3605,6 +3715,10 @@ function showSuccessModal() {
     if (modal) {
         modal.classList.remove('hidden');
         lucide.createIcons();
+        // Auto-focus sur la modal
+        setTimeout(() => {
+            modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
     }
 }
 
@@ -3706,13 +3820,13 @@ async function sendReportByEmail(event) {
                 // S'assurer que les mentions de jour existent
                 const dayMentions = workerData.dayMentions || createEmptyDayMentions();
                 
-                // Préparer les informations de conducteur pour chaque jour
+                // Préparer les informations de conducteur pour chaque jour (compatible ancien/nouveau format avec conducteurs multiples)
                 const drivers = {
-                    monday: state.drivers.monday === worker.id,
-                    tuesday: state.drivers.tuesday === worker.id,
-                    wednesday: state.drivers.wednesday === worker.id,
-                    thursday: state.drivers.thursday === worker.id,
-                    friday: state.drivers.friday === worker.id
+                    monday: Array.isArray(state.drivers.monday) ? state.drivers.monday.includes(worker.id) : state.drivers.monday === worker.id,
+                    tuesday: Array.isArray(state.drivers.tuesday) ? state.drivers.tuesday.includes(worker.id) : state.drivers.tuesday === worker.id,
+                    wednesday: Array.isArray(state.drivers.wednesday) ? state.drivers.wednesday.includes(worker.id) : state.drivers.wednesday === worker.id,
+                    thursday: Array.isArray(state.drivers.thursday) ? state.drivers.thursday.includes(worker.id) : state.drivers.thursday === worker.id,
+                    friday: Array.isArray(state.drivers.friday) ? state.drivers.friday.includes(worker.id) : state.drivers.friday === worker.id
                 };
                 
                 console.log(`[CLIENT DEBUG] Worker: ${worker.lastName} ${worker.firstName}`);
