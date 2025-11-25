@@ -255,12 +255,12 @@ app.post('/api/send-report', async (req, res) => {
         const mailOptions = {
             from: `"Rapports Hebdomadaires" <${process.env.EMAIL_USER}>`,
             to: recipients.join(', '),
-            subject: `Rapport Hebdomadaire - ${weekInfo.period} - ${weekInfo.foreman}`,
+            subject: `${weekInfo.foreman} - Rapport Hebdomadaire - ${weekInfo.period}`,
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2 style="color: #2563eb;">Rapport Hebdomadaire de Chantier</h2>
-                    <p><strong>Période :</strong> ${weekInfo.period}</p>
                     <p><strong>Chef de chantier :</strong> ${weekInfo.foreman}</p>
+                    <p><strong>Période :</strong> ${weekInfo.period}</p>
                     <p><strong>Semaine :</strong> ${weekInfo.weekNumber}</p>
                     <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
                     <p>Veuillez trouver ci-joint le rapport hebdomadaire des heures de chantier.</p>
@@ -271,7 +271,7 @@ app.post('/api/send-report', async (req, res) => {
             `,
             attachments: [
                 {
-                    filename: `Rapport_${weekInfo.weekNumber}_${weekInfo.period.replace(/\s/g, '_')}.pdf`,
+                    filename: `${weekInfo.foreman.replace(/\s+/g, '_')}_Rapport_${weekInfo.weekNumber}_${weekInfo.period.replace(/\s/g, '_')}.pdf`,
                     content: pdfBuffer,
                     contentType: 'application/pdf'
                 }

@@ -1519,6 +1519,11 @@ function updateWeeklyMileage(inputElement) {
     
     state.isEditingMileage = false;
     saveState();
+    
+    // Fermer le clavier après validation
+    if (inputElement && inputElement.blur) {
+        inputElement.blur();
+    }
 }
 
 // Afficher le modal de sélection de véhicule
@@ -2247,7 +2252,7 @@ function updateSiteName(workerId, siteIndex, siteName) {
 }
 
 // Mettre à jour les heures
-function updateHours(workerId, siteIndex, day, hours) {
+function updateHours(workerId, siteIndex, day, hours, inputElement) {
     if (state.data[workerId] && state.data[workerId].sites[siteIndex]) {
         const newValue = parseFloat(hours) || 0;
         state.data[workerId].sites[siteIndex].hours[day] = newValue;
@@ -2277,6 +2282,11 @@ function updateHours(workerId, siteIndex, day, hours) {
         calculateAndRenderTotals();
         // Sauvegarder l'état
         saveState();
+        
+        // Fermer le clavier après validation
+        if (inputElement && inputElement.blur) {
+            inputElement.blur();
+        }
     }
 }
 
@@ -2838,7 +2848,7 @@ function createWorkerCard(worker) {
                                             min="0" 
                                             max="24" 
                                             step="0.5"
-                                            onchange="updateHours(${worker.id}, ${siteIndex}, '${day}', this.value)"
+                                            onchange="updateHours(${worker.id}, ${siteIndex}, '${day}', this.value, this)"
                                             class="w-full px-1 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
                                         >
                                         <button 
@@ -3881,7 +3891,7 @@ async function sendReportByEmail(event) {
 
         const weekInfo = {
             period: weekDisplay.textContent,
-            foreman: currentForeman.firstName + ' ' + currentForeman.lastName,
+            foreman: currentForeman.lastName + ' ' + currentForeman.firstName,
             weekNumber: weekNumber || 'Non définie'
         };
 

@@ -124,12 +124,12 @@ exports.handler = async (event, context) => {
                 name: 'Rapports Hebdomadaires'
             },
             to: recipients,
-            subject: `Rapport Hebdomadaire - ${weekInfo.period}`,
+            subject: `${weekInfo.foreman || 'Chef de chantier'} - Rapport Hebdomadaire - ${weekInfo.period}`,
             htmlContent: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2 style="color: #2563eb;">📊 Rapport Hebdomadaire</h2>
-                    <p><strong>Période :</strong> ${weekInfo.period}</p>
                     <p><strong>Chef de chantier :</strong> ${weekInfo.foreman || 'Non défini'}</p>
+                    <p><strong>Période :</strong> ${weekInfo.period}</p>
                     <p>Veuillez trouver ci-joint le rapport hebdomadaire détaillé au format PDF.</p>
                     <hr style="border: 1px solid #e5e7eb; margin: 20px 0;">
                     <p style="color: #6b7280; font-size: 12px;">
@@ -140,7 +140,7 @@ exports.handler = async (event, context) => {
             attachment: [
                 {
                     content: pdfBase64,
-                    name: `Rapport_${weekInfo.period.replace(/\s+/g, '_')}.pdf`
+                    name: `${(weekInfo.foreman || 'Chef_de_chantier').replace(/\s+/g, '_')}_Rapport_${weekInfo.period.replace(/\s+/g, '_')}.pdf`
                 }
             ]
         };

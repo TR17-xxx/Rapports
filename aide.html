@@ -376,10 +376,72 @@
                     <span class="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">3</span>
                     <span>Export et impression</span>
                 </h3>
-                <ul class="list-disc list-inside space-y-2 ml-4 text-gray-700">
-                    <li><strong>Imprimer / PDF</strong> : Génère une fiche propre pour l'impression ou l'enregistrement PDF.</li>
-                    <li><strong>Envoyer par Email</strong> : Envoie le rapport directement à Mickaël et Virginie après confirmation du récapitulatif.</li>
-                </ul>
+                
+                <!-- Impression / PDF -->
+                <div class="mb-4 bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2 flex items-center space-x-2">
+                        <i data-lucide="printer" style="width: 20px; height: 20px;"></i>
+                        <span>Imprimer / PDF</span>
+                    </h4>
+                    <ul class="list-disc list-inside space-y-2 ml-4 text-gray-700">
+                        <li>Cliquez sur le bouton <strong>"Imprimer / PDF"</strong> pour générer une version formatée du rapport.</li>
+                        <li>Le rapport généré contient :
+                            <ul class="list-disc list-inside ml-6 mt-1 space-y-1 text-sm text-gray-600">
+                                <li>Les informations de la semaine (numéro, période, dates)</li>
+                                <li>Le nom du chef de chantier</li>
+                                <li>Pour chaque ouvrier : nom, chantiers, heures par jour, totaux, panier, transport, trajet</li>
+                                <li>Les observations et mentions spéciales (Férié, Vaqué, Malade, etc.)</li>
+                                <li>Le filigrane "PRÉVISIONNEL" si le mode prévisionnel est activé</li>
+                            </ul>
+                        </li>
+                        <li>Dans la fenêtre d'impression de votre navigateur :
+                            <ul class="list-disc list-inside ml-6 mt-1 space-y-1 text-sm text-gray-600">
+                                <li>Choisissez votre imprimante pour imprimer directement</li>
+                                <li>Ou sélectionnez <strong>"Enregistrer au format PDF"</strong> pour sauvegarder le fichier</li>
+                                <li>Le format est optimisé pour le papier A4</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Envoi par Email -->
+                <div class="mb-4 bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                    <h4 class="text-lg font-semibold text-green-800 mb-2 flex items-center space-x-2">
+                        <i data-lucide="mail" style="width: 20px; height: 20px;"></i>
+                        <span>Envoyer par Email</span>
+                    </h4>
+                    <ol class="list-decimal list-inside space-y-2 ml-4 text-gray-700">
+                        <li><strong>Vérifications préalables</strong> :
+                            <ul class="list-disc list-inside ml-6 mt-1 space-y-1 text-sm text-gray-600">
+                                <li>Un chef de chantier doit être sélectionné</li>
+                                <li>Au moins un ouvrier doit être ajouté au rapport</li>
+                            </ul>
+                        </li>
+                        <li>Cliquez sur le bouton <strong>"Envoyer par Email"</strong></li>
+                        <li>Une modale de confirmation s'affiche avec :
+                            <ul class="list-disc list-inside ml-6 mt-1 space-y-1 text-sm text-gray-600">
+                                <li>Le récapitulatif complet du rapport (nombre d'ouvriers, totaux par chantier, etc.)</li>
+                                <li>Les destinataires (Mickaël et Virginie)</li>
+                                <li>Un avertissement si le mode prévisionnel est activé</li>
+                            </ul>
+                        </li>
+                        <li>Vérifiez les informations et cliquez sur <strong>"Confirmer l'envoi"</strong></li>
+                        <li>Le rapport est généré en PDF et envoyé automatiquement par email</li>
+                        <li>Un message de confirmation s'affiche une fois l'envoi réussi</li>
+                        <li>Après l'envoi, vous pouvez <strong>télécharger le rapport PDF</strong> directement depuis la confirmation</li>
+                    </ol>
+                    <div class="mt-3 p-2 bg-white rounded border border-green-200">
+                        <p class="text-sm text-green-700">
+                            <strong>📧 Format de l'email :</strong> Le sujet commence par le nom du chef de chantier, suivi de "Rapport Hebdomadaire" et de la période. 
+                            Le PDF joint porte également le nom du chef de chantier en préfixe.
+                        </p>
+                    </div>
+                    <div class="mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                        <p class="text-sm text-yellow-700">
+                            <strong>⏱️ Limitation :</strong> Pour éviter les envois multiples accidentels, un délai de 5 minutes est imposé entre deux envois.
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <!-- 6. Sauvegarde -->
