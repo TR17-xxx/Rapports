@@ -148,6 +148,19 @@ function getWeeklyStorageKey(weekNumber) {
     return WEEKLY_STORAGE_KEY_PREFIX + String(weekNumber);
 }
 
+// Fonction pour jouer un son MP3 (pour Simmonet)
+function playSimmonetSound() {
+    try {
+        const audio = new Audio('simmonet.mp3');
+        audio.play().catch(function(error) {
+            // Ignorer les erreurs silencieusement (par exemple si l'utilisateur n'a pas interagi avec la page)
+            console.log('Impossible de jouer le son:', error);
+        });
+    } catch (error) {
+        console.log('Erreur lors de la lecture du son:', error);
+    }
+}
+
 // Sauvegarder l'état dans le localStorage (global + semaine courante)
 function saveState() {
     try {
@@ -1287,7 +1300,17 @@ function updateDriver(day, index, workerId) {
         return;
     }
     
+    // Vérifier si c'est Simmonet avant de l'ajouter
+    const worker = state.availableWorkers.find(w => w.id === newWorkerId);
+    const isSimmonet = worker && worker.lastName === 'Simmonet';
+    
     state.drivers[day][index] = newWorkerId;
+    
+    // Jouer le son si c'est Simmonet
+    if (isSimmonet) {
+        playSimmonetSound();
+    }
+    
     renderAll();
     saveState();
 }
@@ -1305,7 +1328,15 @@ function addDriverForDay(day) {
     
     if (availableWorkers.length > 0) {
         // Ajouter le premier ouvrier disponible (qui n'est pas déjà conducteur)
-        state.drivers[day].push(availableWorkers[0].id);
+        const addedWorkerId = availableWorkers[0].id;
+        state.drivers[day].push(addedWorkerId);
+        
+        // Jouer le son si c'est Simmonet
+        const addedWorker = availableWorkers[0];
+        if (addedWorker && addedWorker.lastName === 'Simmonet') {
+            playSimmonetSound();
+        }
+        
         renderDriverSelection();
         saveState();
     } else {
@@ -1409,7 +1440,18 @@ function selectMobileDriver(workerId) {
         // Convertir en nombre si c'est un ID numérique (pour correspondre aux IDs des ouvriers)
         const numericId = parseInt(workerId, 10);
         const finalId = isNaN(numericId) ? workerId : numericId;
+        
+        // Vérifier si c'est Simmonet avant de l'ajouter
+        const worker = state.availableWorkers.find(w => w.id === finalId);
+        const isSimmonet = worker && worker.lastName === 'Simmonet';
+        
         state.drivers[mobileDriverSelectorDay].push(finalId);
+        
+        // Jouer le son si c'est Simmonet
+        if (isSimmonet) {
+            playSimmonetSound();
+        }
+        
         renderDriverSelection();
         saveState();
         // Recréer les icônes Lucide après le rendu
@@ -1890,9 +1932,20 @@ function updateForemanSelectOptions() {
 function selectForeman(workerId) {
     state.foremanId = workerId;
     
+    // Vérifier si c'est Simmonet et s'il était déjà actif avant l'ajout
+    const worker = state.availableWorkers.find(w => w.id === workerId);
+    const isSimmonet = worker && worker.lastName === 'Simmonet';
+    const wasAlreadyActive = state.activeWorkers.find(w => w.id === workerId) !== undefined;
+    
     // Ajouter automatiquement le chef de chantier aux ouvriers actifs
     if (state.foremanId) {
         addWorkerToActive(state.foremanId);
+    }
+    
+    // Si Simmonet est sélectionné comme chef de chantier et qu'il était déjà actif,
+    // jouer le son (car addWorkerToActive ne l'aura pas joué dans ce cas)
+    if (isSimmonet && wasAlreadyActive) {
+        playSimmonetSound();
     }
     
     // Réinitialiser les conducteurs au chef de chantier
@@ -1976,6 +2029,11 @@ function addWorkerToActive(workerId) {
     
     // Ajouter l'ouvrier aux actifs
     state.activeWorkers.push(worker);
+    
+    // Jouer le son si c'est Simmonet
+    if (worker.lastName === 'Simmonet') {
+        playSimmonetSound();
+    }
     
     // Initialiser ses données
     if (!state.data[workerId]) {
