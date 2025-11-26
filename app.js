@@ -852,8 +852,8 @@ function scrollModalIntoView(modalElement) {
                         inline: 'nearest'
                     });
                 }
-            }, 300);
-        }, 50);
+            }, 150);
+        }, 25);
     } else {
         // Sur desktop, centrer la modale dans le viewport
         setTimeout(() => {
@@ -869,7 +869,7 @@ function scrollModalIntoView(modalElement) {
                     inline: 'nearest'
                 });
             }
-        }, 100);
+        }, 50);
     }
 }
 
@@ -3778,14 +3778,14 @@ function showConfirmSendModal() {
                         block: 'center',
                         inline: 'nearest'
                     });
-                }, 100);
+                }, 50);
             }
-        }, 500);
+        }, 250);
     } else {
         // Sur desktop, utiliser la fonction standard
         setTimeout(() => {
             scrollModalIntoView(modal);
-        }, 200);
+        }, 100);
     }
 }
 
