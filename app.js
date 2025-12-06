@@ -129,7 +129,8 @@ let state = {
     isEditingMileage: false, // Protection contre les re-renders pendant la saisie du kilométrage
     seasonMode: 'summer', // Mode 'summer' (7.5h) ou 'winter' (7h)
     expandedWorkers: [], // Liste des IDs des ouvriers dont la carte est dépliée
-    driverSectionExpanded: false // État déplié/replié de la section conducteur
+    driverSectionExpanded: false, // État déplié/replié de la section conducteur
+    excludeForemanFromReport: false // Exclure le chef de chantier du rapport (mode complémentaire)
 };
 
 // Clé pour le localStorage
@@ -139,7 +140,7 @@ const STORAGE_EXPIRY_DAYS = 8;
 const EMAIL_COOLDOWN_MS = 1 * 60 * 1000; // 1 minute
 
 // VERSION DE L'APPLICATION (pour afficher les nouvelles fonctionnalités)
-const APP_VERSION = '1.2.1'; // Améliorations et corrections
+const APP_VERSION = '1.2.2'; // Vérification kilométrage et mode complémentaire
 let whatsNewModalCleanup = null;
 
 // Obtenir la clé de stockage pour une semaine donnée
@@ -1937,8 +1938,8 @@ function selectForeman(workerId) {
     const isSimmonet = worker && worker.lastName === 'Simmonet';
     const wasAlreadyActive = state.activeWorkers.find(w => w.id === workerId) !== undefined;
     
-    // Ajouter automatiquement le chef de chantier aux ouvriers actifs
-    if (state.foremanId) {
+    // Ajouter automatiquement le chef de chantier aux ouvriers actifs (sauf si mode complémentaire)
+    if (state.foremanId && !state.excludeForemanFromReport) {
         addWorkerToActive(state.foremanId);
     }
     
@@ -1961,14 +1962,57 @@ function selectForeman(workerId) {
 // Mettre à jour l'affichage du chef de chantier
 function updateForemanDisplay() {
     const display = document.getElementById('foremanDisplay');
+    const excludeOption = document.getElementById('excludeForemanOption');
+    
     if (state.foremanId) {
         const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
         if (foreman) {
             display.textContent = `${foreman.lastName} ${foreman.firstName}`;
         }
+        // Afficher l'option d'exclusion quand un chef est sélectionné
+        if (excludeOption) {
+            excludeOption.classList.remove('hidden');
+        }
     } else {
         display.textContent = '⚠️ Sélectionner un chef de chantier';
+        // Masquer l'option d'exclusion quand aucun chef n'est sélectionné
+        if (excludeOption) {
+            excludeOption.classList.add('hidden');
+        }
     }
+    
+    // Mettre à jour l'état de la checkbox
+    updateExcludeForemanCheckbox();
+}
+
+// Mettre à jour l'état de la checkbox d'exclusion du chef
+function updateExcludeForemanCheckbox() {
+    const checkbox = document.getElementById('excludeForemanCheckbox');
+    if (checkbox) {
+        checkbox.checked = state.excludeForemanFromReport;
+    }
+}
+
+// Basculer l'exclusion du chef de chantier du rapport
+function toggleExcludeForeman() {
+    const checkbox = document.getElementById('excludeForemanCheckbox');
+    state.excludeForemanFromReport = checkbox ? checkbox.checked : false;
+    
+    if (state.excludeForemanFromReport && state.foremanId) {
+        // Retirer le chef de chantier des ouvriers actifs
+        const foremanIndex = state.activeWorkers.findIndex(w => w.id === state.foremanId);
+        if (foremanIndex !== -1) {
+            state.activeWorkers.splice(foremanIndex, 1);
+        }
+    } else if (!state.excludeForemanFromReport && state.foremanId) {
+        // Ajouter le chef de chantier aux ouvriers actifs s'il n'y est pas
+        if (!state.activeWorkers.find(w => w.id === state.foremanId)) {
+            addWorkerToActive(state.foremanId);
+        }
+    }
+    
+    renderAll();
+    saveState();
 }
 
 // Gérer la soumission du formulaire de chef de chantier
@@ -3736,20 +3780,90 @@ function generatePrintSheet() {
     printSheet.innerHTML = html;
 }
 
+// Vérifier si le kilométrage est renseigné
+function isMileageEntered() {
+    const mileage = state.vehicleUsage && state.vehicleUsage.totalMileage;
+    return mileage && mileage !== '' && parseFloat(mileage) > 0;
+}
+
+// Afficher la modal d'avertissement kilométrage
+function showMileageWarningModal() {
+    const modal = document.getElementById('mileageWarningModal');
+    const input = document.getElementById('mileageModalInput');
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+        lucide.createIcons();
+    }
+}
+
+// Masquer la modal d'avertissement kilométrage
+function hideMileageWarningModal() {
+    const modal = document.getElementById('mileageWarningModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Enregistrer le kilométrage depuis la modal et continuer
+function saveMileageAndContinue() {
+    const input = document.getElementById('mileageModalInput');
+    if (input && input.value) {
+        const value = parseFloat(input.value);
+        if (!isNaN(value) && value >= 0) {
+            // Enregistrer le kilométrage
+            if (!state.vehicleUsage || typeof state.vehicleUsage !== 'object') {
+                state.vehicleUsage = createEmptyVehicleUsage();
+            }
+            state.vehicleUsage.totalMileage = value.toString();
+            saveState();
+            
+            // Mettre à jour l'affichage si le champ existe dans l'interface
+            renderDriverSelection();
+        }
+    }
+    
+    hideMileageWarningModal();
+    // Continuer vers la modal de confirmation
+    proceedToConfirmSendModal();
+}
+
+// Ignorer le kilométrage et continuer
+function skipMileageAndContinue() {
+    hideMileageWarningModal();
+    // Continuer vers la modal de confirmation
+    proceedToConfirmSendModal();
+}
+
 // Afficher la modal de confirmation avant l'envoi
 function showConfirmSendModal() {
     // Vérifier qu'un chef de chantier est sélectionné
     if (!state.foremanId) {
-        alert('⚠️ Veuillez sélectionner un chef de chantier avant d\'envoyer le rapport.');
+        alert(' Veuillez sélectionner un chef de chantier avant d\'envoyer le rapport.');
         return;
     }
 
     // Vérifier qu'il y a au moins un ouvrier
     if (state.activeWorkers.length === 0) {
-        alert('⚠️ Veuillez ajouter au moins un ouvrier avant d\'envoyer le rapport.');
+        alert(' Veuillez ajouter au moins un ouvrier avant d\'envoyer le rapport.');
         return;
     }
 
+    // Vérifier si le kilométrage est renseigné
+    if (!isMileageEntered()) {
+        showMileageWarningModal();
+        return;
+    }
+
+    // Continuer vers la modal de confirmation
+    proceedToConfirmSendModal();
+}
+
+// Procéder à l'affichage de la modal de confirmation (après vérification du kilométrage)
+function proceedToConfirmSendModal() {
     // Remplir les informations du récapitulatif
     const weekDisplay = document.getElementById('weekDisplay').textContent;
     document.getElementById('confirmWeekDisplay').textContent = weekDisplay;
@@ -3956,10 +4070,23 @@ async function sendReportByEmail(event) {
         // Préparer les données des ouvriers pour PDFKit
         const reportData = {
             workers: state.activeWorkers.map(worker => {
-                const workerData = state.data[worker.id];
+                // S'assurer que workerData existe avec des valeurs par défaut
+                const workerData = state.data[worker.id] || {
+                    sites: [],
+                    observation: '',
+                    isInterim: false,
+                    panierMode: 'panier',
+                    panierCustom: createEmptyPanierCustom(),
+                    dayMentions: createEmptyDayMentions()
+                };
+
+                // S'assurer que les propriétés existent
+                if (!workerData.sites) workerData.sites = [];
+                if (!workerData.dayMentions) workerData.dayMentions = createEmptyDayMentions();
+                if (!workerData.panierCustom) workerData.panierCustom = createEmptyPanierCustom();
 
                 // S'assurer que les mentions de jour existent
-                const dayMentions = workerData.dayMentions || createEmptyDayMentions();
+                const dayMentions = workerData.dayMentions;
                 
                 // Préparer les informations de conducteur pour chaque jour (compatible ancien/nouveau format avec conducteurs multiples)
                 const drivers = {
@@ -3970,28 +4097,27 @@ async function sendReportByEmail(event) {
                     friday: Array.isArray(state.drivers.friday) ? state.drivers.friday.includes(worker.id) : state.drivers.friday === worker.id
                 };
                 
-                console.log(`[CLIENT DEBUG] Worker: ${worker.lastName} ${worker.firstName}`);
-                console.log(`[CLIENT DEBUG] state.drivers:`, state.drivers);
-                console.log(`[CLIENT DEBUG] worker.id:`, worker.id);
-                console.log(`[CLIENT DEBUG] drivers:`, drivers);
-                
                 return {
                     name: `${worker.lastName} ${worker.firstName}`,
-                    sites: workerData.sites.map(site => ({
-                        name: site.siteName || '',
-                        hours: {
-                            monday: site.hours.monday || 0,
-                            tuesday: site.hours.tuesday || 0,
-                            wednesday: site.hours.wednesday || 0,
-                            thursday: site.hours.thursday || 0,
-                            friday: site.hours.friday || 0
-                        }
-                    })),
+                    sites: workerData.sites.map(site => {
+                        // S'assurer que site.hours existe
+                        const hours = site.hours || {};
+                        return {
+                            name: site.siteName || '',
+                            hours: {
+                                monday: hours.monday || 0,
+                                tuesday: hours.tuesday || 0,
+                                wednesday: hours.wednesday || 0,
+                                thursday: hours.thursday || 0,
+                                friday: hours.friday || 0
+                            }
+                        };
+                    }),
                     observation: getWorkerObservationWithMileage(worker),
                     drivers: drivers,
                     panierMode: workerData.panierMode || 'panier',
                     panierCustom: workerData.panierCustom || {},
-                    isInterim: workerData.isInterim !== false,
+                    isInterim: workerData.isInterim === true,
                     dayMentions: dayMentions
                 };
             })
