@@ -1962,41 +1962,58 @@ function selectForeman(workerId) {
 // Mettre à jour l'affichage du chef de chantier
 function updateForemanDisplay() {
     const display = document.getElementById('foremanDisplay');
-    const excludeOption = document.getElementById('excludeForemanOption');
+    const complementaireBtn = document.getElementById('complementaireBtn');
     
     if (state.foremanId) {
         const foreman = state.availableWorkers.find(w => w.id === state.foremanId);
         if (foreman) {
             display.textContent = `${foreman.lastName} ${foreman.firstName}`;
         }
-        // Afficher l'option d'exclusion quand un chef est sélectionné
-        if (excludeOption) {
-            excludeOption.classList.remove('hidden');
+        // Afficher le bouton mode complémentaire quand un chef est sélectionné
+        if (complementaireBtn) {
+            complementaireBtn.classList.remove('hidden');
+            complementaireBtn.classList.add('flex');
         }
     } else {
         display.textContent = '⚠️ Sélectionner un chef de chantier';
-        // Masquer l'option d'exclusion quand aucun chef n'est sélectionné
-        if (excludeOption) {
-            excludeOption.classList.add('hidden');
+        // Masquer le bouton mode complémentaire quand aucun chef n'est sélectionné
+        if (complementaireBtn) {
+            complementaireBtn.classList.add('hidden');
+            complementaireBtn.classList.remove('flex');
         }
     }
     
-    // Mettre à jour l'état de la checkbox
-    updateExcludeForemanCheckbox();
+    // Mettre à jour l'état du bouton mode complémentaire
+    updateComplementaireButton();
 }
 
-// Mettre à jour l'état de la checkbox d'exclusion du chef
-function updateExcludeForemanCheckbox() {
-    const checkbox = document.getElementById('excludeForemanCheckbox');
-    if (checkbox) {
-        checkbox.checked = state.excludeForemanFromReport;
+// Mettre à jour l'affichage du bouton mode complémentaire
+function updateComplementaireButton() {
+    const btn = document.getElementById('complementaireBtn');
+    const icon = document.getElementById('complementaireIcon');
+    
+    if (!btn) return;
+    
+    if (state.excludeForemanFromReport) {
+        // Mode complémentaire activé
+        btn.classList.remove('bg-gray-200', 'text-gray-700');
+        btn.classList.add('bg-blue-600', 'text-white');
+        if (icon) icon.setAttribute('data-lucide', 'check');
+    } else {
+        // Mode complémentaire désactivé
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('bg-gray-200', 'text-gray-700');
+        if (icon) icon.setAttribute('data-lucide', 'x');
     }
+    
+    // Recréer les icônes
+    setTimeout(() => lucide.createIcons(), 0);
 }
 
 // Basculer l'exclusion du chef de chantier du rapport
 function toggleExcludeForeman() {
-    const checkbox = document.getElementById('excludeForemanCheckbox');
-    state.excludeForemanFromReport = checkbox ? checkbox.checked : false;
+    // Inverser l'état
+    state.excludeForemanFromReport = !state.excludeForemanFromReport;
     
     if (state.excludeForemanFromReport && state.foremanId) {
         // Retirer le chef de chantier des ouvriers actifs
@@ -2011,6 +2028,7 @@ function toggleExcludeForeman() {
         }
     }
     
+    updateComplementaireButton();
     renderAll();
     saveState();
 }
